@@ -52,6 +52,13 @@ impl<'a> Packet<'a> {
         }
     }
 
+    pub fn tos(&self) -> u8 {
+        match *self {
+            Packet::IPv4(ref p) => p.get_dscp() << 2 | p.get_ecn(),
+            Packet::IPv6(ref p) => p.get_traffic_class(),
+        }
+    }
+
     fn next<'n>(&self, next: IpNextHeaderProtocol, payload: &'n [u8]) -> Option<Transport<'n>> {
         match next {
             IpNextHeaderProtocols::Icmp => IcmpPacket::new(payload).map(Transport::ICMP),

@@ -1,5 +1,6 @@
 use std::time::SystemTime;
 use pnet::datalink::EthernetDataLinkChannelIterator;
+use pnet::datalink::NetworkInterface;
 use pnet::packet::{Packet as PacketExt};
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
@@ -9,18 +10,20 @@ use packet::Transport::*;
 use protocol::{Message, parse_frontend, parse_backend};
 use nom::IResult::*;
 use flow::*;
-use queue::FlowQueue;
+use queue::{FlowQueue, Direction};
 
 pub struct Kprobe {
-    ports: Option<Vec<u16>>,
-    queue: FlowQueue,
+    interface: NetworkInterface,
+    ports:     Option<Vec<u16>>,
+    queue:     FlowQueue,
 }
 
 impl Kprobe {
-    pub fn new(ports: Option<Vec<u16>>) -> Kprobe {
+    pub fn new(interface: NetworkInterface, ports: Option<Vec<u16>>) -> Kprobe {
         Kprobe {
-            ports: ports,
-            queue: FlowQueue::new(),
+            interface: interface,
+            ports:     ports,
+            queue:     FlowQueue::new(),
         }
     }
 
@@ -33,13 +36,19 @@ impl Kprobe {
                     dst: packet.get_destination(),
                 };
 
+                let dir = match self.interface.mac {
+                    Some(mac) if mac == eth.dst => Direction::In,
+                    Some(mac) if mac == eth.src => Direction::Out,
+                    _                           => Direction::Unknown,
+                };
+
                 // FIXME: ARP, RARP, VLAN, etc not handled
                 match pkt.transport() {
                     Some(TCP(ref tcp))   => self.tcp(ts, eth, &pkt, tcp),
                     Some(UDP(ref udp))   => self.udp(ts, eth, &pkt, udp),
                     Some(ICMP(ref icmp)) => self.icmp(ts, eth, &pkt, icmp),
                     _                    => None,
-                }.map(|flow| self.queue.add(flow));
+                }.map(|flow| self.queue.add(dir, flow, packet.payload().len()));
                 self.queue.flush();
             }
         }
@@ -64,8 +73,8 @@ impl Kprobe {
             ethernet:  eth,
             src:       Addr{addr: p.src(), port: tcp.get_source()},
             dst:       Addr{addr: p.dst(), port: tcp.get_destination()},
+            tos:       p.tos(),
             transport: Transport::TCP{ flags: tcp.get_flags() },
-            bytes:     tcp.payload().len(),
             payload:   payload,
         })
     }
@@ -81,21 +90,21 @@ impl Kprobe {
             ethernet:  eth,
             src:       Addr{addr: p.src(), port: udp.get_source()},
             dst:       Addr{addr: p.dst(), port: udp.get_destination()},
+            tos:       p.tos(),
             transport: Transport::UDP,
-            bytes:     udp.payload().len(),
             payload:   None,
         })
     }
 
-    fn icmp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, icmp: &IcmpPacket) -> Option<Flow> {
+    fn icmp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, _icmp: &IcmpPacket) -> Option<Flow> {
         Some(Flow{
             timestamp: ts,
             protocol:  Protocol::ICMP,
             ethernet:  eth,
             src:       Addr{addr: p.src(), port: 0},
             dst:       Addr{addr: p.dst(), port: 0},
+            tos:       p.tos(),
             transport: Transport::ICMP,
-            bytes:     icmp.payload().len(),
             payload:   None,
         })
     }

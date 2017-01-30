@@ -1,8 +1,12 @@
+#![feature(untagged_unions)]
+
 #[macro_use]
 extern crate clap;
 extern crate pnet;
 #[macro_use]
 extern crate nom;
+extern crate libc;
+extern crate chrono;
 
 mod args;
 mod kprobe;
@@ -10,6 +14,7 @@ mod packet;
 mod flow;
 mod protocol;
 mod queue;
+mod libkflow;
 
 use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
@@ -18,6 +23,23 @@ use kprobe::Kprobe;
 
 fn main() {
     let args = args::parse();
+
+    let version = libkflow::version();
+    println!("libkflow-{}", version);
+
+    let mut cfg = libkflow::Config::new();
+    cfg.url = args.arg("flow_url").unwrap_or(cfg.url);
+    cfg.device_id = args.arg("device_id").unwrap_or(cfg.device_id);
+    cfg.api.email = args.arg("email").unwrap_or(cfg.api.email);
+    cfg.api.token = args.arg("token").unwrap_or(cfg.api.token);
+    cfg.api.url = args.arg("api_url").unwrap_or(cfg.api.url);
+
+    if let Err(e) = libkflow::configure(&cfg) {
+        println!("failed to configure libkflow: {:?}", e);
+        while let Some(msg) = libkflow::error() {
+            println!("  {}", msg);
+        }
+    }
 
     let interface: NetworkInterface = args.arg("interface").unwrap_or_else(|err| {
         println!("{}", err);
@@ -33,6 +55,6 @@ fn main() {
         Err(e)               => panic!("error opening channel: {}", e),
     };
 
-    let mut kprobe = Kprobe::new(ports);
+    let mut kprobe = Kprobe::new(interface, ports);
     kprobe.run(rx.iter());
 }

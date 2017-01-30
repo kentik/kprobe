@@ -1,12 +1,18 @@
 use clap::{ArgMatches, Values};
 use pnet::datalink::{self, NetworkInterface};
+use std::borrow::Cow;
 use std::fmt;
 
 pub fn parse<'a>() -> Args<'a> {
     let matches = clap_app!(kprobe =>
       (version: env!("CARGO_PKG_VERSION"))
-      (@arg interface: -i --interface +takes_value +required "Network interface")
-      (@arg port:      -p --port      +takes_value +multiple "Ports to filter")
+      (@arg interface: -i --interface     +takes_value +required "Network interface")
+      (@arg port:      -p --port          +takes_value +multiple "Ports to filter")
+      (@arg email:        --email         +takes_value           "API user email")
+      (@arg token:        --("token")     +takes_value           "API access token")
+      (@arg device_id:    --("device-id") +takes_value           "Device ID")
+      (@arg api_url:      --("api-url")   +takes_value           "HTTP API URL")
+      (@arg flow_url:     --("flow-url")  +takes_value           "Flow endpoint URL")
     ).get_matches();
     Args{matches: matches}
 }
@@ -68,6 +74,12 @@ impl FromArg for u16 {
         value.parse().map_err(|_| {
             Error::Invalid(format!("'{}' is not a number", value))
         })
+    }
+}
+
+impl<'a> FromArg for Cow<'a, str> {
+    fn from_arg(value: &str) -> Result<Self, Error> {
+        Ok(Cow::from(value.to_owned()))
     }
 }
 

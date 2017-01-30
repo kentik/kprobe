@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
 use std::time::{SystemTime, Duration};
 use flow::*;
+use libkflow;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Key(pub Protocol, pub Addr, pub Addr);
@@ -9,9 +10,16 @@ pub struct Key(pub Protocol, pub Addr, pub Addr);
 #[derive(Debug)]
 pub struct Counter {
     pub ethernet:  Ethernet,
+    pub direction: Direction,
+    pub tos:       u8,
     pub tcp_flags: u16,
     pub packets:   u64,
     pub bytes:     u64,
+}
+
+#[derive(Debug)]
+pub enum Direction {
+    In, Out, Unknown
 }
 
 pub struct FlowQueue {
@@ -31,19 +39,22 @@ impl FlowQueue {
         }
     }
 
-    pub fn add(&mut self, mut flow: Flow) {
+    pub fn add(&mut self, dir: Direction, mut flow: Flow, bytes: usize) {
         let key = Key(flow.protocol, flow.src, flow.dst);
         let ctr = self.flows.entry(key).or_insert_with(|| {
             Counter {
                 ethernet:  flow.ethernet,
+                direction: dir,
+                tos:       0,
                 tcp_flags: 0,
                 packets:   0,
                 bytes:     0,
             }
         });
 
+        ctr.tos     |= flow.tos;
         ctr.packets += 1;
-        ctr.bytes   += flow.bytes as u64;
+        ctr.bytes   += bytes as u64;
 
         if let Transport::TCP { flags } = flow.transport {
             ctr.tcp_flags |= flags;
@@ -79,7 +90,7 @@ impl FlowQueue {
 
     pub fn flush(&mut self) {
         if let Ok(time) = self.flushed.elapsed() {
-            if time.as_secs() < 2 {
+            if time.as_secs() < 10 {
                 return;
             }
         }
@@ -98,6 +109,8 @@ impl FlowQueue {
                     println!("  SQL time:  {}.{}s", s, ms);
                 }
             }
+
+            libkflow::send(key, ctr).expect("failed to send flow");
         }
 
         self.flows.clear();

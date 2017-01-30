@@ -9,8 +9,8 @@ pub struct Flow {
     pub protocol:  Protocol,
     pub src:       Addr,
     pub dst:       Addr,
+    pub tos:       u8,
     pub transport: Transport,
-    pub bytes:     usize,
     pub payload:   Option<Vec<Payload>>,
 }
 
