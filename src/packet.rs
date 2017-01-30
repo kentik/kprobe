@@ -5,6 +5,7 @@ use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::ipv6::Ipv6Packet;
 use pnet::packet::ip::{IpNextHeaderProtocol, IpNextHeaderProtocols};
+use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
 
@@ -16,14 +17,15 @@ pub enum Packet<'a> {
 
 #[derive(Debug)]
 pub enum Transport<'a> {
+    ICMP(IcmpPacket<'a>),
     TCP(TcpPacket<'a>),
     UDP(UdpPacket<'a>),
 }
 
 pub fn decode<'a>(p: &'a EthernetPacket<'a>) -> Option<Packet<'a>> {
     match p.get_ethertype() {
-        EtherTypes::Ipv4 => Ipv4Packet::new(p.payload()).map(|p| Packet::IPv4(p)),
-        EtherTypes::Ipv6 => Ipv6Packet::new(p.payload()).map(|p| Packet::IPv6(p)),
+        EtherTypes::Ipv4 => Ipv4Packet::new(p.payload()).map(Packet::IPv4),
+        EtherTypes::Ipv6 => Ipv6Packet::new(p.payload()).map(Packet::IPv6),
         _                => None,
     }
 }
@@ -52,9 +54,10 @@ impl<'a> Packet<'a> {
 
     fn next<'n>(&self, next: IpNextHeaderProtocol, payload: &'n [u8]) -> Option<Transport<'n>> {
         match next {
-            IpNextHeaderProtocols::Tcp => TcpPacket::new(payload).map(|t| Transport::TCP(t)),
-            IpNextHeaderProtocols::Udp => UdpPacket::new(payload).map(|t| Transport::UDP(t)),
-            _                          => None,
+            IpNextHeaderProtocols::Icmp => IcmpPacket::new(payload).map(Transport::ICMP),
+            IpNextHeaderProtocols::Tcp  => TcpPacket::new(payload).map(Transport::TCP),
+            IpNextHeaderProtocols::Udp  => UdpPacket::new(payload).map(Transport::UDP),
+            _                           => None,
         }
     }
 }

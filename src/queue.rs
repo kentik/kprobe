@@ -1,11 +1,21 @@
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::collections::vec_deque::VecDeque;
 use std::time::{SystemTime, Duration};
 use flow::*;
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Key(pub Protocol, pub Addr, pub Addr);
+
+#[derive(Debug)]
+pub struct Counter {
+    pub ethernet:  Ethernet,
+    pub tcp_flags: u16,
+    pub packets:   u64,
+    pub bytes:     u64,
+}
+
 pub struct FlowQueue {
-    flows:     HashMap<(Protocol, Addr), Flow>,
+    flows:     HashMap<Key, Counter>,
     pending:   HashMap<Addr, VecDeque<PendingQuery>>,
     completed: HashMap<Addr, Vec<CompletedQuery>>,
     flushed:   SystemTime,
@@ -22,27 +32,30 @@ impl FlowQueue {
     }
 
     pub fn add(&mut self, mut flow: Flow) {
-        let payload = flow.payload.take();
+        let key = Key(flow.protocol, flow.src, flow.dst);
+        let ctr = self.flows.entry(key).or_insert_with(|| {
+            Counter {
+                ethernet:  flow.ethernet,
+                tcp_flags: 0,
+                packets:   0,
+                bytes:     0,
+            }
+        });
 
-        let key = (flow.protocol, flow.src);
-        let flow = match self.flows.entry(key) {
-            Entry::Occupied(entry) => {
-                let existing = entry.into_mut();
-                existing.timestamp = flow.timestamp;
-                existing.packets  += 1;
-                existing.bytes    += flow.bytes;
-                existing
-            },
-            Entry::Vacant(entry) => entry.insert(flow),
-        };
+        ctr.packets += 1;
+        ctr.bytes   += flow.bytes as u64;
+
+        if let Transport::TCP { flags } = flow.transport {
+            ctr.tcp_flags |= flags;
+        }
 
         let pending = &mut self.pending;
         let completed = &mut self.completed;
 
-        payload.map(|ps| {
+        flow.payload.take().map(|ps| {
             for p in ps {
                 if let Payload::Postgres(Postgres::Query(ref query)) = p {
-                    let vec = pending.entry(flow.src).or_insert_with(|| VecDeque::new());
+                    let vec = pending.entry(flow.src).or_insert_with(VecDeque::new);
                     vec.push_back(PendingQuery{
                         query: query.clone(),
                         start: flow.timestamp,
@@ -52,7 +65,7 @@ impl FlowQueue {
                 if let Payload::Postgres(Postgres::QueryComplete) = p {
                     if let Some(pq) = pending.get_mut(&flow.dst).and_then(|p| p.pop_front()) {
                         if let Ok(time) = flow.timestamp.duration_since(pq.start) {
-                            let vec = completed.entry(flow.src).or_insert_with(|| Vec::new());
+                            let vec = completed.entry(flow.src).or_insert_with(Vec::new);
                             vec.push(CompletedQuery{
                                 query:    pq.query,
                                 duration: time,
@@ -71,13 +84,13 @@ impl FlowQueue {
             }
         }
 
-        for (_, flow) in &self.flows {
-            let src = format!("{}:{}", flow.src.addr, flow.src.port);
-            let dst = format!("{}:{}", flow.dst.addr, flow.dst.port);
+        for (key, ctr) in &self.flows {
+            let src = format!("{}:{}", key.1.addr, key.1.port);
+            let dst = format!("{}:{}", key.2.addr, key.2.port);
 
-            println!("{:?} {}->{} PACKETS {} BYTES {}", flow.protocol, src, dst, flow.packets, flow.bytes);
+            println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
 
-            if let Some(queries) = self.completed.remove(&flow.src) {
+            if let Some(queries) = self.completed.remove(&key.1) {
                 for completed in queries {
                     let s = completed.duration.as_secs();
                     let ms = completed.duration.subsec_nanos() / 1_000_000;

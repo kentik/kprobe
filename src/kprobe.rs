@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 use pnet::datalink::EthernetDataLinkChannelIterator;
 use pnet::packet::{Packet as PacketExt};
+use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
 use packet::{self, Packet};
@@ -27,18 +28,24 @@ impl Kprobe {
         while let Ok(packet) = iter.next() {
             let ts = SystemTime::now();
             if let Some(pkt) = packet::decode(&packet) {
+                let eth = Ethernet {
+                    src: packet.get_source(),
+                    dst: packet.get_destination(),
+                };
+
                 // FIXME: ARP, RARP, VLAN, etc not handled
                 match pkt.transport() {
-                    Some(TCP(ref tcp)) => self.tcp(ts, &pkt, tcp),
-                    Some(UDP(ref udp)) => self.udp(ts, &pkt, udp),
-                    _                  => None,
+                    Some(TCP(ref tcp))   => self.tcp(ts, eth, &pkt, tcp),
+                    Some(UDP(ref udp))   => self.udp(ts, eth, &pkt, udp),
+                    Some(ICMP(ref icmp)) => self.icmp(ts, eth, &pkt, icmp),
+                    _                    => None,
                 }.map(|flow| self.queue.add(flow));
                 self.queue.flush();
             }
         }
     }
 
-    fn tcp(&mut self, ts: SystemTime, p: &Packet, tcp: &TcpPacket) -> Option<Flow> {
+    fn tcp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, tcp: &TcpPacket) -> Option<Flow> {
         if !self.want(tcp.get_source(), tcp.get_destination()) {
             return None;
         }
@@ -46,21 +53,24 @@ impl Kprobe {
         let payload = match (tcp.get_source(), tcp.get_destination()) {
             (_, 5432) => self.postgres_fe(tcp),
             (5432, _) => self.postgres_be(tcp),
+            (_, 5433) => self.postgres_fe(tcp),
+            (5433, _) => self.postgres_be(tcp),
             _         => None,
         };
 
         Some(Flow{
             timestamp: ts,
             protocol:  Protocol::TCP,
+            ethernet:  eth,
             src:       Addr{addr: p.src(), port: tcp.get_source()},
             dst:       Addr{addr: p.dst(), port: tcp.get_destination()},
-            packets:   1,
+            transport: Transport::TCP{ flags: tcp.get_flags() },
             bytes:     tcp.payload().len(),
             payload:   payload,
         })
     }
 
-    fn udp(&mut self, ts: SystemTime, p: &Packet, udp: &UdpPacket) -> Option<Flow> {
+    fn udp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, udp: &UdpPacket) -> Option<Flow> {
         if !self.want(udp.get_source(), udp.get_destination()) {
             return None;
         }
@@ -68,10 +78,24 @@ impl Kprobe {
         Some(Flow{
             timestamp: ts,
             protocol:  Protocol::UDP,
+            ethernet:  eth,
             src:       Addr{addr: p.src(), port: udp.get_source()},
             dst:       Addr{addr: p.dst(), port: udp.get_destination()},
-            packets:   1,
+            transport: Transport::UDP,
             bytes:     udp.payload().len(),
+            payload:   None,
+        })
+    }
+
+    fn icmp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, icmp: &IcmpPacket) -> Option<Flow> {
+        Some(Flow{
+            timestamp: ts,
+            protocol:  Protocol::ICMP,
+            ethernet:  eth,
+            src:       Addr{addr: p.src(), port: 0},
+            dst:       Addr{addr: p.dst(), port: 0},
+            transport: Transport::ICMP,
+            bytes:     icmp.payload().len(),
             payload:   None,
         })
     }
