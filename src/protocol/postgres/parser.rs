@@ -34,8 +34,8 @@ pub enum Message<'a> {
     ReadyForQuery(u8),
 
     Bind {
-        portal_name:    &'a str,
-        statement_name: &'a str,
+        portal:         &'a str,
+        statement:      &'a str,
         param_formats:  Vec<u16>,
         param_values:   Vec<Option<&'a [u8]>>,
     },
@@ -43,8 +43,8 @@ pub enum Message<'a> {
     BindComplete,
 
     Execute {
-        portal_name:    &'a str,
-        max_rows:       u32,
+        portal:   &'a str,
+        max_rows: u32,
     },
 
     DataRow {
@@ -254,14 +254,14 @@ named!(bind<&[u8],Message>,
        do_parse!(
               tag!("B")
            >> len:            be_i32
-           >> portal_name:    c_string
-           >> statement_name: c_string
+           >> portal:         c_string
+           >> statement:      c_string
            >> param_formats:  length_count!(be_i16, be_u16)
            >> param_values:   length_count!(be_i16, value)
            >> result_formats: length_count!(be_i16, be_u16)
            >> (Message::Bind {
-               portal_name:    portal_name,
-               statement_name: statement_name,
+               portal:         portal,
+               statement:      statement,
                param_formats:  param_formats,
                param_values:   param_values,
            })
@@ -301,10 +301,10 @@ named!(execute<&[u8],Message>,
        do_parse!(
               tag!("E")
            >> len:         be_i32
-           >> portal_name: c_string
+           >> portal:      c_string
            >> max_rows:    be_i32
            >> (Message::Execute {
-               portal_name: portal_name,
+               portal:   portal,
                max_rows: max_rows as u32,
            })
        )

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::collections::vec_deque::VecDeque;
 use std::time::{SystemTime, Duration};
 use flow::*;
 use libkflow;
+use protocol::postgres;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Key(pub Protocol, pub Addr, pub Addr);
@@ -23,24 +23,23 @@ pub enum Direction {
 }
 
 pub struct FlowQueue {
-    flows:     HashMap<Key, Counter>,
-    pending:   HashMap<Addr, VecDeque<PendingQuery>>,
-    completed: HashMap<Addr, Vec<CompletedQuery>>,
-    flushed:   SystemTime,
+    flows:    HashMap<Key, Counter>,
+    postgres: HashMap<Addr, postgres::Connection>,
+    flushed:  SystemTime,
 }
 
 impl FlowQueue {
     pub fn new() -> FlowQueue {
         FlowQueue {
             flows:     HashMap::new(),
-            pending:   HashMap::new(),
-            completed: HashMap::new(),
+            postgres:  HashMap::new(),
             flushed:   SystemTime::now(),
         }
     }
 
-    pub fn add(&mut self, dir: Direction, mut flow: Flow, bytes: usize) {
+    pub fn add(&mut self, dir: Direction, flow: Flow) {
         let key = Key(flow.protocol, flow.src, flow.dst);
+        {
         let ctr = self.flows.entry(key).or_insert_with(|| {
             Counter {
                 ethernet:  flow.ethernet,
@@ -54,68 +53,61 @@ impl FlowQueue {
 
         ctr.tos     |= flow.tos;
         ctr.packets += 1;
-        ctr.bytes   += bytes as u64;
+        ctr.bytes   += flow.payload.len() as u64;
 
         if let Transport::TCP { flags } = flow.transport {
             ctr.tcp_flags |= flags;
         }
+        }
 
-        let pending = &mut self.pending;
-        let completed = &mut self.completed;
-
-        flow.payload.take().map(|ps| {
-            for p in ps {
-                if let Payload::Postgres(Postgres::Query(ref query)) = p {
-                    let vec = pending.entry(flow.src).or_insert_with(VecDeque::new);
-                    vec.push_back(PendingQuery{
-                        query: query.clone(),
-                        start: flow.timestamp,
-                    });
-                }
-
-                if let Payload::Postgres(Postgres::QueryComplete) = p {
-                    if let Some(pq) = pending.get_mut(&flow.dst).and_then(|p| p.pop_front()) {
-                        if let Ok(time) = flow.timestamp.duration_since(pq.start) {
-                            let vec = completed.entry(flow.src).or_insert_with(Vec::new);
-                            vec.push(CompletedQuery{
-                                query:    pq.query,
-                                duration: time,
-                            })
-                        }
-                    }
-                }
-            }
-        });
+        match (flow.src.port, flow.dst.port) {
+            (_, 5432) => self.postgres_fe(flow.src, flow.payload),
+            (5432, _) => self.postgres_be(flow.dst, flow.payload),
+            (_, 5433) => self.postgres_fe(flow.src, flow.payload),
+            (5433, _) => self.postgres_be(flow.dst, flow.payload),
+            _         => (),
+        };
     }
 
     pub fn flush(&mut self) {
         if let Ok(time) = self.flushed.elapsed() {
-            if time.as_secs() < 10 {
+            if time.as_secs() < 15 {
                 return;
             }
         }
 
         for (key, ctr) in &self.flows {
-            let src = format!("{}:{}", key.1.addr, key.1.port);
-            let dst = format!("{}:{}", key.2.addr, key.2.port);
+            // let src = format!("{}:{}", key.1.addr, key.1.port);
+            // let dst = format!("{}:{}", key.2.addr, key.2.port);
 
-            println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
+            // println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
 
-            if let Some(queries) = self.completed.remove(&key.1) {
-                for completed in queries {
-                    let s = completed.duration.as_secs();
-                    let ms = completed.duration.subsec_nanos() / 1_000_000;
-                    println!("  SQL query: {}", completed.query);
-                    println!("  SQL time:  {}.{}s", s, ms);
-                }
-            }
+            // if let Some(queries) = self.completed.remove(&key.1) {
+            //     for completed in queries {
+            //         let s = completed.duration.as_secs();
+            //         let ms = completed.duration.subsec_nanos() / 1_000_000;
+            //         println!("  SQL query: {}", completed.query);
+            //         println!("  SQL time:  {}.{}s", s, ms);
+            //     }
+            // }
 
             libkflow::send(key, ctr).expect("failed to send flow");
         }
 
         self.flows.clear();
-        self.completed.clear();
         self.flushed = SystemTime::now();
+    }
+
+    fn postgres_fe(&mut self, addr: Addr, p: &[u8]) {
+        let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
+        conn.frontend_msg(p);
+        println!("connection {:?}: {:#?}", addr, conn);
+    }
+
+    fn postgres_be(&mut self, addr: Addr, p: &[u8]) {
+        let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
+        conn.backend_msg(p);
+        println!("connection {:?}: {:#?}", addr, conn);
     }
 }
 

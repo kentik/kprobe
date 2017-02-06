@@ -7,8 +7,6 @@ use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
 use packet::{self, Packet};
 use packet::Transport::*;
-use protocol::{Message, parse_frontend, parse_backend};
-use nom::IResult::*;
 use flow::*;
 use queue::{FlowQueue, Direction};
 
@@ -48,24 +46,16 @@ impl Kprobe {
                     Some(UDP(ref udp))   => self.udp(ts, eth, &pkt, udp),
                     Some(ICMP(ref icmp)) => self.icmp(ts, eth, &pkt, icmp),
                     _                    => None,
-                }.map(|flow| self.queue.add(dir, flow, packet.payload().len()));
+                }.map(|flow| self.queue.add(dir, flow));
                 self.queue.flush();
             }
         }
     }
 
-    fn tcp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, tcp: &TcpPacket) -> Option<Flow> {
+    fn tcp<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Option<Flow<'a>> {
         if !self.want(tcp.get_source(), tcp.get_destination()) {
             return None;
         }
-
-        let payload = match (tcp.get_source(), tcp.get_destination()) {
-            (_, 5432) => self.postgres_fe(tcp),
-            (5432, _) => self.postgres_be(tcp),
-            (_, 5433) => self.postgres_fe(tcp),
-            (5433, _) => self.postgres_be(tcp),
-            _         => None,
-        };
 
         Some(Flow{
             timestamp: ts,
@@ -75,11 +65,11 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: tcp.get_destination()},
             tos:       p.tos(),
             transport: Transport::TCP{ flags: tcp.get_flags() },
-            payload:   payload,
+            payload:   tcp.payload(),
         })
     }
 
-    fn udp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, udp: &UdpPacket) -> Option<Flow> {
+    fn udp<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, udp: &'a UdpPacket) -> Option<Flow<'a>> {
         if !self.want(udp.get_source(), udp.get_destination()) {
             return None;
         }
@@ -92,11 +82,11 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: udp.get_destination()},
             tos:       p.tos(),
             transport: Transport::UDP,
-            payload:   None,
+            payload:   udp.payload(),
         })
     }
 
-    fn icmp(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, _icmp: &IcmpPacket) -> Option<Flow> {
+    fn icmp<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Option<Flow<'a>> {
         Some(Flow{
             timestamp: ts,
             protocol:  Protocol::ICMP,
@@ -105,7 +95,7 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: 0},
             tos:       p.tos(),
             transport: Transport::ICMP,
-            payload:   None,
+            payload:   icmp.payload(),
         })
     }
 
@@ -119,39 +109,4 @@ impl Kprobe {
         })
     }
 
-    fn postgres_fe(&mut self, p: &TcpPacket) -> Option<Vec<Payload>> {
-        if let Done(_, msgs) = parse_frontend(p.payload()) {
-            let mut vec = Vec::new();
-            for msg in msgs {
-                let maybe_query = match msg {
-                    Message::Query(query)     => Some(query),
-                    Message::Parse{query, ..} => Some(query),
-                    _                         => None,
-                };
-
-                if let Some(q) = maybe_query {
-                    vec.push(Payload::Postgres(Postgres::Query(q.to_owned())))
-                }
-            }
-            return Some(vec)
-        }
-        None
-    }
-
-    fn postgres_be(&mut self, p: &TcpPacket) -> Option<Vec<Payload>> {
-        if let Done(_, msgs) = parse_backend(p.payload()) {
-            let mut vec = Vec::new();
-            for msg in msgs {
-                match msg {
-                    Message::EmptyQueryResponse | Message::CommandComplete(..) |
-                    Message::CloseComplete | Message::Error(..) => {
-                        vec.push(Payload::Postgres(Postgres::QueryComplete));
-                    }
-                    _ => ()
-                }
-            }
-            return Some(vec)
-        }
-        None
-    }
 }

@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use pnet::util::MacAddr;
 
 #[derive(Debug)]
-pub struct Flow {
+pub struct Flow<'a> {
     pub timestamp: SystemTime,
     pub ethernet:  Ethernet,
     pub protocol:  Protocol,
@@ -11,7 +11,7 @@ pub struct Flow {
     pub dst:       Addr,
     pub tos:       u8,
     pub transport: Transport,
-    pub payload:   Option<Vec<Payload>>,
+    pub payload:   &'a [u8]
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -38,15 +38,4 @@ pub enum Transport {
     ICMP,
     TCP  { flags: u16 },
     UDP,
-}
-
-#[derive(Debug)]
-pub enum Payload {
-    Postgres(Postgres),
-}
-
-#[derive(Debug)]
-pub enum Postgres {
-    Query(String),
-    QueryComplete,
 }

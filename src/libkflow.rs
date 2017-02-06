@@ -9,7 +9,7 @@ use pnet::util::MacAddr;
 use pnet::packet::PrimitiveValues;
 use chrono::Duration;
 use libc;
-use super::flow::*;
+use super::flow::Protocol;
 use super::queue::{Key, Counter, Direction};
 
 pub struct Config<'a> {
@@ -40,13 +40,6 @@ pub enum Error {
     InvalidConfig,
     Timeout,
     Failed(u32),
-}
-
-pub struct Kflow<'a> {
-    pub src_mac: &'a MacAddr,
-    pub dst_mac: &'a MacAddr,
-    pub src_ip: &'a IpAddr,
-    pub dst_ip: &'a IpAddr,
 }
 
 impl<'a> Config<'a> {

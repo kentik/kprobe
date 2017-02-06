@@ -1,4 +1,4 @@
-#![feature(untagged_unions)]
+#![feature(untagged_unions, field_init_shorthand)]
 
 #[macro_use]
 extern crate clap;
@@ -12,9 +12,9 @@ mod args;
 mod kprobe;
 mod packet;
 mod flow;
-mod protocol;
 mod queue;
 mod libkflow;
+mod protocol;
 
 use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
