@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use nom::IResult::Done;
+use super::buf::Buffer;
 use super::parser::{self, Message};
 use self::Message::*;
 
-#[derive(Debug)]
 pub struct Connection {
-    partial_fe: Vec<u8>,
-    partial_be: Vec<u8>,
-    state:      State,
+    buffer_fe: Buffer,
+    buffer_be: Buffer,
+    state:     State,
 }
 
 #[derive(Debug)]
@@ -22,9 +22,9 @@ struct State {
 impl Connection {
     pub fn new() -> Self {
         Connection {
-            partial_fe: Vec::new(),
-            partial_be: Vec::new(),
-            state:      State {
+            buffer_fe: Buffer::new(),
+            buffer_be: Buffer::new(),
+            state:  State {
                 statements: HashMap::new(),
                 portals:    HashMap::new(),
                 executing:  VecDeque::new(),
@@ -34,52 +34,30 @@ impl Connection {
 
     pub fn frontend_msg(&mut self, buf: &[u8]) -> Option<Vec<String>> {
         let state = &mut self.state;
-        let partial = &mut self.partial_fe;
+        let mut buf = self.buffer_fe.buf(buf);
         let mut completed = None;
+        let mut remainder = buf.len();
 
-        if partial.is_empty() {
-            if let Done(rest, msgs) = parser::parse_frontend(buf) {
-                completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
-                partial.extend(rest);
-            } else {
-                partial.extend(buf);
-            }
-        } else {
-            // FIXME: truncate partial if exceeds some max to handle mid-stream sync
-            let mut drain = 0;
-            partial.extend(buf);
-            if let Done(rest, msgs) = parser::parse_frontend(&partial[..]) {
-                completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
-                drain = partial.len() - rest.len();
-            }
-            partial.drain(..drain);
+        if let Done(rest, msgs) = parser::parse_frontend(&buf[..]) {
+            completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
+            remainder = rest.len();
         }
+        buf.keep(remainder);
 
         completed
     }
 
     pub fn backend_msg(&mut self, buf: &[u8]) -> Option<Vec<String>> {
         let state = &mut self.state;
-        let partial = &mut self.partial_be;
+        let mut buf = self.buffer_be.buf(buf);
         let mut completed = None;
+        let mut remainder = buf.len();
 
-        if partial.is_empty() {
-            if let Done(rest, msgs) = parser::parse_backend(buf) {
-                completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
-                partial.extend(rest);
-            } else {
-                partial.extend(buf);
-            }
-        } else {
-            // FIXME: truncate partial if exceeds some max to handle mid-stream sync
-            let mut drain = 0;
-            partial.extend(buf);
-            if let Done(rest, msgs) = parser::parse_backend(&partial[..]) {
-                completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
-                drain = partial.len() - rest.len();
-            }
-            partial.drain(..drain);
+        if let Done(rest, msgs) = parser::parse_backend(&buf[..]) {
+            completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
+            remainder = rest.len();
         }
+        buf.keep(remainder);
 
         completed
     }
@@ -210,4 +188,14 @@ enum Result {
     Executed{portal: String},
     Continue(Command),
     Failed,
+}
+
+impl ::std::fmt::Debug for Connection {
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
+        let mut s = fmt.debug_struct("Connection");
+        s.field("buffer_fe", &self.buffer_fe.len());
+        s.field("buffer_be", &self.buffer_be.len());
+        s.field("state", &self.state);
+        s.finish()
+    }
 }
