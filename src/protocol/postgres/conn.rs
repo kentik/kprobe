@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::time::{Duration, SystemTime};
 
 use nom::IResult::Done;
 use super::buf::Buffer;
@@ -32,14 +33,14 @@ impl Connection {
         }
     }
 
-    pub fn frontend_msg(&mut self, buf: &[u8]) -> Option<Vec<String>> {
+    pub fn frontend_msg(&mut self, ts: SystemTime, buf: &[u8]) -> Option<Vec<CompletedQuery>> {
         let state = &mut self.state;
         let mut buf = self.buffer_fe.buf(buf);
         let mut completed = None;
         let mut remainder = buf.len();
 
         if let Done(rest, msgs) = parser::parse_frontend(&buf[..]) {
-            completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
+            completed = Some(msgs.iter().flat_map(|m| state.next(ts, m)).collect());
             remainder = rest.len();
         }
         buf.keep(remainder);
@@ -47,14 +48,14 @@ impl Connection {
         completed
     }
 
-    pub fn backend_msg(&mut self, buf: &[u8]) -> Option<Vec<String>> {
+    pub fn backend_msg(&mut self, ts: SystemTime, buf: &[u8]) -> Option<Vec<CompletedQuery>> {
         let state = &mut self.state;
         let mut buf = self.buffer_be.buf(buf);
         let mut completed = None;
         let mut remainder = buf.len();
 
         if let Done(rest, msgs) = parser::parse_backend(&buf[..]) {
-            completed = Some(msgs.iter().flat_map(|m| state.next(m)).collect());
+            completed = Some(msgs.iter().flat_map(|m| state.next(ts, m)).collect());
             remainder = rest.len();
         }
         buf.keep(remainder);
@@ -64,31 +65,32 @@ impl Connection {
 }
 
 impl State {
-    fn next(&mut self, msg: &Message) -> Option<String> {
-        println!("postgres msg {:#?}", msg);
+    fn next(&mut self, ts: SystemTime, msg: &Message) -> Option<CompletedQuery> {
+        // println!("postgres msg {:#?}", msg);
         let res = match *msg {
-            Query(query)                => self.simple(query),
+            Query(query)                => self.simple(ts, query),
             Parse{statement, query, ..} => self.parse(statement, query),
             Bind{portal, statement, ..} => self.bind(portal, statement),
-            Execute{portal, ..}         => self.execute(portal),
+            Execute{portal, ..}         => self.execute(ts, portal),
             Close{what, name}           => self.close(what, name),
             RowDescription{..}          => None,
             DataRow{..}                 => None,
             Flush                       => None,
             Sync                        => None,
-            ref msg                     => self.done(msg)
+            ref msg                     => self.done(ts, msg)
         };
         res
     }
 
-    fn simple(&mut self, query: &str) -> Option<String> {
+    fn simple(&mut self, ts: SystemTime, query: &str) -> Option<CompletedQuery> {
         self.executing.push_back(Command::Query{
-            query: query.to_string()
+            query: query.to_string(),
+            start: ts,
         });
         None
     }
 
-    fn parse(&mut self, statement: &str, query: &str) -> Option<String> {
+    fn parse(&mut self, statement: &str, query: &str) -> Option<CompletedQuery> {
         self.executing.push_back(Command::Parse{
             statement: statement.to_string(),
             query:     query.to_string()
@@ -96,7 +98,7 @@ impl State {
         None
     }
 
-    fn bind(&mut self, portal: &str, statement: &str) -> Option<String> {
+    fn bind(&mut self, portal: &str, statement: &str) -> Option<CompletedQuery> {
         self.executing.push_back(Command::Bind{
             portal:    portal.to_string(),
             statement: statement.to_string(),
@@ -104,26 +106,32 @@ impl State {
         None
     }
 
-    fn execute(&mut self, portal: &str) -> Option<String> {
+    fn execute(&mut self, ts: SystemTime, portal: &str) -> Option<CompletedQuery> {
         self.executing.push_back(Command::Execute{
-            portal:    portal.to_string(),
+            portal: portal.to_string(),
+            start:  ts,
         });
         None
     }
 
-    fn close(&mut self, what: u8, name: &str) -> Option<String> {
+    fn close(&mut self, what: u8, name: &str) -> Option<CompletedQuery> {
         match what {
             b'S' => self.statements.remove(name),
             b'P' => self.portals.remove(name),
             _    => unreachable!(),
-        }
+        };
+        None
     }
 
-    fn done(&mut self, m: &Message) -> Option<String> {
+    fn done(&mut self, ts: SystemTime, m: &Message) -> Option<CompletedQuery> {
         self.executing.pop_front().and_then(|p| {
             match p.result(m) {
-                Result::QueryComplete{query} => {
-                    Some(query)
+                Result::QueryComplete{query, start} => {
+                    let duration = ts.duration_since(start).unwrap_or(Duration::from_secs(0));
+                    Some(CompletedQuery{
+                        query:    query,
+                        duration: duration,
+                    })
                 }
                 Result::Parsed{statement, query} => {
                     self.statements.insert(statement, query);
@@ -133,10 +141,14 @@ impl State {
                     self.portals.insert(portal, statement);
                     None
                 },
-                Result::Executed{portal} => {
+                Result::Executed{portal, start} => {
+                    let duration = ts.duration_since(start).unwrap_or(Duration::from_secs(0));
                     self.portals.get(&portal).and_then(|statement| {
                         self.statements.get(statement).and_then(|query| {
-                            Some(query.clone())
+                            Some(CompletedQuery{
+                                query:    query.clone(),
+                                duration: duration,
+                            })
                         })
                     })
                 },
@@ -154,10 +166,10 @@ impl State {
 
 #[derive(Debug)]
 enum Command {
-    Query{query: String},
+    Query{query: String, start: SystemTime},
     Parse{statement: String, query: String},
     Bind{portal: String, statement: String},
-    Execute{portal: String},
+    Execute{portal: String, start: SystemTime},
 }
 
 impl Command {
@@ -166,28 +178,34 @@ impl Command {
         use self::Result::*;
 
         match (self, m) {
-            (Query{query}, &ReadyForQuery(..))        => QueryComplete{query},
-            (query @ Query{..}, &CommandComplete(..)) => Continue(query),
-            (Query{..}, &Error(..))                   => Failed,
-            (Parse{statement, query}, &ParseComplete) => Parsed{statement, query},
-            (Parse{..}, &Error(..))                   => Failed,
-            (Bind{portal, statement}, &BindComplete)  => Bound{portal, statement},
-            (Execute{portal}, &CommandComplete(..))   => Executed{portal},
-            (Execute{portal}, &EmptyQueryResponse)    => Executed{portal},
-            (Execute{..}, &Error(..))                 => Failed,
-            (this, _)                                 => Continue(this),
+            (Query{query, start}, &ReadyForQuery(..))      => QueryComplete{query, start},
+            (query @ Query{..}, &CommandComplete(..))      => Continue(query),
+            (Query{..}, &Error(..))                        => Failed,
+            (Parse{statement, query}, &ParseComplete)      => Parsed{statement, query},
+            (Parse{..}, &Error(..))                        => Failed,
+            (Bind{portal, statement}, &BindComplete)       => Bound{portal, statement},
+            (Execute{portal, start}, &CommandComplete(..)) => Executed{portal, start},
+            (Execute{portal, start}, &EmptyQueryResponse)  => Executed{portal, start},
+            (Execute{..}, &Error(..))                      => Failed,
+            (this, _)                                      => Continue(this),
         }
     }
 }
 
 #[derive(Debug)]
 enum Result {
-    QueryComplete{query: String},
+    QueryComplete{query: String, start: SystemTime},
     Parsed{statement: String, query: String},
     Bound{portal: String, statement: String},
-    Executed{portal: String},
+    Executed{portal: String, start: SystemTime},
     Continue(Command),
     Failed,
+}
+
+#[derive(Debug)]
+pub struct CompletedQuery {
+    pub query:    String,
+    pub duration: Duration,
 }
 
 impl ::std::fmt::Debug for Connection {

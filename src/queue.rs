@@ -1,8 +1,9 @@
 use std::collections::HashMap;
-use std::time::{SystemTime, Duration};
+use std::time::SystemTime;
 use flow::*;
 use libkflow;
 use protocol::postgres;
+use protocol::postgres::CompletedQuery;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Key(pub Protocol, pub Addr, pub Addr);
@@ -25,6 +26,7 @@ pub enum Direction {
 pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
     postgres: HashMap<Addr, postgres::Connection>,
+    queries:  Vec<CompletedQuery>,
     flushed:  SystemTime,
 }
 
@@ -33,6 +35,7 @@ impl FlowQueue {
         FlowQueue {
             flows:     HashMap::new(),
             postgres:  HashMap::new(),
+            queries:   Vec::new(),
             flushed:   SystemTime::now(),
         }
     }
@@ -60,13 +63,19 @@ impl FlowQueue {
         }
         }
 
-        match (flow.src.port, flow.dst.port) {
-            (_, 5432) => self.postgres_fe(flow.src, flow.payload),
-            (5432, _) => self.postgres_be(flow.dst, flow.payload),
-            (_, 5433) => self.postgres_fe(flow.src, flow.payload),
-            (5433, _) => self.postgres_be(flow.dst, flow.payload),
-            _         => (),
+        let queries = match (flow.src.port, flow.dst.port) {
+            (_, 5432) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
+            (5432, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
+            (_, 5433) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
+            (5433, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
+            _         => None,
         };
+
+        if let Some(queries) = queries {
+            for q in queries {
+                self.queries.push(q);
+            }
+        }
     }
 
     pub fn flush(&mut self) {
@@ -77,49 +86,33 @@ impl FlowQueue {
         }
 
         for (key, ctr) in &self.flows {
-            // let src = format!("{}:{}", key.1.addr, key.1.port);
-            // let dst = format!("{}:{}", key.2.addr, key.2.port);
+            let src = format!("{}:{}", key.1.addr, key.1.port);
+            let dst = format!("{}:{}", key.2.addr, key.2.port);
 
-            // println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
+            println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
 
-            // if let Some(queries) = self.completed.remove(&key.1) {
-            //     for completed in queries {
-            //         let s = completed.duration.as_secs();
-            //         let ms = completed.duration.subsec_nanos() / 1_000_000;
-            //         println!("  SQL query: {}", completed.query);
-            //         println!("  SQL time:  {}.{}s", s, ms);
-            //     }
-            // }
+            for completed in &self.queries {
+                let s = completed.duration.as_secs();
+                let ms = completed.duration.subsec_nanos() / 1_000_000;
+                println!("  SQL query: {}", completed.query);
+                println!("  SQL time:  {}.{}s", s, ms);
+            }
 
-            libkflow::send(key, ctr).expect("failed to send flow");
+            //libkflow::send(key, ctr).expect("failed to send flow");
         }
 
         self.flows.clear();
+        self.queries.clear();
         self.flushed = SystemTime::now();
     }
 
-    fn postgres_fe(&mut self, addr: Addr, p: &[u8]) {
+    fn postgres_fe(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>> {
         let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
-        conn.frontend_msg(p);
-        println!("connection {:?}: {:#?}", addr, conn);
+        conn.frontend_msg(ts, p)
     }
 
-    fn postgres_be(&mut self, addr: Addr, p: &[u8]) {
+    fn postgres_be(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>>{
         let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
-        conn.backend_msg(p);
-        println!("connection {:?}: {:#?}", addr, conn);
+        conn.backend_msg(ts, p)
     }
-}
-
-
-#[derive(Debug)]
-struct PendingQuery {
-    query: String,
-    start: SystemTime,
-}
-
-#[derive(Debug)]
-struct CompletedQuery {
-    query:    String,
-    duration: Duration,
 }
