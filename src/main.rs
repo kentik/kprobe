@@ -49,7 +49,12 @@ fn main() {
 
     let ports: Option<Vec<u16>> = args.args("port").ok();
 
-    let (mut _tx, mut rx) = match datalink::channel(&interface, Default::default()) {
+    let config = datalink::Config{
+        read_buffer_size: 1048576,
+        .. Default::default()
+    };
+
+    let (mut _tx, mut rx) = match datalink::channel(&interface, config) {
         Ok(Ethernet(tx, rx)) => (tx, rx),
         Ok(_)                => panic!("unsupported channel type"),
         Err(e)               => panic!("error opening channel: {}", e),
