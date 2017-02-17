@@ -11,6 +11,7 @@ pub struct Flow<'a> {
     pub dst:       Addr,
     pub tos:       u8,
     pub transport: Transport,
+    pub bytes:     usize,
     pub payload:   &'a [u8]
 }
 

@@ -56,7 +56,7 @@ impl FlowQueue {
 
         ctr.tos     |= flow.tos;
         ctr.packets += 1;
-        ctr.bytes   += flow.payload.len() as u64;
+        ctr.bytes   += flow.bytes as u64;
 
         if let Transport::TCP { flags } = flow.transport {
             ctr.tcp_flags |= flags;

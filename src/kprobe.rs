@@ -65,6 +65,7 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: tcp.get_destination()},
             tos:       p.tos(),
             transport: Transport::TCP{ flags: tcp.get_flags() },
+            bytes:     p.len(),
             payload:   tcp.payload(),
         })
     }
@@ -82,6 +83,7 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: udp.get_destination()},
             tos:       p.tos(),
             transport: Transport::UDP,
+            bytes:     p.len(),
             payload:   udp.payload(),
         })
     }
@@ -95,6 +97,7 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: 0},
             tos:       p.tos(),
             transport: Transport::ICMP,
+            bytes:     p.len(),
             payload:   icmp.payload(),
         })
     }

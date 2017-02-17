@@ -59,6 +59,13 @@ impl<'a> Packet<'a> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        match *self {
+            Packet::IPv4(ref p) => p.packet().len(),
+            Packet::IPv6(ref p) => p.packet().len(),
+        }
+    }
+
     fn next<'n>(&self, next: IpNextHeaderProtocol, payload: &'n [u8]) -> Option<Transport<'n>> {
         match next {
             IpNextHeaderProtocols::Icmp => IcmpPacket::new(payload).map(Transport::ICMP),
