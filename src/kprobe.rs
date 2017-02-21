@@ -5,7 +5,7 @@ use pnet::packet::{Packet as PacketExt};
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
-use packet::{self, Packet};
+use packet::{self, Packet, Opaque};
 use packet::Transport::*;
 use flow::*;
 use queue::{FlowQueue, Direction};
@@ -41,13 +41,14 @@ impl Kprobe {
                     _                           => Direction::Unknown,
                 };
 
-                // FIXME: ARP, RARP not handled
                 match pkt.transport() {
                     Some(TCP(ref tcp))   => self.tcp(ts, eth, &pkt, tcp),
                     Some(UDP(ref udp))   => self.udp(ts, eth, &pkt, udp),
                     Some(ICMP(ref icmp)) => self.icmp(ts, eth, &pkt, icmp),
-                    _                    => None,
+                    Some(Other(ref o))   => self.ip(ts, eth, &pkt, o),
+                    None                 => None,
                 }.map(|flow| self.queue.add(dir, flow));
+
                 self.queue.flush();
             }
         }
@@ -96,12 +97,26 @@ impl Kprobe {
             timestamp: ts,
             protocol:  Protocol::ICMP,
             ethernet:  eth,
-            src:       Addr{addr: p.src(), port: 0    },
-            dst:       Addr{addr: p.dst(), port: pack },
+            src:       Addr{addr: p.src(), port: 0   },
+            dst:       Addr{addr: p.dst(), port: pack},
             tos:       p.tos(),
             transport: Transport::ICMP,
             bytes:     p.len(),
             payload:   icmp.payload(),
+        })
+    }
+
+    fn ip<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, o: &'a Opaque) -> Option<Flow<'a>> {
+        Some(Flow{
+            timestamp: ts,
+            protocol:  Protocol::Other(o.protocol),
+            ethernet:  eth,
+            src:       Addr{addr: p.src(), port: 0},
+            dst:       Addr{addr: p.dst(), port: 0},
+            tos:       p.tos(),
+            transport: Transport::Other,
+            bytes:     p.len(),
+            payload:   o.payload,
         })
     }
 

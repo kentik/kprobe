@@ -1,7 +1,7 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use pnet::packet::{Packet as PacketExt, PacketSize};
-use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
+use pnet::packet::ethernet::{EthernetPacket, EtherType, EtherTypes};
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::ipv6::Ipv6Packet;
 use pnet::packet::ip::{IpNextHeaderProtocol, IpNextHeaderProtocols};
@@ -14,6 +14,7 @@ use pnet::packet::vlan::VlanPacket;
 pub enum Packet<'a> {
     IPv4(Ipv4Packet<'a>),
     IPv6(Ipv6Packet<'a>),
+    Other(Opaque<'a>),
 }
 
 #[derive(Debug)]
@@ -21,6 +22,13 @@ pub enum Transport<'a> {
     ICMP(IcmpPacket<'a>),
     TCP(TcpPacket<'a>),
     UDP(UdpPacket<'a>),
+    Other(Opaque<'a>),
+}
+
+#[derive(Debug)]
+pub struct Opaque<'a> {
+    pub protocol: u16,
+    pub payload:  &'a [u8],
 }
 
 pub fn decode<'a>(p: &'a EthernetPacket<'a>) -> (Option<u16>, Option<Packet<'a>>) {
@@ -41,7 +49,7 @@ pub fn decode<'a>(p: &'a EthernetPacket<'a>) -> (Option<u16>, Option<Packet<'a>>
     match ethertype {
         EtherTypes::Ipv4 => (vlan, Ipv4Packet::new(payload).map(Packet::IPv4)),
         EtherTypes::Ipv6 => (vlan, Ipv6Packet::new(payload).map(Packet::IPv6)),
-        _                => (vlan, None),
+        _                => (vlan, Opaque::new(ethertype.0, payload).map(Packet::Other)),
     }
 }
 
@@ -50,6 +58,7 @@ impl<'a> Packet<'a> {
         match *self {
             Packet::IPv4(ref p) => self.next(p.get_next_level_protocol(), p.payload()),
             Packet::IPv6(ref p) => self.next(p.get_next_header(),         p.payload()),
+            Packet::Other(..)   => None,
         }
     }
 
@@ -57,6 +66,7 @@ impl<'a> Packet<'a> {
         match *self {
             Packet::IPv4(ref p) => IpAddr::V4(p.get_source()),
             Packet::IPv6(ref p) => IpAddr::V6(p.get_source()),
+            Packet::Other(..)   => IpAddr::V4(Ipv4Addr::from(0)),
         }
     }
 
@@ -64,6 +74,7 @@ impl<'a> Packet<'a> {
         match *self {
             Packet::IPv4(ref p) => IpAddr::V4(p.get_destination()),
             Packet::IPv6(ref p) => IpAddr::V6(p.get_destination()),
+            Packet::Other(..)   => IpAddr::V4(Ipv4Addr::from(0)),
         }
     }
 
@@ -71,13 +82,15 @@ impl<'a> Packet<'a> {
         match *self {
             Packet::IPv4(ref p) => p.get_dscp() << 2 | p.get_ecn(),
             Packet::IPv6(ref p) => p.get_traffic_class(),
+            Packet::Other(..)   => 0,
         }
     }
 
     pub fn len(&self) -> usize {
         match *self {
-            Packet::IPv4(ref p) => p.packet().len(),
-            Packet::IPv6(ref p) => p.packet().len(),
+            Packet::IPv4(ref p)  => p.packet().len(),
+            Packet::IPv6(ref p)  => p.packet().len(),
+            Packet::Other(ref o) => o.payload.len(),
         }
     }
 
@@ -86,7 +99,16 @@ impl<'a> Packet<'a> {
             IpNextHeaderProtocols::Icmp => IcmpPacket::new(payload).map(Transport::ICMP),
             IpNextHeaderProtocols::Tcp  => TcpPacket::new(payload).map(Transport::TCP),
             IpNextHeaderProtocols::Udp  => UdpPacket::new(payload).map(Transport::UDP),
-            _                           => None,
+            _                           => Opaque::new(next.0, payload).map(Transport::Other)
         }
+    }
+}
+
+impl<'a> Opaque<'a> {
+    fn new<T: Into<u16>>(protocol: T, payload: &'a [u8]) -> Option<Opaque<'a>> {
+        Some(Opaque {
+            protocol: protocol.into(),
+            payload:  payload,
+        })
     }
 }

@@ -27,6 +27,7 @@ pub enum Protocol {
     ICMP,
     TCP,
     UDP,
+    Other(u16),
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -40,4 +41,5 @@ pub enum Transport {
     ICMP,
     TCP  { flags: u16 },
     UDP,
+    Other,
 }

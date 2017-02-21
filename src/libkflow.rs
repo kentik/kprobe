@@ -112,9 +112,10 @@ pub fn send(key: &Key, ctr: &Counter) -> Result<(), Error> {
     let mut v6dst: [u8; 16];
 
     match key.0 {
-        Protocol::ICMP => kflow.protocol  = 1,
-        Protocol::TCP  => kflow.protocol  = 6,
-        Protocol::UDP  => kflow.protocol  = 17,
+        Protocol::ICMP     => kflow.protocol = 1,
+        Protocol::TCP      => kflow.protocol = 6,
+        Protocol::UDP      => kflow.protocol = 17,
+        Protocol::Other(n) => kflow.protocol = n as u32,
     };
 
     match key.1.addr {
