@@ -112,19 +112,9 @@ pub fn send(key: &Key, ctr: &Counter) -> Result<(), Error> {
     let mut v6dst: [u8; 16];
 
     match key.0 {
-        Protocol::ICMP => {
-            kflow.protocol  = 1;
-        },
-        Protocol::TCP => {
-            kflow.protocol  = 6;
-            kflow.l4SrcPort = key.1.port as u32;
-            kflow.l4DstPort = key.2.port as u32;
-        }
-        Protocol::UDP => {
-            kflow.protocol  = 17;
-            kflow.l4SrcPort = key.1.port as u32;
-            kflow.l4DstPort = key.2.port as u32;
-        }
+        Protocol::ICMP => kflow.protocol  = 1,
+        Protocol::TCP  => kflow.protocol  = 6,
+        Protocol::UDP  => kflow.protocol  = 17,
     };
 
     match key.1.addr {
@@ -151,6 +141,8 @@ pub fn send(key: &Key, ctr: &Counter) -> Result<(), Error> {
     kflow.srcEthMac = pack_mac(&ctr.ethernet.src);
     kflow.dstEthMac = pack_mac(&ctr.ethernet.dst);
     kflow.tos       = ctr.tos as u32;
+    kflow.l4SrcPort = key.1.port as u32;
+    kflow.l4DstPort = key.2.port as u32;
     kflow.tcpFlags  = ctr.tcp_flags as u32;
     kflow.sampleRate = 1;
 

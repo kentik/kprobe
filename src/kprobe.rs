@@ -90,12 +90,14 @@ impl Kprobe {
     }
 
     fn icmp<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Option<Flow<'a>> {
+        let pack = ((icmp.get_icmp_type().0 as u16) << 8) | icmp.get_icmp_code().0 as u16;
+
         Some(Flow{
             timestamp: ts,
             protocol:  Protocol::ICMP,
             ethernet:  eth,
-            src:       Addr{addr: p.src(), port: 0},
-            dst:       Addr{addr: p.dst(), port: 0},
+            src:       Addr{addr: p.src(), port: 0    },
+            dst:       Addr{addr: p.dst(), port: pack },
             tos:       p.tos(),
             transport: Transport::ICMP,
             bytes:     p.len(),

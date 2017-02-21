@@ -41,8 +41,25 @@ impl FlowQueue {
     }
 
     pub fn add(&mut self, dir: Direction, flow: Flow) {
+        self.record(dir, &flow);
+
+        // let queries = match (flow.src.port, flow.dst.port) {
+        //     (_, 5432) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
+        //     (5432, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
+        //     (_, 5433) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
+        //     (5433, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
+        //     _         => None,
+        // };
+
+        // if let Some(queries) = queries {
+        //     for q in queries {
+        //         self.queries.push(q);
+        //     }
+        // }
+    }
+
+    fn record(&mut self, dir: Direction, flow: &Flow) {
         let key = Key(flow.protocol, flow.src, flow.dst);
-        {
         let ctr = self.flows.entry(key).or_insert_with(|| {
             Counter {
                 ethernet:  flow.ethernet,
@@ -61,21 +78,6 @@ impl FlowQueue {
         if let Transport::TCP { flags } = flow.transport {
             ctr.tcp_flags |= flags;
         }
-        }
-
-        let queries = match (flow.src.port, flow.dst.port) {
-            (_, 5432) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
-            (5432, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
-            (_, 5433) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
-            (5433, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
-            _         => None,
-        };
-
-        if let Some(queries) = queries {
-            for q in queries {
-                self.queries.push(q);
-            }
-        }
     }
 
     pub fn flush(&mut self) {
@@ -86,19 +88,19 @@ impl FlowQueue {
         }
 
         for (key, ctr) in &self.flows {
-            let src = format!("{}:{}", key.1.addr, key.1.port);
-            let dst = format!("{}:{}", key.2.addr, key.2.port);
+            // let src = format!("{}:{}", key.1.addr, key.1.port);
+            // let dst = format!("{}:{}", key.2.addr, key.2.port);
 
-            println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
+            // println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
 
-            for completed in &self.queries {
-                let s = completed.duration.as_secs();
-                let ms = completed.duration.subsec_nanos() / 1_000_000;
-                println!("  SQL query: {}", completed.query);
-                println!("  SQL time:  {}.{}s", s, ms);
-            }
+            // for completed in &self.queries {
+            //     let s = completed.duration.as_secs();
+            //     let ms = completed.duration.subsec_nanos() / 1_000_000;
+            //     println!("  SQL query: {}", completed.query);
+            //     println!("  SQL time:  {}.{}s", s, ms);
+            // }
 
-            //libkflow::send(key, ctr).expect("failed to send flow");
+            libkflow::send(key, ctr).expect("failed to send flow");
         }
 
         self.flows.clear();
