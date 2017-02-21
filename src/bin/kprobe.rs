@@ -1,25 +1,11 @@
-#![feature(untagged_unions, field_init_shorthand)]
-
-#[macro_use]
-extern crate clap;
 extern crate pnet;
-#[macro_use]
-extern crate nom;
-extern crate libc;
-extern crate chrono;
-
-mod args;
-mod kprobe;
-mod packet;
-mod flow;
-mod queue;
-mod libkflow;
-mod protocol;
+extern crate kprobe;
 
 use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
 use std::process::exit;
-use kprobe::Kprobe;
+use kprobe::{args, Kprobe};
+use kprobe::libkflow;
 
 fn main() {
     let args = args::parse();
