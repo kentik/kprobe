@@ -17,8 +17,9 @@ pub struct Flow<'a> {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ethernet {
-    pub src: MacAddr,
-    pub dst: MacAddr,
+    pub src:  MacAddr,
+    pub dst:  MacAddr,
+    pub vlan: Option<u16>
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]

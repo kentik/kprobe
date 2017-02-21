@@ -28,10 +28,11 @@ impl Kprobe {
     pub fn run<'a>(&mut self, mut iter: Box<EthernetDataLinkChannelIterator + 'a>) {
         while let Ok(packet) = iter.next() {
             let ts = SystemTime::now();
-            if let Some(pkt) = packet::decode(&packet) {
+            if let (vlan, Some(pkt)) = packet::decode(&packet) {
                 let eth = Ethernet {
-                    src: packet.get_source(),
-                    dst: packet.get_destination(),
+                    src:  packet.get_source(),
+                    dst:  packet.get_destination(),
+                    vlan: vlan,
                 };
 
                 let dir = match self.interface.mac {
@@ -40,7 +41,7 @@ impl Kprobe {
                     _                           => Direction::Unknown,
                 };
 
-                // FIXME: ARP, RARP, VLAN, etc not handled
+                // FIXME: ARP, RARP not handled
                 match pkt.transport() {
                     Some(TCP(ref tcp))   => self.tcp(ts, eth, &pkt, tcp),
                     Some(UDP(ref udp))   => self.udp(ts, eth, &pkt, udp),

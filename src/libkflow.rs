@@ -159,11 +159,13 @@ pub fn send(key: &Key, ctr: &Counter) -> Result<(), Error> {
             kflow.inPkts     = ctr.packets;
             kflow.inBytes    = ctr.bytes;
             kflow.inputPort  = (kflow.dstEthMac & 0xFFFF) as u32;
+            kflow.vlanIn     = ctr.ethernet.vlan.unwrap_or(0) as u32;
         },
         Direction::Out => {
             kflow.outPkts    = ctr.packets;
             kflow.outBytes   = ctr.bytes;
             kflow.outputPort = (kflow.srcEthMac & 0xFFFF) as u32;
+            kflow.vlanOut    = ctr.ethernet.vlan.unwrap_or(0) as u32;
 
         },
         Direction::Unknown => (),

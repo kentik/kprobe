@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use pnet::packet::{Packet as PacketExt};
+use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::ipv6::Ipv6Packet;
@@ -8,6 +8,7 @@ use pnet::packet::ip::{IpNextHeaderProtocol, IpNextHeaderProtocols};
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
+use pnet::packet::vlan::VlanPacket;
 
 #[derive(Debug)]
 pub enum Packet<'a> {
@@ -22,11 +23,25 @@ pub enum Transport<'a> {
     UDP(UdpPacket<'a>),
 }
 
-pub fn decode<'a>(p: &'a EthernetPacket<'a>) -> Option<Packet<'a>> {
-    match p.get_ethertype() {
-        EtherTypes::Ipv4 => Ipv4Packet::new(p.payload()).map(Packet::IPv4),
-        EtherTypes::Ipv6 => Ipv6Packet::new(p.payload()).map(Packet::IPv6),
-        _                => None,
+pub fn decode<'a>(p: &'a EthernetPacket<'a>) -> (Option<u16>, Option<Packet<'a>>) {
+    let mut ethertype = p.get_ethertype();
+    let mut payload   = p.payload();
+    let mut vlan      = None;
+
+    while ethertype == EtherTypes::Vlan {
+        if let Some(pkt) = VlanPacket::new(payload) {
+            vlan      = Some(pkt.get_vlan_identifier());
+            ethertype = pkt.get_ethertype();
+            payload   = &payload[pkt.packet_size()..];
+        } else {
+            return (None, None)
+        }
+    }
+
+    match ethertype {
+        EtherTypes::Ipv4 => (vlan, Ipv4Packet::new(payload).map(Packet::IPv4)),
+        EtherTypes::Ipv6 => (vlan, Ipv6Packet::new(payload).map(Packet::IPv6)),
+        _                => (vlan, None),
     }
 }
 
