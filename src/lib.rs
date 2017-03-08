@@ -1,7 +1,8 @@
-#![feature(untagged_unions, field_init_shorthand)]
+#![feature(untagged_unions)]
 
 #[macro_use]
 extern crate clap;
+extern crate pcap;
 extern crate pnet;
 #[macro_use]
 extern crate nom;

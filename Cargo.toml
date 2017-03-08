@@ -6,12 +6,13 @@ links   = "kflow"
 build   = "build.rs"
 
 [dependencies]
-clap      = "2.20.0"
+clap      = "2.20.5"
 pnet      = "0.16.0"
-libc      = "0.2.18"
+libc      = "0.2.21"
 byteorder = "1.0.0"
-nom       = "2.0.1"
-chrono    = "0.2.25"
+nom       = "2.1.0"
+chrono    = "0.3.0"
+pcap      = "0.5.7"
 
 [profile.release]
 lto = true

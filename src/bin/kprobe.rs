@@ -1,11 +1,12 @@
-extern crate pnet;
 extern crate kprobe;
+extern crate pcap;
+extern crate pnet;
 
-use pnet::datalink::{self, NetworkInterface};
-use pnet::datalink::Channel::Ethernet;
 use std::process::exit;
 use kprobe::{args, Kprobe};
 use kprobe::libkflow;
+use pnet::datalink::NetworkInterface;
+use pcap::{Capture, Device};
 
 fn main() {
     let args = args::parse();
@@ -33,19 +34,23 @@ fn main() {
     });
     println!("interface {:?}", interface);
 
-    let ports: Option<Vec<u16>> = args.args("port").ok();
+    let dev = Device::list().unwrap().into_iter()
+        .filter(|d| d.name == interface.name)
+        .next()
+        .unwrap();
 
-    let config = datalink::Config{
-        read_buffer_size: 1048576,
-        .. Default::default()
-    };
+    let cap = Capture::from_device(dev).unwrap()
+        .buffer_size(100_000_000)
+        .timeout(15*1000) // FIXME: should be same as flush timeout
+        .snaplen(1600)
+        .promisc(true)
+        .open()
+        .unwrap();
 
-    let (mut _tx, mut rx) = match datalink::channel(&interface, config) {
-        Ok(Ethernet(tx, rx)) => (tx, rx),
-        Ok(_)                => panic!("unsupported channel type"),
-        Err(e)               => panic!("error opening channel: {}", e),
-    };
+    // if let Some(ref filter) = filter {
+    //     cap.filter(filter).unwrap();
+    // }
 
-    let mut kprobe = Kprobe::new(interface, ports);
-    kprobe.run(rx.iter());
+    let mut kprobe = Kprobe::new(interface);
+    kprobe.run(cap).expect("capture succeeded");
 }

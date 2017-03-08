@@ -7,9 +7,12 @@ fn main() {
     let path = if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
         println!("cargo:rustc-link-lib=framework=Security");
-        Path::new(&base).join("libkflow/darwin")
+        Path::new(&base).join("libs/macos")
     } else if cfg!(target_os = "linux") {
-        Path::new(&base).join("libkflow/linux")
+        println!("cargo:rustc-link-lib=static=nl-3");
+        println!("cargo:rustc-link-lib=static=nl-genl-3");
+        println!("cargo:rustc-link-lib=static=pcap");
+        Path::new(&base).join("libs/linux")
     } else {
         panic!("unsupported platform");
     };

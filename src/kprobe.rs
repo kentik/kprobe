@@ -1,7 +1,9 @@
-use std::time::SystemTime;
-use pnet::datalink::EthernetDataLinkChannelIterator;
+use libc::timeval;
+use pcap::{self, Capture, Active, Error};
+use pcap::Error::*;
 use pnet::datalink::NetworkInterface;
 use pnet::packet::{Packet as PacketExt};
+use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
@@ -12,54 +14,63 @@ use queue::{FlowQueue, Direction};
 
 pub struct Kprobe {
     interface: NetworkInterface,
-    ports:     Option<Vec<u16>>,
     queue:     FlowQueue,
 }
 
 impl Kprobe {
-    pub fn new(interface: NetworkInterface, ports: Option<Vec<u16>>) -> Kprobe {
+    pub fn new(interface: NetworkInterface) -> Kprobe {
         Kprobe {
             interface: interface,
-            ports:     ports,
             queue:     FlowQueue::new(),
         }
     }
 
-    pub fn run<'a>(&mut self, mut iter: Box<EthernetDataLinkChannelIterator + 'a>) {
-        while let Ok(packet) = iter.next() {
-            let ts = SystemTime::now();
-            if let (vlan, Some(pkt)) = packet::decode(&packet) {
-                let eth = Ethernet {
-                    src:  packet.get_source(),
-                    dst:  packet.get_destination(),
-                    vlan: vlan,
+    pub fn run<'a>(&mut self, mut cap: Capture<Active>) -> Result<(), Error>{
+        loop {
+            match cap.next() {
+                Ok(packet)          => self.record(packet),
+                Err(TimeoutExpired) => self.queue.flush(),
+                Err(NoMorePackets)  => return Ok(()),
+                Err(e)              => return Err(e),
+            }
+        }
+    }
+
+    fn record<'a>(&mut self, packet: pcap::Packet<'a>) {
+        let eth = match EthernetPacket::new(&packet.data) {
+            Some(pkt) => pkt,
+            None      => return,
+        };
+
+        if let (vlan, Some(pkt)) = packet::decode(&eth) {
+            let eth = Ethernet {
+                src:  eth.get_source(),
+                dst:  eth.get_destination(),
+                vlan: vlan,
+            };
+
+            let dir = match self.interface.mac {
+                Some(mac) if mac == eth.dst => Direction::In,
+                Some(mac) if mac == eth.src => Direction::Out,
+                _                           => Direction::Unknown,
+            };
+
+            if let Some(transport) = pkt.transport() {
+                let ts = packet.header.ts;
+                let flow = match transport {
+                    TCP(ref tcp)   => self.tcp(ts, eth, &pkt, tcp),
+                    UDP(ref udp)   => self.udp(ts, eth, &pkt, udp),
+                    ICMP(ref icmp) => self.icmp(ts, eth, &pkt, icmp),
+                    Other(ref o)   => self.ip(ts, eth, &pkt, o),
                 };
-
-                let dir = match self.interface.mac {
-                    Some(mac) if mac == eth.dst => Direction::In,
-                    Some(mac) if mac == eth.src => Direction::Out,
-                    _                           => Direction::Unknown,
-                };
-
-                match pkt.transport() {
-                    Some(TCP(ref tcp))   => self.tcp(ts, eth, &pkt, tcp),
-                    Some(UDP(ref udp))   => self.udp(ts, eth, &pkt, udp),
-                    Some(ICMP(ref icmp)) => self.icmp(ts, eth, &pkt, icmp),
-                    Some(Other(ref o))   => self.ip(ts, eth, &pkt, o),
-                    None                 => None,
-                }.map(|flow| self.queue.add(dir, flow));
-
+                self.queue.add(dir, flow);
                 self.queue.flush();
             }
         }
     }
 
-    fn tcp<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Option<Flow<'a>> {
-        if !self.want(tcp.get_source(), tcp.get_destination()) {
-            return None;
-        }
-
-        Some(Flow{
+    fn tcp<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Flow<'a> {
+        Flow{
             timestamp: ts,
             protocol:  Protocol::TCP,
             ethernet:  eth,
@@ -69,15 +80,11 @@ impl Kprobe {
             transport: Transport::TCP{ flags: tcp.get_flags() },
             bytes:     p.len(),
             payload:   tcp.payload(),
-        })
+        }
     }
 
-    fn udp<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, udp: &'a UdpPacket) -> Option<Flow<'a>> {
-        if !self.want(udp.get_source(), udp.get_destination()) {
-            return None;
-        }
-
-        Some(Flow{
+    fn udp<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, udp: &'a UdpPacket) -> Flow<'a> {
+        Flow{
             timestamp: ts,
             protocol:  Protocol::UDP,
             ethernet:  eth,
@@ -87,13 +94,13 @@ impl Kprobe {
             transport: Transport::UDP,
             bytes:     p.len(),
             payload:   udp.payload(),
-        })
+        }
     }
 
-    fn icmp<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Option<Flow<'a>> {
+    fn icmp<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Flow<'a> {
         let pack = ((icmp.get_icmp_type().0 as u16) << 8) | icmp.get_icmp_code().0 as u16;
 
-        Some(Flow{
+        Flow{
             timestamp: ts,
             protocol:  Protocol::ICMP,
             ethernet:  eth,
@@ -103,11 +110,11 @@ impl Kprobe {
             transport: Transport::ICMP,
             bytes:     p.len(),
             payload:   icmp.payload(),
-        })
+        }
     }
 
-    fn ip<'a>(&mut self, ts: SystemTime, eth: Ethernet, p: &Packet, o: &'a Opaque) -> Option<Flow<'a>> {
-        Some(Flow{
+    fn ip<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, o: &'a Opaque) -> Flow<'a> {
+        Flow{
             timestamp: ts,
             protocol:  Protocol::Other(o.protocol),
             ethernet:  eth,
@@ -117,17 +124,6 @@ impl Kprobe {
             transport: Transport::Other,
             bytes:     p.len(),
             payload:   o.payload,
-        })
-    }
-
-    fn want(&self, src: u16, dst: u16) -> bool {
-        if self.ports.is_none() {
-            return true
         }
-
-        self.ports.as_ref().map_or(false, |ps| {
-            ps.iter().any(|p| *p == src || *p == dst)
-        })
     }
-
 }

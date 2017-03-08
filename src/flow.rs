@@ -1,10 +1,10 @@
 use std::net::IpAddr;
 use std::time::SystemTime;
+use libc::timeval;
 use pnet::util::MacAddr;
 
-#[derive(Debug)]
 pub struct Flow<'a> {
-    pub timestamp: SystemTime,
+    pub timestamp: timeval,
     pub ethernet:  Ethernet,
     pub protocol:  Protocol,
     pub src:       Addr,
