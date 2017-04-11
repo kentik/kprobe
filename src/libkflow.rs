@@ -17,7 +17,6 @@ pub struct Config<'a> {
     pub api:       API<'a>,
     pub metrics:   Metrics<'a>,
     pub proxy:     Option<Cow<'a, str>>,
-    pub hostname:  Option<Cow<'a, str>>,
     pub device_id: u32,
     pub timeout:   Duration,
     pub verbose:   u32,
@@ -56,7 +55,6 @@ impl<'a> Config<'a> {
                 url:      Cow::from("https://flow.kentik.com/tsdb"),
             },
             proxy:     None,
-            hostname:  None,
             device_id: 1,
             timeout:   Duration::seconds(0),
             verbose:   0,
@@ -91,8 +89,9 @@ pub fn configure(cfg: &Config) -> Result<(), Error> {
         proxy: kflowConfigProxy {
             URL: proxy_url.map(|p| p.as_ptr()).unwrap_or(ptr::null()),
         },
-        hostname:  ptr::null(),
         device_id: cfg.device_id as libc::c_int,
+        device_if: ptr::null(),
+        device_ip: ptr::null(),
         timeout:   cfg.timeout.num_milliseconds() as libc::c_int,
         verbose:   cfg.verbose as libc::c_int,
     };
@@ -218,8 +217,9 @@ struct kflowConfig {
     API:       kflowConfigAPI,
     metrics:   kflowConfigMetrics,
     proxy:     kflowConfigProxy,
-    hostname:  *const libc::c_char,
     device_id: libc::c_int,
+    device_if: *const libc::c_char,
+    device_ip: *const libc::c_char,
     timeout:   libc::c_int,
     verbose:   libc::c_int,
 }

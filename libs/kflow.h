@@ -15,7 +15,7 @@ typedef struct {
     } API;
 
     struct {
-        int interval;            // metrics flush interval (s)
+        int interval;            // metrics flush interval (m)
         char *URL;               // URL of metrics server
     } metrics;
 
@@ -23,8 +23,9 @@ typedef struct {
         char *URL;               // optional HTTP proxy URL
     } proxy;
 
-    char *hostname;              // device hostname
     int device_id;               // device ID
+    char *device_if;             // device interface name
+    char *device_ip;             // device IP
     int timeout;                 // flow sending timeout (ms)
     int verbose;                 // logging verbosity level
 } kflowConfig;
@@ -178,5 +179,7 @@ char *kflowVersion();
 #define EKFLOWTIMEOUT  4         // request timed out
 #define EKFLOWSEND     5         // flow could not be sent
 #define EKFLOWNOCUSTOM 6         // custom field does not exist
+#define EKFLOWAUTH     7         // authentication failed
+#define EKFLOWNODEVICE 8         // no matching device found
 
 #endif // KFLOW_H
