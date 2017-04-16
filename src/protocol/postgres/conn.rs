@@ -67,7 +67,7 @@ impl Connection {
 impl State {
     fn next(&mut self, ts: SystemTime, msg: &Message) -> Option<CompletedQuery> {
         // println!("postgres msg {:#?}", msg);
-        let res = match *msg {
+        match *msg {
             Query(query)                => self.simple(ts, query),
             Parse{statement, query, ..} => self.parse(statement, query),
             Bind{portal, statement, ..} => self.bind(portal, statement),
@@ -78,8 +78,7 @@ impl State {
             Flush                       => None,
             Sync                        => None,
             ref msg                     => self.done(ts, msg)
-        };
-        res
+        }
     }
 
     fn simple(&mut self, ts: SystemTime, query: &str) -> Option<CompletedQuery> {

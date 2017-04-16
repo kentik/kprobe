@@ -1,5 +1,4 @@
 use std::net::IpAddr;
-use std::time::SystemTime;
 use libc::timeval;
 use pnet::util::MacAddr;
 

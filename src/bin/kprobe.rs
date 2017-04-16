@@ -35,8 +35,7 @@ fn main() {
     println!("interface {:?}", interface);
 
     let dev = Device::list().unwrap().into_iter()
-        .filter(|d| d.name == interface.name)
-        .next()
+        .find(|d| d.name == interface.name)
         .unwrap();
 
     let cap = Capture::from_device(dev).unwrap()

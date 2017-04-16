@@ -25,7 +25,7 @@ impl Kprobe {
         }
     }
 
-    pub fn run<'a>(&mut self, mut cap: Capture<Active>) -> Result<(), Error>{
+    pub fn run(&mut self, mut cap: Capture<Active>) -> Result<(), Error>{
         loop {
             match cap.next() {
                 Ok(packet)          => self.record(packet),
@@ -37,7 +37,7 @@ impl Kprobe {
     }
 
     fn record<'a>(&mut self, packet: pcap::Packet<'a>) {
-        let eth = match EthernetPacket::new(&packet.data) {
+        let eth = match EthernetPacket::new(packet.data) {
             Some(pkt) => pkt,
             None      => return,
         };

@@ -3,16 +3,21 @@ use std::path::Path;
 
 fn main() {
     let base = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let target = env::var("TARGET").unwrap();
 
-    let path = if cfg!(target_os = "macos") {
+    let path = if target.contains("darwin") {
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
         println!("cargo:rustc-link-lib=framework=Security");
         Path::new(&base).join("libs/macos")
-    } else if cfg!(target_os = "linux") {
+    } else if target.contains("linux") {
         println!("cargo:rustc-link-lib=static=nl-3");
         println!("cargo:rustc-link-lib=static=nl-genl-3");
         println!("cargo:rustc-link-lib=static=pcap");
-        Path::new(&base).join("libs/linux")
+        if target.contains("musl") {
+            Path::new(&base).join("libs/linux-musl")
+        } else {
+            Path::new(&base).join("libs/linux")
+        }
     } else {
         panic!("unsupported platform");
     };
