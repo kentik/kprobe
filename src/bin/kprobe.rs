@@ -7,6 +7,7 @@ use kprobe::{args, Kprobe};
 use kprobe::libkflow;
 use pnet::datalink::NetworkInterface;
 use pcap::{Capture, Device};
+use libkflow::Error::*;
 
 fn main() {
     let args = args::parse();
@@ -21,12 +22,19 @@ fn main() {
     cfg.api.token = args.arg("token").unwrap_or(cfg.api.token);
     cfg.api.url = args.arg("api_url").unwrap_or(cfg.api.url);
 
-    if let Err(e) = libkflow::configure(&cfg) {
-        println!("failed to configure libkflow: {:?}", e);
+    let customs = libkflow::configure(&cfg).unwrap_or_else(|e| {
+        println!("error: {}", match e {
+            Failed(7) => format!("authentication failed"),
+            Failed(8) => format!("device not found"),
+            _         => format!("failed to configure libkflow: {:?}", e),
+        });
+
         while let Some(msg) = libkflow::error() {
             println!("  {}", msg);
         }
-    }
+
+        exit(1);
+    });
 
     let interface: NetworkInterface = args.arg("interface").unwrap_or_else(|err| {
         println!("{}", err);

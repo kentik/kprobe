@@ -82,6 +82,7 @@ impl FlowQueue {
 
     pub fn flush(&mut self) {
         if let Ok(time) = self.flushed.elapsed() {
+            // FIXME: proper flush interval
             if time.as_secs() < 15 {
                 return;
             }
@@ -104,17 +105,21 @@ impl FlowQueue {
         }
 
         self.flows.clear();
-        self.queries.clear();
+        // self.queries.clear();
         self.flushed = SystemTime::now();
+
+        while let Some(msg) = libkflow::error() {
+            println!("libkflow error: {}", msg);
+        }
     }
 
-    fn postgres_fe(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>> {
-        let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
-        conn.frontend_msg(ts, p)
-    }
+    // fn postgres_fe(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>> {
+    //     let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
+    //     conn.frontend_msg(ts, p)
+    // }
 
-    fn postgres_be(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>>{
-        let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
-        conn.backend_msg(ts, p)
-    }
+    // fn postgres_be(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>>{
+    //     let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
+    //     conn.backend_msg(ts, p)
+    // }
 }
