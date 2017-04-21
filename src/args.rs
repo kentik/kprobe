@@ -2,17 +2,21 @@ use clap::{ArgMatches, Values};
 use pnet::datalink::{self, NetworkInterface};
 use std::borrow::Cow;
 use std::fmt;
+use std::ffi::{CString, NulError};
 
 pub fn parse<'a>() -> Args<'a> {
     let matches = clap_app!(kprobe =>
       (version: env!("CARGO_PKG_VERSION"))
-      (@arg interface: -i --interface     +takes_value +required "Network interface")
-      (@arg port:      -p --port          +takes_value +multiple "Ports to filter")
-      (@arg email:        --email         +takes_value           "API user email")
-      (@arg token:        --("token")     +takes_value           "API access token")
-      (@arg device_id:    --("device-id") +takes_value           "Device ID")
-      (@arg api_url:      --("api-url")   +takes_value           "HTTP API URL")
-      (@arg flow_url:     --("flow-url")  +takes_value           "Flow endpoint URL")
+      (@arg interface: -i --interface       +takes_value +required "Network interface")
+      (@arg email:        --email           +takes_value           "API user email")
+      (@arg token:        --token           +takes_value           "API access token")
+      (@arg device_id:    --("device-id")   +takes_value           "Device ID")
+      (@arg device_if:    --("device-if")   +takes_value           "Device interface")
+      (@arg device_ip:    --("device-ip")   +takes_value           "Device IP")
+      (@arg api_url:      --("api-url")     +takes_value           "API URL")
+      (@arg flow_url:     --("flow-url")    +takes_value           "Flow URL")
+      (@arg metrics_url:  --("metrics-url") +takes_value           "Metrics URL")
+      (@arg verbose: -v                     ...                    "Verbose output")
     ).get_matches();
     Args{matches: matches}
 }
@@ -29,11 +33,22 @@ impl<'a> Args<'a> {
         }
     }
 
+    pub fn opt<T: FromArg>(&self, name: &'a str) -> Result<Option<T>, Error> {
+        match self.matches.value_of(name) {
+            Some(value) => Ok(Some(FromArg::from_arg(value)?)),
+            None        => Ok(None),
+        }
+    }
+
     pub fn args<T: FromArg>(&self, name: &'a str) -> Result<Vec<T>, Error> {
         match self.matches.values_of(name) {
             Some(values) => self.multiple(values),
             None         => Err(Error::Missing(name)),
         }
+    }
+
+    pub fn count(&self, name: &'a str) -> u64 {
+        self.matches.occurrences_of(name)
     }
 
     fn multiple<T: FromArg>(&self, values: Values<'a>) -> Result<Vec<T>, Error> {
@@ -77,6 +92,12 @@ impl FromArg for u16 {
     }
 }
 
+impl<'a> FromArg for CString {
+    fn from_arg(value: &str) -> Result<CString, Error> {
+        Ok(CString::new(value)?)
+    }
+}
+
 impl<'a> FromArg for Cow<'a, str> {
     fn from_arg(value: &str) -> Result<Self, Error> {
         Ok(Cow::from(value.to_owned()))
@@ -87,6 +108,12 @@ impl<'a> FromArg for Cow<'a, str> {
 pub enum Error<'a> {
     Missing(&'a str),
     Invalid(String),
+}
+
+impl<'a> From<NulError> for Error<'a> {
+    fn from(err: NulError) -> Error<'a> {
+        Error::Invalid(format!("invalid string '{}'", err))
+    }
 }
 
 impl<'a> fmt::Display for Error<'a> {

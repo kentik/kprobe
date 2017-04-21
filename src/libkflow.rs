@@ -1,6 +1,5 @@
 #![allow(non_snake_case, unused)]
 
-use std::borrow::Cow;
 use std::default::Default;
 use std::ffi::{CStr, CString};
 use std::ptr;
@@ -12,25 +11,30 @@ use libc;
 use super::flow::Protocol;
 use super::queue::{Key, Counter, Direction};
 
-pub struct Config<'a> {
-    pub url:       Cow<'a, str>,
-    pub api:       API<'a>,
-    pub metrics:   Metrics<'a>,
-    pub proxy:     Option<Cow<'a, str>>,
+#[derive(Debug)]
+pub struct Config {
+    pub url:       CString,
+    pub api:       API,
+    pub metrics:   Metrics,
+    pub proxy:     Option<CString>,
     pub device_id: u32,
+    pub device_if: Option<CString>,
+    pub device_ip: Option<CString>,
     pub timeout:   Duration,
     pub verbose:   u32,
 }
 
-pub struct API<'a> {
-    pub email: Cow<'a, str>,
-    pub token: Cow<'a, str>,
-    pub url:   Cow<'a, str>,
+#[derive(Debug)]
+pub struct API {
+    pub email: CString,
+    pub token: CString,
+    pub url:   CString,
 }
 
-pub struct Metrics<'a> {
+#[derive(Debug)]
+pub struct Metrics {
     pub interval: Duration,
-    pub url:      Cow<'a, str>,
+    pub url:      CString,
 }
 
 #[derive(Debug)]
@@ -41,21 +45,23 @@ pub enum Error {
     Failed(u32),
 }
 
-impl<'a> Config<'a> {
+impl Config {
     pub fn new() -> Self {
         Config {
-            url: Cow::from("https://flow.kentik.com/chf"),
+            url: CString::new("https://flow.kentik.com/chf").unwrap(),
             api: API {
-                email: Cow::from("test@example.com"),
-                token: Cow::from("token"),
-                url:   Cow::from("https://api.kentik.com/api/v5"),
+                email: CString::new("test@example.com").unwrap(),
+                token: CString::new("token").unwrap(),
+                url:   CString::new("https://api.kentik.com/api/v5").unwrap(),
             },
             metrics: Metrics {
-                interval: Duration::seconds(1),
-                url:      Cow::from("https://flow.kentik.com/tsdb"),
+                interval: Duration::minutes(1),
+                url:      CString::new("https://flow.kentik.com/tsdb").unwrap(),
             },
             proxy:     None,
-            device_id: 1,
+            device_id: 0,
+            device_if: None,
+            device_ip: None,
             timeout:   Duration::seconds(0),
             verbose:   0,
         }
@@ -63,35 +69,24 @@ impl<'a> Config<'a> {
 }
 
 pub fn configure(cfg: &Config) -> Result<(), Error> {
-    let flow_url    = CString::new(cfg.url.as_bytes())?;
-    let api_url     = CString::new(cfg.api.url.as_bytes())?;
-    let email       = CString::new(cfg.api.email.as_bytes())?;
-    let token       = CString::new(cfg.api.token.as_bytes())?;
-    let metrics_url = CString::new(cfg.metrics.url.as_bytes())?;
-    let proxy_url   = if let Some(ref url) = cfg.proxy {
-        Some(CString::new(url.as_bytes())?)
-    } else {
-        None
-    };
-
     let c_cfg = kflowConfig {
-        URL: flow_url.as_ptr(),
+        URL: cfg.url.as_ptr(),
         API: kflowConfigAPI {
-            email: email.as_ptr(),
-            token: token.as_ptr(),
-            URL:   api_url.as_ptr(),
+            email: cfg.api.email.as_ptr(),
+            token: cfg.api.token.as_ptr(),
+            URL:   cfg.api.url.as_ptr(),
 
         },
         metrics: kflowConfigMetrics {
-            interval: cfg.metrics.interval.num_seconds() as libc::c_int,
-            URL:      metrics_url.as_ptr(),
+            interval: cfg.metrics.interval.num_minutes() as libc::c_int,
+            URL:      cfg.metrics.url.as_ptr(),
         },
         proxy: kflowConfigProxy {
-            URL: proxy_url.map(|p| p.as_ptr()).unwrap_or(ptr::null()),
+            URL: cfg.proxy.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
         },
         device_id: cfg.device_id as libc::c_int,
-        device_if: ptr::null(),
-        device_ip: ptr::null(),
+        device_if: cfg.device_if.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
+        device_ip: cfg.device_ip.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
         timeout:   cfg.timeout.num_milliseconds() as libc::c_int,
         verbose:   cfg.verbose as libc::c_int,
     };
