@@ -13,7 +13,7 @@ fn main() {
     let args    = args::parse();
     let verbose = args.count("verbose");
     let promisc = args.count("promisc") > 0;
-    let snaplen = args.arg("snaplen").unwrap_or(1600);
+    let snaplen = args.arg("snaplen").unwrap_or(65535);
 
     let mut cfg = libkflow::Config::new();
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
