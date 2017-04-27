@@ -10,8 +10,10 @@ use pcap::{Capture, Device};
 use libkflow::Error::*;
 
 fn main() {
-    let args = args::parse();
-    let verb = args.count("verbose");
+    let args    = args::parse();
+    let verbose = args.count("verbose");
+    let promisc = args.count("promisc") > 0;
+    let snaplen = args.arg("snaplen").unwrap_or(1600);
 
     let mut cfg = libkflow::Config::new();
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
@@ -22,14 +24,14 @@ fn main() {
     cfg.device_id   = args.arg("device_id").unwrap_or(cfg.device_id);
     cfg.device_if   = args.opt("device_if").unwrap_or(cfg.device_if);
     cfg.device_ip   = args.opt("device_ip").unwrap_or(cfg.device_ip);
-    cfg.verbose     = verb.saturating_sub(1) as u32;
+    cfg.verbose     = verbose.saturating_sub(1) as u32;
 
     let interface: NetworkInterface = args.arg("interface").unwrap_or_else(|err| {
         println!("{}", err);
         exit(1)
     });
 
-    if verb > 0 {
+    if verbose > 0 {
         println!("libkflow-{}", libkflow::version());
         println!("{:#?}", interface);
         println!("{:#?}", cfg);
@@ -56,8 +58,8 @@ fn main() {
     let cap = Capture::from_device(dev).unwrap()
         .buffer_size(100_000_000)
         .timeout(15*1000) // FIXME: should be same as flush timeout
-        .snaplen(1600)
-        .promisc(true)
+        .snaplen(snaplen)
+        .promisc(promisc)
         .open()
         .unwrap();
 

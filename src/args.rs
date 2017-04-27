@@ -16,6 +16,8 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg api_url:      --("api-url")     +takes_value           "API URL")
       (@arg flow_url:     --("flow-url")    +takes_value           "Flow URL")
       (@arg metrics_url:  --("metrics-url") +takes_value           "Metrics URL")
+      (@arg promisc:      --promisc                                "Promiscuous mode")
+      (@arg snaplen:      --snaplen         +takes_value           "Capture snaplen")
       (@arg verbose: -v                     ...                    "Verbose output")
     ).get_matches();
     Args{matches: matches}
@@ -72,6 +74,14 @@ impl FromArg for NetworkInterface {
         let mut interfaces = datalink::interfaces().into_iter();
         interfaces.find(|i| i.name == value).ok_or_else(|| {
             Error::Invalid(format!("unknown interface '{}'", value))
+        })
+    }
+}
+
+impl FromArg for i32 {
+    fn from_arg(value: &str) -> Result<i32, Error> {
+        value.parse().map_err(|_| {
+            Error::Invalid(format!("'{}' is not a number", value))
         })
     }
 }
