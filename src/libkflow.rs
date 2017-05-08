@@ -8,8 +8,8 @@ use pnet::util::MacAddr;
 use pnet::packet::PrimitiveValues;
 use chrono::Duration;
 use libc;
-use super::flow::Protocol;
-use super::queue::{Key, Counter, Direction};
+use super::flow::{Direction, Key, Protocol};
+use super::queue::Counter;
 
 #[derive(Debug)]
 pub struct Config {

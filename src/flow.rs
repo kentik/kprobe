@@ -42,3 +42,17 @@ pub enum Transport {
     UDP,
     Other,
 }
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Key(pub Protocol, pub Addr, pub Addr);
+
+#[derive(Debug)]
+pub enum Direction {
+    In, Out, Unknown
+}
+
+impl<'a> Flow<'a> {
+    pub fn key(&self) -> Key {
+        Key(self.protocol, self.src, self.dst)
+    }
+}

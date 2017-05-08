@@ -10,7 +10,7 @@ use pnet::packet::udp::UdpPacket;
 use packet::{self, Packet, Opaque};
 use packet::Transport::*;
 use flow::*;
-use queue::{FlowQueue, Direction};
+use queue::FlowQueue;
 
 pub struct Kprobe {
     interface: NetworkInterface,

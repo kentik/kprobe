@@ -5,9 +5,6 @@ use libkflow;
 use protocol::postgres;
 use protocol::postgres::CompletedQuery;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct Key(pub Protocol, pub Addr, pub Addr);
-
 #[derive(Debug)]
 pub struct Counter {
     pub ethernet:  Ethernet,
@@ -16,11 +13,6 @@ pub struct Counter {
     pub tcp_flags: u16,
     pub packets:   u64,
     pub bytes:     u64,
-}
-
-#[derive(Debug)]
-pub enum Direction {
-    In, Out, Unknown
 }
 
 pub struct FlowQueue {
