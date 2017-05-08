@@ -12,6 +12,7 @@ libc      = "0.2.21"
 byteorder = "1.0.0"
 nom       = "2.2.1"
 chrono    = "0.3.0"
+time      = "0.1.36"
 pcap      = "0.5.7"
 
 [profile.release]

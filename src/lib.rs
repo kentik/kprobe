@@ -8,6 +8,7 @@ extern crate pnet;
 extern crate nom;
 extern crate libc;
 extern crate chrono;
+extern crate time;
 
 pub mod args;
 pub mod kprobe;

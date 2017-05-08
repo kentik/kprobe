@@ -9,6 +9,7 @@ dependencies = [
  "nom 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "pcap 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "pnet 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

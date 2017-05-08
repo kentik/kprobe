@@ -1,4 +1,3 @@
-use libc::timeval;
 use pcap::{self, Capture, Active, Error};
 use pcap::Error::*;
 use pnet::datalink::NetworkInterface;
@@ -11,6 +10,7 @@ use packet::{self, Packet, Opaque};
 use packet::Transport::*;
 use flow::*;
 use queue::FlowQueue;
+use libkflow::kflowCustom;
 
 pub struct Kprobe {
     interface: NetworkInterface,
@@ -18,10 +18,10 @@ pub struct Kprobe {
 }
 
 impl Kprobe {
-    pub fn new(interface: NetworkInterface) -> Kprobe {
+    pub fn new(interface: NetworkInterface, customs: Vec<kflowCustom>) -> Kprobe {
         Kprobe {
             interface: interface,
-            queue:     FlowQueue::new(),
+            queue:     FlowQueue::new(customs),
         }
     }
 
@@ -56,7 +56,7 @@ impl Kprobe {
             };
 
             if let Some(transport) = pkt.transport() {
-                let ts = packet.header.ts;
+                let ts = Timestamp(packet.header.ts);
                 let flow = match transport {
                     TCP(ref tcp)   => self.tcp(ts, eth, &pkt, tcp),
                     UDP(ref udp)   => self.udp(ts, eth, &pkt, udp),
@@ -69,7 +69,7 @@ impl Kprobe {
         }
     }
 
-    fn tcp<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Flow<'a> {
+    fn tcp<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Flow<'a> {
         Flow{
             timestamp: ts,
             protocol:  Protocol::TCP,
@@ -83,7 +83,7 @@ impl Kprobe {
         }
     }
 
-    fn udp<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, udp: &'a UdpPacket) -> Flow<'a> {
+    fn udp<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, udp: &'a UdpPacket) -> Flow<'a> {
         Flow{
             timestamp: ts,
             protocol:  Protocol::UDP,
@@ -97,7 +97,7 @@ impl Kprobe {
         }
     }
 
-    fn icmp<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Flow<'a> {
+    fn icmp<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Flow<'a> {
         let pack = ((icmp.get_icmp_type().0 as u16) << 8) | icmp.get_icmp_code().0 as u16;
 
         Flow{
@@ -113,7 +113,7 @@ impl Kprobe {
         }
     }
 
-    fn ip<'a>(&self, ts: timeval, eth: Ethernet, p: &Packet, o: &'a Opaque) -> Flow<'a> {
+    fn ip<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, o: &'a Opaque) -> Flow<'a> {
         Flow{
             timestamp: ts,
             protocol:  Protocol::Other(o.protocol),

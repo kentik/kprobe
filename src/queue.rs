@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::time::SystemTime;
 use flow::*;
-use libkflow;
-use protocol::postgres;
-use protocol::postgres::CompletedQuery;
+use libkflow::{self, kflowCustom};
+use protocol::decode::{Decoder, Decoders};
 
 #[derive(Debug)]
 pub struct Counter {
@@ -13,45 +12,38 @@ pub struct Counter {
     pub tcp_flags: u16,
     pub packets:   u64,
     pub bytes:     u64,
+    pub decoder:   Decoder,
 }
 
 pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
-    postgres: HashMap<Addr, postgres::Connection>,
-    queries:  Vec<CompletedQuery>,
+    decoders: Decoders,
     flushed:  SystemTime,
 }
 
 impl FlowQueue {
-    pub fn new() -> FlowQueue {
+    pub fn new(customs: Vec<kflowCustom>) -> FlowQueue {
         FlowQueue {
             flows:     HashMap::new(),
-            postgres:  HashMap::new(),
-            queries:   Vec::new(),
+            decoders:  Decoders::new(customs),
             flushed:   SystemTime::now(),
         }
     }
 
     pub fn add(&mut self, dir: Direction, flow: Flow) {
-        self.record(dir, &flow);
+        let key = Key(flow.protocol, flow.src, flow.dst);
+        let dec = self.record(key.clone(), dir, &flow);
+        let cs  = self.decoders.decode(dec, &flow);
 
-        // let queries = match (flow.src.port, flow.dst.port) {
-        //     (_, 5432) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
-        //     (5432, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
-        //     (_, 5433) => self.postgres_fe(flow.src, flow.timestamp, flow.payload),
-        //     (5433, _) => self.postgres_be(flow.dst, flow.timestamp, flow.payload),
-        //     _         => None,
-        // };
-
-        // if let Some(queries) = queries {
-        //     for q in queries {
-        //         self.queries.push(q);
-        //     }
-        // }
+        if cs.is_some() {
+            self.flows.remove(&key).map(|ctr| {
+                libkflow::send(&key, &ctr, cs).expect("failed to send flow");
+            });
+        }
     }
 
-    fn record(&mut self, dir: Direction, flow: &Flow) {
-        let key = Key(flow.protocol, flow.src, flow.dst);
+    fn record(&mut self, key: Key, dir: Direction, flow: &Flow) -> Decoder {
+        let decoders = &mut self.decoders;
         let ctr = self.flows.entry(key).or_insert_with(|| {
             Counter {
                 ethernet:  flow.ethernet,
@@ -60,6 +52,7 @@ impl FlowQueue {
                 tcp_flags: 0,
                 packets:   0,
                 bytes:     0,
+                decoder:   decoders.classify(flow),
             }
         });
 
@@ -70,6 +63,8 @@ impl FlowQueue {
         if let Transport::TCP { flags } = flow.transport {
             ctr.tcp_flags |= flags;
         }
+
+        ctr.decoder
     }
 
     pub fn flush(&mut self) {
@@ -86,32 +81,14 @@ impl FlowQueue {
 
             // println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
 
-            // for completed in &self.queries {
-            //     let s = completed.duration.as_secs();
-            //     let ms = completed.duration.subsec_nanos() / 1_000_000;
-            //     println!("  SQL query: {}", completed.query);
-            //     println!("  SQL time:  {}.{}s", s, ms);
-            // }
-
-            libkflow::send(key, ctr).expect("failed to send flow");
+            libkflow::send(key, ctr, None).expect("failed to send flow");
         }
 
         self.flows.clear();
-        // self.queries.clear();
         self.flushed = SystemTime::now();
 
         while let Some(msg) = libkflow::error() {
             println!("libkflow error: {}", msg);
         }
     }
-
-    // fn postgres_fe(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>> {
-    //     let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
-    //     conn.frontend_msg(ts, p)
-    // }
-
-    // fn postgres_be(&mut self, addr: Addr, ts: SystemTime, p: &[u8]) -> Option<Vec<CompletedQuery>>{
-    //     let conn = self.postgres.entry(addr).or_insert_with(postgres::Connection::new);
-    //     conn.backend_msg(ts, p)
-    // }
 }

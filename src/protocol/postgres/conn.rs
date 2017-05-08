@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::time::{Duration, SystemTime};
-
+use time::Duration;
 use nom::IResult::Done;
-use super::buf::Buffer;
+use protocol::buf::Buffer;
+use flow::Timestamp;
 use super::parser::{self, Message};
 use self::Message::*;
 
@@ -13,7 +13,6 @@ pub struct Connection {
     state:     State,
 }
 
-#[derive(Debug)]
 struct State {
     statements: HashMap<String, String>,
     portals:    HashMap<String, String>,
@@ -33,7 +32,7 @@ impl Connection {
         }
     }
 
-    pub fn frontend_msg(&mut self, ts: SystemTime, buf: &[u8]) -> Option<Vec<CompletedQuery>> {
+    pub fn frontend_msg(&mut self, ts: Timestamp, buf: &[u8]) -> Option<Vec<CompletedQuery>> {
         let state = &mut self.state;
         let mut buf = self.buffer_fe.buf(buf);
         let mut completed = None;
@@ -48,7 +47,7 @@ impl Connection {
         completed
     }
 
-    pub fn backend_msg(&mut self, ts: SystemTime, buf: &[u8]) -> Option<Vec<CompletedQuery>> {
+    pub fn backend_msg(&mut self, ts: Timestamp, buf: &[u8]) -> Option<Vec<CompletedQuery>> {
         let state = &mut self.state;
         let mut buf = self.buffer_be.buf(buf);
         let mut completed = None;
@@ -65,7 +64,7 @@ impl Connection {
 }
 
 impl State {
-    fn next(&mut self, ts: SystemTime, msg: &Message) -> Option<CompletedQuery> {
+    fn next(&mut self, ts: Timestamp, msg: &Message) -> Option<CompletedQuery> {
         // println!("postgres msg {:#?}", msg);
         match *msg {
             Query(query)                => self.simple(ts, query),
@@ -81,7 +80,7 @@ impl State {
         }
     }
 
-    fn simple(&mut self, ts: SystemTime, query: &str) -> Option<CompletedQuery> {
+    fn simple(&mut self, ts: Timestamp, query: &str) -> Option<CompletedQuery> {
         self.executing.push_back(Command::Query{
             query: query.to_string(),
             start: ts,
@@ -105,7 +104,7 @@ impl State {
         None
     }
 
-    fn execute(&mut self, ts: SystemTime, portal: &str) -> Option<CompletedQuery> {
+    fn execute(&mut self, ts: Timestamp, portal: &str) -> Option<CompletedQuery> {
         self.executing.push_back(Command::Execute{
             portal: portal.to_string(),
             start:  ts,
@@ -122,11 +121,11 @@ impl State {
         None
     }
 
-    fn done(&mut self, ts: SystemTime, m: &Message) -> Option<CompletedQuery> {
+    fn done(&mut self, ts: Timestamp, m: &Message) -> Option<CompletedQuery> {
         self.executing.pop_front().and_then(|p| {
             match p.result(m) {
                 Result::QueryComplete{query, start} => {
-                    let duration = ts.duration_since(start).unwrap_or(Duration::from_secs(0));
+                    let duration = ts.timespec() - start.timespec();
                     Some(CompletedQuery{
                         query:    query,
                         duration: duration,
@@ -141,7 +140,7 @@ impl State {
                     None
                 },
                 Result::Executed{portal, start} => {
-                    let duration = ts.duration_since(start).unwrap_or(Duration::from_secs(0));
+                    let duration = ts.timespec() - start.timespec();
                     self.portals.get(&portal).and_then(|statement| {
                         self.statements.get(statement).and_then(|query| {
                             Some(CompletedQuery{
@@ -163,12 +162,11 @@ impl State {
     }
 }
 
-#[derive(Debug)]
 enum Command {
-    Query{query: String, start: SystemTime},
+    Query{query: String, start: Timestamp},
     Parse{statement: String, query: String},
     Bind{portal: String, statement: String},
-    Execute{portal: String, start: SystemTime},
+    Execute{portal: String, start: Timestamp},
 }
 
 impl Command {
@@ -191,12 +189,11 @@ impl Command {
     }
 }
 
-#[derive(Debug)]
 enum Result {
-    QueryComplete{query: String, start: SystemTime},
+    QueryComplete{query: String, start: Timestamp},
     Parsed{statement: String, query: String},
     Bound{portal: String, statement: String},
-    Executed{portal: String, start: SystemTime},
+    Executed{portal: String, start: Timestamp},
     Continue(Command),
     Failed,
 }
@@ -212,7 +209,7 @@ impl ::std::fmt::Debug for Connection {
         let mut s = fmt.debug_struct("Connection");
         s.field("buffer_fe", &self.buffer_fe.len());
         s.field("buffer_be", &self.buffer_be.len());
-        s.field("state", &self.state);
+        //s.field("state", &self.state);
         s.finish()
     }
 }

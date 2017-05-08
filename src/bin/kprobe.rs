@@ -67,6 +67,6 @@ fn main() {
     //     cap.filter(filter).unwrap();
     // }
 
-    let mut kprobe = Kprobe::new(interface);
+    let mut kprobe = Kprobe::new(interface, customs);
     kprobe.run(cap).expect("capture succeeded");
 }

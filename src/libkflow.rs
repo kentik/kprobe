@@ -3,6 +3,7 @@
 use std::default::Default;
 use std::ffi::{CStr, CString};
 use std::ptr;
+use std::slice;
 use std::net::IpAddr;
 use pnet::util::MacAddr;
 use pnet::packet::PrimitiveValues;
@@ -68,7 +69,7 @@ impl Config {
     }
 }
 
-pub fn configure(cfg: &Config) -> Result<(), Error> {
+pub fn configure(cfg: &Config) -> Result<Vec<kflowCustom>, Error> {
     let c_cfg = kflowConfig {
         URL: cfg.url.as_ptr(),
         API: kflowConfigAPI {
@@ -91,16 +92,27 @@ pub fn configure(cfg: &Config) -> Result<(), Error> {
         verbose:   cfg.verbose as libc::c_int,
     };
 
+    let mut c_customs: *mut kflowCustom = ptr::null_mut();
+    let mut n_customs: u32 = 0;
+
+    unsafe fn customs(ptr: *mut kflowCustom, n: usize) -> Vec<kflowCustom> {
+        let mut vec = Vec::with_capacity(n);
+        ptr::copy(ptr, vec.as_mut_ptr(), n);
+        libc::free(ptr as *mut libc::c_void);
+        vec.set_len(n);
+        vec
+    }
+
     unsafe {
-        match kflowInit(&c_cfg, ptr::null_mut(), ptr::null_mut()) {
-            0 => Ok(()),
+        match kflowInit(&c_cfg, &mut c_customs, &mut n_customs) {
+            0 => Ok(customs(c_customs, n_customs as usize)),
             1 => Err(Error::InvalidConfig),
             n => Err(Error::Failed(n as u32))
         }
     }
 }
 
-pub fn send(key: &Key, ctr: &Counter) -> Result<(), Error> {
+pub fn send(key: &Key, ctr: &Counter, cs: Option<&[kflowCustom]>) -> Result<(), Error> {
     let mut kflow: kflow = Default::default();
     let mut v6src: [u8; 16];
     let mut v6dst: [u8; 16];
@@ -156,6 +168,11 @@ pub fn send(key: &Key, ctr: &Counter) -> Result<(), Error> {
         },
     }
 
+    if let Some(cs) = cs {
+        kflow.customs    = cs.as_ptr();
+        kflow.numCustoms = cs.len() as u32;
+    }
+
     unsafe {
         match kflowSend(&kflow) {
             0 => Ok(()),
@@ -204,6 +221,10 @@ extern {
     fn kflowVersion() -> *const libc::c_char;
 }
 
+const KFLOW_CUSTOM_STR: libc::c_int = 1;
+const KFLOW_CUSTOM_U32: libc::c_int = 2;
+const KFLOW_CUSTOM_F32: libc::c_int = 3;
+
 #[repr(C)]
 struct kflowConfig {
     URL:       *const libc::c_char,
@@ -236,6 +257,7 @@ struct kflowConfigProxy {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct kflowCustom {
     pub name:  *const libc::c_char,
     pub id:    u64,
@@ -244,6 +266,7 @@ pub struct kflowCustom {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub union kflowCustomValue {
     pub str: *const libc::c_char,
     pub u32: u32,
@@ -316,6 +339,14 @@ pub struct kflow {
     pub numCustoms: u32,
 }
 
+impl kflowCustom {
+    pub fn name<'a>(&self) -> &'a str {
+        unsafe {
+            CStr::from_ptr(self.name).to_str().unwrap_or("")
+        }
+    }
+}
+
 impl Default for kflow {
     fn default() -> Self {
         unsafe { ::std::mem::zeroed() }
@@ -336,4 +367,36 @@ fn pack_mac(mac: &MacAddr) -> u64 {
     (prims.3 as u64) << 16 |
     (prims.4 as u64) << 8  |
     (prims.5 as u64)
+}
+
+impl kflowCustom {
+    pub fn set_str(&mut self, str: &CStr) {
+        self.vtype = KFLOW_CUSTOM_STR;
+        unsafe { self.value.str = str.as_ptr(); }
+    }
+
+    pub fn set_u32(&mut self, u32: u32) {
+        self.vtype = KFLOW_CUSTOM_U32;
+        unsafe { self.value.u32 = u32; }
+    }
+}
+
+impl ::std::fmt::Debug for kflowCustom {
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
+        let name = unsafe { CStr::from_ptr(self.name).to_str().unwrap_or("") };
+        let cstr: &CStr;
+
+        let mut s = fmt.debug_struct("kflowCustom");
+        s.field("name",  &name);
+        s.field("id",    &self.id);
+        s.field("vtype", &self.vtype);
+        s.field("value", match self.vtype {
+            KFLOW_CUSTOM_STR => unsafe { cstr = &CStr::from_ptr(self.value.str); &cstr },
+            KFLOW_CUSTOM_U32 => unsafe { &self.value.u32 },
+            KFLOW_CUSTOM_F32 => unsafe { &self.value.f32 },
+            _                => panic!("kflowCustom has invalid vtype"),
+        });
+
+        s.finish()
+    }
 }
