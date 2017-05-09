@@ -221,9 +221,9 @@ extern {
     fn kflowVersion() -> *const libc::c_char;
 }
 
-const KFLOW_CUSTOM_STR: libc::c_int = 1;
-const KFLOW_CUSTOM_U32: libc::c_int = 2;
-const KFLOW_CUSTOM_F32: libc::c_int = 3;
+pub const KFLOW_CUSTOM_STR: libc::c_int = 1;
+pub const KFLOW_CUSTOM_U32: libc::c_int = 2;
+pub const KFLOW_CUSTOM_F32: libc::c_int = 3;
 
 #[repr(C)]
 struct kflowConfig {

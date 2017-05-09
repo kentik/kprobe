@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 use flow::*;
 use libkflow::{self, kflowCustom};
-use protocol::decode::{Decoder, Decoders};
+use protocol::{Customs, Decoder, Decoders};
 
 #[derive(Debug)]
 pub struct Counter {
@@ -17,6 +17,7 @@ pub struct Counter {
 
 pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
+    customs:  Customs,
     decoders: Decoders,
     flushed:  SystemTime,
 }
@@ -24,19 +25,22 @@ pub struct FlowQueue {
 impl FlowQueue {
     pub fn new(customs: Vec<kflowCustom>) -> FlowQueue {
         FlowQueue {
-            flows:     HashMap::new(),
-            decoders:  Decoders::new(customs),
-            flushed:   SystemTime::now(),
+            flows:    HashMap::new(),
+            customs:  Customs::new(customs.len()),
+            decoders: Decoders::new(customs),
+            flushed:  SystemTime::now(),
         }
     }
 
     pub fn add(&mut self, dir: Direction, flow: Flow) {
         let key = Key(flow.protocol, flow.src, flow.dst);
         let dec = self.record(key.clone(), dir, &flow);
-        let cs  = self.decoders.decode(dec, &flow);
 
-        if cs.is_some() {
+        self.customs.clear();
+
+        if self.decoders.decode(dec, &flow, &mut self.customs) {
             self.flows.remove(&key).map(|ctr| {
+                let cs = Some(&self.customs[..]);
                 libkflow::send(&key, &ctr, cs).expect("failed to send flow");
             });
         }

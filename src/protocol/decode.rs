@@ -1,6 +1,7 @@
 use flow::Flow;
 use flow::Protocol::*;
 use libkflow::kflowCustom;
+use protocol::Customs;
 use protocol::dns;
 use protocol::postgres;
 
@@ -17,8 +18,8 @@ pub struct Decoders {
 impl Decoders {
     pub fn new(cs: Vec<kflowCustom>) -> Self {
         Decoders {
-            dns:      dns::Decoder::new(cs.clone()),
-            postgres: postgres::Decoder::new(cs.clone()),
+            dns:      dns::Decoder::new(&cs),
+            postgres: postgres::Decoder::new(&cs),
         }
     }
 
@@ -32,11 +33,11 @@ impl Decoders {
         }
     }
 
-    pub fn decode(&mut self, d: Decoder, flow: &Flow) -> Option<&[kflowCustom]> {
+    pub fn decode(&mut self, d: Decoder, flow: &Flow, cs: &mut Customs) -> bool {
         match d {
-            Decoder::DNS      => self.dns.as_mut().and_then(|d| d.decode(flow)),
-            Decoder::Postgres => self.postgres.as_mut().and_then(|d| d.decode(flow)),
+            Decoder::DNS      => self.dns.as_mut().map(|d| d.decode(flow, cs)),
+            Decoder::Postgres => self.postgres.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::None     => None,
-        }
+        }.unwrap_or(false)
     }
 }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use flow::{Addr, Flow};
 use libkflow::kflowCustom;
+use protocol::Customs;
 use super::conn::{Connection, CompletedQuery};
 
 pub struct Decoder {
@@ -8,13 +9,13 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: Vec<kflowCustom>) -> Option<Decoder> {
+    pub fn new(cs: &Vec<kflowCustom>) -> Option<Decoder> {
         let _ = cs;
         // FIXME: WIP
         None
     }
 
-    pub fn decode(&mut self, flow: &Flow) -> Option<&[kflowCustom]> {
+    pub fn decode(&mut self, flow: &Flow, cs: &mut Customs) -> bool {
         let queries = match (flow.src.port, flow.dst.port) {
             (_, 5432) => self.parse_fe(flow),
             (5432, _) => self.parse_be(flow),
@@ -26,7 +27,8 @@ impl Decoder {
         }
 
         // FIXME: WIP
-        None
+        let _ = cs;
+        false
     }
 
     fn parse_fe(&mut self, flow: &Flow) -> Option<Vec<CompletedQuery>> {

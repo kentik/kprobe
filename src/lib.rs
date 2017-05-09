@@ -1,4 +1,4 @@
-#![feature(untagged_unions)]
+#![feature(untagged_unions, collection_placement, placement_in_syntax)]
 
 #[macro_use]
 extern crate clap;
