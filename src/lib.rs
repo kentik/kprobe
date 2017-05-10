@@ -9,6 +9,7 @@ extern crate nom;
 extern crate libc;
 extern crate chrono;
 extern crate time;
+extern crate httparse;
 
 pub mod args;
 pub mod kprobe;

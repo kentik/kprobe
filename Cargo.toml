@@ -1,6 +1,6 @@
 [package]
 name    = "kprobe"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Will <will@kentik.com>"]
 links   = "kflow"
 build   = "build.rs"
@@ -14,6 +14,7 @@ nom       = "2.2.1"
 chrono    = "0.3.0"
 time      = "0.1.36"
 pcap      = "0.5.7"
+httparse  = "1.2.2"
 
 [profile.release]
 lto   = true

@@ -1,17 +1,16 @@
 use flow::Flow;
 use flow::Protocol::*;
 use libkflow::kflowCustom;
-use protocol::Customs;
-use protocol::dns;
-use protocol::postgres;
+use protocol::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Decoder {
-    DNS, Postgres, None
+    DNS, HTTP, Postgres, None
 }
 
 pub struct Decoders {
     dns:      Option<dns::Decoder>,
+    http:     Option<http::Decoder>,
     postgres: Option<postgres::Decoder>,
 }
 
@@ -19,6 +18,7 @@ impl Decoders {
     pub fn new(cs: Vec<kflowCustom>) -> Self {
         Decoders {
             dns:      dns::Decoder::new(&cs),
+            http:     http::Decoder::new(&cs),
             postgres: postgres::Decoder::new(&cs),
         }
     }
@@ -27,6 +27,8 @@ impl Decoders {
         match (flow.protocol, flow.src.port, flow.dst.port) {
             (UDP, 53, _)   if self.dns.is_some()      => Decoder::DNS,
             (UDP, _, 53)   if self.dns.is_some()      => Decoder::DNS,
+            (TCP, 80, _)   if self.http.is_some()     => Decoder::HTTP,
+            (TCP, _, 80)   if self.http.is_some()     => Decoder::HTTP,
             (TCP, 5432, _) if self.postgres.is_some() => Decoder::Postgres,
             (TCP, _, 5432) if self.postgres.is_some() => Decoder::Postgres,
             _                                         => Decoder::None,
@@ -37,6 +39,7 @@ impl Decoders {
         match d {
             Decoder::DNS      => self.dns.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::Postgres => self.postgres.as_mut().map(|d| d.decode(flow, cs)),
+            Decoder::HTTP     => self.http.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::None     => None,
         }.unwrap_or(false)
     }
