@@ -14,7 +14,8 @@ nom       = "2.2.1"
 chrono    = "0.3.0"
 time      = "0.1.36"
 pcap      = "0.5.7"
-httparse  = "1.2.2"
+
+http-muncher = "0.3.1"
 
 [profile.release]
 lto   = true

@@ -25,7 +25,7 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: &Vec<kflowCustom>) -> Option<Decoder> {
+    pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
         let mut ns = HashSet::new();
         ns.insert(APPL_LATENCY_MS);
         ns.insert(KFLOW_HTTP_URL);
@@ -76,10 +76,10 @@ impl Decoder {
         // FIXME: consume body
         conn.parse_req(flow.timestamp, flow.payload).map(|req| {
             // println!("got http request {:#?}", req);
-            cs.add_str(req_url, req.url.as_ref().unwrap_or(&empty));
-            cs.add_str(req_host, req.host.as_ref().unwrap_or(&empty));
-            cs.add_str(req_referer, req.referer.as_ref().unwrap_or(&empty));
-            cs.add_str(req_ua, req.ua.as_ref().unwrap_or(&empty));
+            cs.add_str(req_url, req.url.as_ref().unwrap_or(empty));
+            cs.add_str(req_host, req.host.as_ref().unwrap_or(empty));
+            cs.add_str(req_referer, req.referer.as_ref().unwrap_or(empty));
+            cs.add_str(req_ua, req.ua.as_ref().unwrap_or(empty));
             true
         }).unwrap_or(false)
     }
@@ -101,10 +101,10 @@ impl Decoder {
         // FIXME: consume body
         self.res.as_ref().map(|res| {
             // println!("got http response {:#?}", res);
-            cs.add_str(req_url, res.url.as_ref().unwrap_or(&empty));
-            cs.add_str(req_host, res.host.as_ref().unwrap_or(&empty));
-            cs.add_str(req_referer, res.referer.as_ref().unwrap_or(&empty));
-            cs.add_str(req_ua, res.ua.as_ref().unwrap_or(&empty));
+            cs.add_str(req_url, res.url.as_ref().unwrap_or(empty));
+            cs.add_str(req_host, res.host.as_ref().unwrap_or(empty));
+            cs.add_str(req_referer, res.referer.as_ref().unwrap_or(empty));
+            cs.add_str(req_ua, res.ua.as_ref().unwrap_or(empty));
             cs.add_u32(res_status, res.status as u32);
             cs.add_u32(latency, res.latency.num_milliseconds() as u32);
             true
