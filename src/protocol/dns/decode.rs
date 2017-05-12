@@ -75,6 +75,10 @@ impl Decoder {
         }).unwrap_or(false)
     }
 
+    pub fn clear(&mut self) {
+        self.conns.retain(|_, c| !c.is_idle())
+    }
+
     fn parse(&mut self, flow: &Flow) -> Option<Message> {
         let addr = match (flow.src, flow.dst) {
             (src, dst) if dst.port == 53 => (src, dst),

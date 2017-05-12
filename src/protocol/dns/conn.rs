@@ -46,6 +46,10 @@ impl Connection {
 
         completed
     }
+
+    pub fn is_idle(&self) -> bool {
+        self.buffer.is_empty() && self.state.pending.is_empty()
+    }
 }
 
 impl State {

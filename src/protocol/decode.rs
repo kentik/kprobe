@@ -43,4 +43,10 @@ impl Decoders {
             Decoder::None     => None,
         }.unwrap_or(false)
     }
+
+    pub fn clear(&mut self) {
+        // FIXME: revisit this, maybe also clear based on last active time
+        self.dns.as_mut().map(|d| d.clear());
+        self.http.as_mut().map(|d| d.clear());
+    }
 }

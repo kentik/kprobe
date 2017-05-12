@@ -63,6 +63,10 @@ impl Decoder {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.conns.retain(|_, c| !c.is_idle())
+    }
+
     fn parse_req(&mut self, flow: &Flow, cs: &mut Customs) -> bool {
         let addr = (flow.src, flow.dst);
         let conn = self.conns.entry(addr).or_insert_with(Connection::new);
