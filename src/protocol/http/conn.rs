@@ -76,7 +76,7 @@ impl Connection {
 
     pub fn parse_req(&mut self, ts: Timestamp, buf: &[u8]) -> Option<&Req> {
         self.req_state.parse(buf, ts).unwrap_or_else(|err| {
-            println!("parse_req: error {}", err);
+            //println!("parse_req: error {}", err);
             self.req_state.buffer.clear();
             self.pending.clear();
             None
@@ -88,7 +88,7 @@ impl Connection {
 
     pub fn parse_res(&mut self, ts: Timestamp, buf: &[u8]) -> Option<Res> {
         self.res_state.parse(buf).unwrap_or_else(|err| {
-            println!("parse_res: error {}", err);
+            //println!("parse_res: error {}", err);
             self.req_state.buffer.clear();
             self.res_state.buffer.clear();
             self.pending.clear();

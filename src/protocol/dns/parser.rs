@@ -248,7 +248,7 @@ named_args!(pointer<'a>(msg: &'a [u8], vec: Vec<u8>) <Vec<u8>>, do_parse!(
 ));
 
 named_args!(labels<'a>(vec: Vec<u8>) <(bool, Vec<u8>)>,
-    fold_many0!(label, (vec.len() == 0, vec), |mut args: (bool, Vec<u8>), name| {
+    fold_many0!(label, (vec.is_empty(), vec), |mut args: (bool, Vec<u8>), name| {
         if !args.0 {
             args.1.push(b'.');
         }
@@ -299,6 +299,6 @@ fn resolve_ptr<'a>(buf: &'a [u8], msg: &'a [u8], ptr: usize, vec: Vec<u8>) -> IR
 
 fn parse_ipv6<'a>(buf: &'a [u8]) -> Ipv6Addr {
     let mut bytes = [0u8; 16];
-    &bytes.clone_from_slice(buf);
+    bytes.clone_from_slice(buf);
     Ipv6Addr::from(bytes)
 }

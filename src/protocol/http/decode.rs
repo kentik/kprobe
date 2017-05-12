@@ -73,7 +73,6 @@ impl Decoder {
         let req_ua      = self.req_ua;
         let empty       = &self.empty;
 
-        // FIXME: consume body
         conn.parse_req(flow.timestamp, flow.payload).map(|req| {
             // println!("got http request {:#?}", req);
             cs.add_str(req_url, req.url.as_ref().unwrap_or(empty));
@@ -98,7 +97,6 @@ impl Decoder {
         let latency     = self.latency;
         let empty       = &self.empty;
 
-        // FIXME: consume body
         self.res.as_ref().map(|res| {
             // println!("got http response {:#?}", res);
             cs.add_str(req_url, res.url.as_ref().unwrap_or(empty));

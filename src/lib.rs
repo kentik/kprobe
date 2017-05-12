@@ -7,7 +7,6 @@ extern crate pnet;
 #[macro_use]
 extern crate nom;
 extern crate libc;
-extern crate chrono;
 extern crate time;
 extern crate http_muncher;
 

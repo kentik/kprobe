@@ -9,7 +9,7 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: &Vec<kflowCustom>) -> Option<Decoder> {
+    pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
         let _ = cs;
         // FIXME: WIP
         None

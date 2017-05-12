@@ -34,7 +34,7 @@ impl FlowQueue {
 
     pub fn add(&mut self, dir: Direction, flow: Flow) {
         let key = Key(flow.protocol, flow.src, flow.dst);
-        let dec = self.record(key.clone(), dir, &flow);
+        let dec = self.record(key, dir, &flow);
 
         self.customs.clear();
 

@@ -23,7 +23,7 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: &Vec<kflowCustom>) -> Option<Decoder> {
+    pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
         let mut ns = HashSet::new();
         ns.insert(APPL_LATENCY_MS);
         ns.insert(KFLOW_DNS_QUERY);

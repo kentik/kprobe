@@ -7,7 +7,7 @@ use std::slice;
 use std::net::IpAddr;
 use pnet::util::MacAddr;
 use pnet::packet::PrimitiveValues;
-use chrono::Duration;
+use time::Duration;
 use libc;
 use super::flow::{Direction, Key, Protocol};
 use super::queue::Counter;
@@ -391,7 +391,7 @@ impl ::std::fmt::Debug for kflowCustom {
         s.field("id",    &self.id);
         s.field("vtype", &self.vtype);
         s.field("value", match self.vtype {
-            KFLOW_CUSTOM_STR => unsafe { cstr = &CStr::from_ptr(self.value.str); &cstr },
+            KFLOW_CUSTOM_STR => unsafe { cstr = CStr::from_ptr(self.value.str); &cstr },
             KFLOW_CUSTOM_U32 => unsafe { &self.value.u32 },
             KFLOW_CUSTOM_F32 => unsafe { &self.value.f32 },
             _                => panic!("kflowCustom has invalid vtype"),
