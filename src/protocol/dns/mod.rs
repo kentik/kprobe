@@ -1,5 +1,5 @@
-mod conn;
-mod decode;
-mod parser;
+pub mod conn;
+pub mod decode;
+pub mod parser;
 
 pub use self::decode::*;

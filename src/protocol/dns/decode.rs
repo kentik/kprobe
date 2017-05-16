@@ -17,8 +17,9 @@ pub struct Decoder {
     reply_code: u64,
     reply_data: u64,
     latency:    u64,
-    name_str:   CString,
-    data_str:   CString,
+    name_str:   Option<CString>,
+    data_str:   Option<CString>,
+    empty:      CString,
     conns:      HashMap<(Addr, Addr), Connection>,
 }
 
@@ -45,8 +46,9 @@ impl Decoder {
             reply_code: cs[KFLOW_DNS_RET_CODE],
             reply_data: cs[KFLOW_DNS_RESPONSE],
             latency:    cs[APPL_LATENCY_MS],
-            name_str:   Default::default(),
-            data_str:   Default::default(),
+            name_str:   None,
+            data_str:   None,
+            empty:      Default::default(),
             conns:      HashMap::new(),
         })
     }
@@ -56,18 +58,18 @@ impl Decoder {
         self.parse(flow).map(move |msg| {
             match msg {
                 Message::Query(qq) => {
-                    self.name_str = CString::new(qq.qname).unwrap();
-                    cs.add_str(self.query_name, &self.name_str);
+                    self.name_str = CString::new(qq.qname).ok();
+                    cs.add_str(self.query_name, self.name_str.as_ref().unwrap_or(&self.empty));
                     cs.add_u32(self.query_type, qq.qtype as u32);
                     true
                 },
                 Message::Reply(qq, rc, data, d) => {
-                    self.name_str = CString::new(qq.qname).unwrap();
-                    self.data_str = CString::new(data).unwrap();
-                    cs.add_str(self.query_name, &self.name_str);
+                    self.name_str = CString::new(qq.qname).ok();
+                    self.data_str = CString::new(data).ok();
+                    cs.add_str(self.query_name, self.name_str.as_ref().unwrap_or(&self.empty));
                     cs.add_u32(self.query_type, qq.qtype as u32);
                     cs.add_u32(self.reply_code, rc as u32);
-                    cs.add_str(self.reply_data, &self.data_str);
+                    cs.add_str(self.reply_data, self.data_str.as_ref().unwrap_or(&self.empty));
                     cs.add_u32(self.latency, d.num_milliseconds() as u32);
                     true
                 },

@@ -35,11 +35,13 @@ impl Connection {
         let state = &mut self.state;
         let mut buf = self.buffer.buf(buf);
         let mut completed = None;
-        let mut remainder = buf.len();
+        let remainder: usize;
 
         if let Done(rest, msg) = parser::parse_message(&buf[..]) {
             completed = state.update(msg, ts);
             remainder = rest.len();
+        } else {
+            remainder = 0;
         }
 
         buf.keep(remainder);

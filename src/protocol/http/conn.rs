@@ -75,7 +75,7 @@ impl Connection {
     }
 
     pub fn parse_req(&mut self, ts: Timestamp, buf: &[u8]) -> Option<&Req> {
-        self.req_state.parse(buf, ts).unwrap_or_else(|err| {
+        self.req_state.parse(buf, ts).unwrap_or_else(|_err| {
             //println!("parse_req: error {}", err);
             self.req_state.buffer.clear();
             self.pending.clear();
@@ -87,7 +87,7 @@ impl Connection {
     }
 
     pub fn parse_res(&mut self, ts: Timestamp, buf: &[u8]) -> Option<Res> {
-        self.res_state.parse(buf).unwrap_or_else(|err| {
+        self.res_state.parse(buf).unwrap_or_else(|_err| {
             //println!("parse_res: error {}", err);
             self.req_state.buffer.clear();
             self.res_state.buffer.clear();
@@ -132,7 +132,7 @@ impl ReqState {
             self.ts = Some(ts);
         }
 
-        len -= self.parser.parse(&mut self.state, &buf[..]);
+        len = len.saturating_sub(self.parser.parse(&mut self.state, &buf[..]));
         if self.parser.has_error() {
             buf.keep(0);
             return Err(error(&self.parser))
@@ -174,7 +174,7 @@ impl ResState {
         let mut len = buf.len();
         let mut res = None;
 
-        len -= self.parser.parse(&mut self.state, &buf[..]);
+        len = len.saturating_sub(self.parser.parse(&mut self.state, &buf[..]));
         if self.parser.has_error() {
             buf.keep(0);
             return Err(error(&self.parser))

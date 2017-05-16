@@ -63,8 +63,15 @@ impl<'a> Flow<'a> {
 }
 
 impl Timestamp {
+    pub fn zero() -> Self {
+        Timestamp(timeval{
+            tv_sec:  0,
+            tv_usec: 0,
+        })
+    }
+
     pub fn timespec(&self) -> Timespec {
-        Timespec {
+        Timespec{
             sec:  self.0.tv_sec as i64,
             nsec: (self.0.tv_usec * 1000) as i32,
         }

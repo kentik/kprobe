@@ -16,7 +16,7 @@ pub mod packet;
 pub mod flow;
 pub mod libkflow;
 
-mod queue;
-mod protocol;
+pub mod queue;
+pub mod protocol;
 
 pub use kprobe::Kprobe;

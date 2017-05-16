@@ -72,6 +72,8 @@ pub fn parse_message(buf: &[u8]) -> IResult<&[u8], Message> {
     message(buf, buf)
 }
 
+const MAX_POINTER_DEPTH: u16 = 32;
+
 named_args!(message<'a>(msg: &'a [u8]) <Message<'a>>, do_parse!(
     header:     header
  >> query:      count!(call!(qq, msg), header.qdcount as usize)
@@ -230,20 +232,20 @@ named_args!(rdata_name<'a>(msg: &'a [u8]) <String>, do_parse!(
 named!(char_str<&[u8], &str>, map_res!(length_bytes!(be_u8), str::from_utf8));
 
 named_args!(name<'a>(msg: &'a [u8]) <String>, map_res!(alt!(
-    do_parse!(peek!(bits!(len_tag)) >> vec: call!(string,  msg, Vec::with_capacity(64)) >> (vec)) |
-    do_parse!(peek!(bits!(ptr_tag)) >> vec: call!(pointer, msg, Vec::with_capacity(64)) >> (vec))
+    do_parse!(peek!(bits!(len_tag)) >> vec: call!(string,  msg, Vec::with_capacity(64), 0) >> (vec)) |
+    do_parse!(peek!(bits!(ptr_tag)) >> vec: call!(pointer, msg, Vec::with_capacity(64), 0) >> (vec))
     ), String::from_utf8)
 );
 
-named_args!(string<'a>(msg: &'a [u8], vec: Vec<u8>) <Vec<u8>>, do_parse!(
+named_args!(string<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>, do_parse!(
     tup: call!(labels, vec)
- >> vec: call!(endofs, msg, tup.1)
+ >> vec: call!(endofs, msg, tup.1, depth)
  >> (vec)
 ));
 
-named_args!(pointer<'a>(msg: &'a [u8], vec: Vec<u8>) <Vec<u8>>, do_parse!(
+named_args!(pointer<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>, do_parse!(
     off: bits!(ptr_offset)
- >> vec: call!(resolve_ptr, msg, off, vec)
+ >> vec: call!(resolve_ptr, msg, off, vec, depth)
  >> (vec)
 ));
 
@@ -278,20 +280,24 @@ named!(ptr_offset<(&[u8], usize), usize>, do_parse!(
 named!(len_tag<(&[u8], usize), u8>, tag_bits!(u8, 2, 0b00));
 named!(ptr_tag<(&[u8], usize), u8>, tag_bits!(u8, 2, 0b11));
 
-named_args!(endofs<'a>(msg: &'a [u8], vec: Vec<u8>) <Vec<u8>>,
+named_args!(endofs<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>,
     switch!(peek!(be_u8),
         0 => do_parse!(take!(1) >> (vec)) |
-        _ => call!(pointer, msg, vec)
+        _ => call!(pointer, msg, vec, depth)
     )
 );
 
-fn resolve_ptr<'a>(buf: &'a [u8], msg: &'a [u8], ptr: usize, vec: Vec<u8>) -> IResult<&'a [u8], Vec<u8>> {
+fn resolve_ptr<'a>(buf: &'a [u8], msg: &'a [u8], ptr: usize, vec: Vec<u8>, depth: u16) -> IResult<&'a [u8], Vec<u8>> {
     if ptr >= msg.len() {
         let needed = Needed::Size(ptr - msg.len());
         return IResult::Incomplete(needed);
     }
 
-    match string(&msg[ptr..], msg, vec) {
+    if depth == MAX_POINTER_DEPTH {
+        return IResult::Error(ErrorKind::Custom(0))
+    }
+
+    match string(&msg[ptr..], msg, vec, depth + 1) {
         Done(_, vec) => Done(buf, vec),
         _            => Done(buf, vec![]),
     }

@@ -36,6 +36,10 @@ impl Decoders {
     }
 
     pub fn decode(&mut self, d: Decoder, flow: &Flow, cs: &mut Customs) -> bool {
+        if flow.payload.is_empty() {
+            return false
+        }
+
         match d {
             Decoder::DNS      => self.dns.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::Postgres => self.postgres.as_mut().map(|d| d.decode(flow, cs)),
