@@ -29,7 +29,7 @@ impl Kprobe {
         loop {
             match cap.next() {
                 Ok(packet)          => self.record(packet),
-                Err(TimeoutExpired) => self.queue.flush(),
+                Err(TimeoutExpired) => self.queue.flush(Timestamp::now()),
                 Err(NoMorePackets)  => return Ok(()),
                 Err(e)              => return Err(e),
             }
@@ -64,7 +64,7 @@ impl Kprobe {
                     Other(ref o)   => self.ip(ts, eth, &pkt, o),
                 };
                 self.queue.add(dir, flow);
-                self.queue.flush();
+                self.queue.flush(ts);
             }
         }
     }

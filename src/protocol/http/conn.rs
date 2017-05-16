@@ -95,7 +95,7 @@ impl Connection {
             None
         }).and_then(|status| {
             self.pending.pop_front().map(move |req| {
-                let latency = ts.timespec() - req.ts.timespec();
+                let latency = ts - req.ts;
                 Res{
                     status:  status,
                     url:     req.url,

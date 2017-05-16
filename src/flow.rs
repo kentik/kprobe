@@ -1,8 +1,11 @@
 use std::fmt;
+use std::mem;
 use std::net::IpAddr;
-use libc::timeval;
+use std::ops::Sub;
+use std::ptr;
+use libc::{self, timeval};
 use pnet::util::MacAddr;
-use time::Timespec;
+use time::{self, Duration};
 
 pub struct Flow<'a> {
     pub timestamp: Timestamp,
@@ -63,17 +66,43 @@ impl<'a> Flow<'a> {
 }
 
 impl Timestamp {
+    pub fn now() -> Self {
+        Timestamp(unsafe {
+            let tv: timeval = mem::zeroed();
+            let tvp = &tv as *const timeval as *mut timeval;
+            libc::gettimeofday(tvp, ptr::null_mut());
+            tv
+        })
+    }
+
     pub fn zero() -> Self {
         Timestamp(timeval{
             tv_sec:  0,
             tv_usec: 0,
         })
     }
+}
 
-    pub fn timespec(&self) -> Timespec {
-        Timespec{
-            sec:  self.0.tv_sec as i64,
-            nsec: (self.0.tv_usec * 1000) as i32,
+impl Sub for Timestamp {
+    type Output = Duration;
+
+    fn sub(self, rhs: Timestamp) -> Self::Output {
+        let sec = self.0.tv_sec - rhs.0.tv_sec;
+        let usec = self.0.tv_usec - rhs.0.tv_usec;
+        Duration::seconds(sec) + Duration::microseconds(usec as i64)
+    }
+}
+
+impl fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let tm = time::at(time::Timespec{
+            sec:  self.0.tv_sec,
+            nsec: self.0.tv_usec as i32 * 1000,
+        });
+
+        match time::strftime("%F %T", &tm) {
+            Ok(str) => write!(f, "{}", str),
+            Err(..) => Err(fmt::Error)
         }
     }
 }

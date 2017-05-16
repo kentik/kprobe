@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::time::SystemTime;
 use flow::*;
 use libkflow::{self, kflowCustom};
 use protocol::{Customs, Decoder, Decoders};
@@ -19,7 +18,7 @@ pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
     customs:  Customs,
     decoders: Decoders,
-    flushed:  SystemTime,
+    flushed:  Timestamp,
 }
 
 impl FlowQueue {
@@ -28,7 +27,7 @@ impl FlowQueue {
             flows:    HashMap::new(),
             customs:  Customs::new(customs.len()),
             decoders: Decoders::new(customs),
-            flushed:  SystemTime::now(),
+            flushed:  Timestamp::zero(),
         }
     }
 
@@ -71,12 +70,10 @@ impl FlowQueue {
         ctr.decoder
     }
 
-    pub fn flush(&mut self) {
-        if let Ok(time) = self.flushed.elapsed() {
-            // FIXME: proper flush interval
-            if time.as_secs() < 15 {
-                return;
-            }
+    pub fn flush(&mut self, ts: Timestamp) {
+        // FIXME: proper flush interval
+        if (ts - self.flushed).num_seconds() < 15 {
+            return;
         }
 
         for (key, ctr) in &self.flows {
@@ -90,7 +87,7 @@ impl FlowQueue {
 
         self.flows.clear();
         self.decoders.clear();
-        self.flushed = SystemTime::now();
+        self.flushed = ts;
 
         while let Some(msg) = libkflow::error() {
             println!("libkflow error: {}", msg);

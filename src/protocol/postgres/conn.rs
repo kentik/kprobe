@@ -125,7 +125,7 @@ impl State {
         self.executing.pop_front().and_then(|p| {
             match p.result(m) {
                 Result::QueryComplete{query, start} => {
-                    let duration = ts.timespec() - start.timespec();
+                    let duration = ts - start;
                     Some(CompletedQuery{
                         query:    query,
                         duration: duration,
@@ -140,7 +140,7 @@ impl State {
                     None
                 },
                 Result::Executed{portal, start} => {
-                    let duration = ts.timespec() - start.timespec();
+                    let duration = ts - start;
                     self.portals.get(&portal).and_then(|statement| {
                         self.statements.get(statement).and_then(|query| {
                             Some(CompletedQuery{

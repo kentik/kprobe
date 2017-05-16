@@ -60,10 +60,8 @@ impl State {
             self.pending.insert(msg.header.id, ts);
             msg.query.pop().map(Message::Query)
         } else {
-            let reply_ts = ts.timespec();
-            let query_ts = self.pending.remove(&msg.header.id)
-                .map(|ts| ts.timespec())
-                .unwrap_or(reply_ts);
+            let reply_ts = ts;
+            let query_ts = self.pending.remove(&msg.header.id).unwrap_or(reply_ts);
 
             msg.query.pop().map(|qq| {
                 let mut s = String::new();
