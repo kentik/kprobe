@@ -1,4 +1,5 @@
-use flow::Flow;
+use time::Duration;
+use flow::{Flow, Timestamp};
 use flow::Protocol::*;
 use libkflow::kflowCustom;
 use protocol::*;
@@ -48,9 +49,9 @@ impl Decoders {
         }.unwrap_or(false)
     }
 
-    pub fn clear(&mut self) {
-        // FIXME: revisit this, maybe also clear based on last active time
-        self.dns.as_mut().map(|d| d.clear());
-        self.http.as_mut().map(|d| d.clear());
+    pub fn clear(&mut self, ts: Timestamp) {
+        let timeout = Duration::seconds(15);
+        self.dns.as_mut().map(|d| d.clear(ts, timeout));
+        self.http.as_mut().map(|d| d.clear(ts, timeout));
     }
 }

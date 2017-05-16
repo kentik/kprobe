@@ -8,6 +8,7 @@ use flow::Timestamp;
 
 pub struct Connection {
     buffer: Buffer,
+    last:   Timestamp,
     state:  State,
 }
 
@@ -25,6 +26,7 @@ impl Connection {
     pub fn new() -> Self {
         Connection {
             buffer: Buffer::new(),
+            last:   Timestamp::zero(),
             state:  State {
                 pending: HashMap::new(),
             },
@@ -32,6 +34,7 @@ impl Connection {
     }
 
     pub fn parse(&mut self, ts: Timestamp, buf: &[u8]) -> Option<Message> {
+        self.last = ts;
         let state = &mut self.state;
         let mut buf = self.buffer.buf(buf);
         let mut completed = None;
@@ -49,8 +52,9 @@ impl Connection {
         completed
     }
 
-    pub fn is_idle(&self) -> bool {
-        self.buffer.is_empty() && self.state.pending.is_empty()
+    pub fn is_idle(&self, ts: Timestamp, timeout: Duration) -> bool {
+        let idle = self.buffer.is_empty() && self.state.pending.is_empty();
+        idle || (ts - self.last) > timeout
     }
 }
 

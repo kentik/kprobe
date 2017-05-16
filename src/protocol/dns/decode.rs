@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::CString;
-use flow::{Addr, Flow};
+use time::Duration;
+use flow::{Addr, Flow, Timestamp};
 use libkflow::kflowCustom;
 use protocol::Customs;
 use super::conn::{Connection, Message};
@@ -77,8 +78,8 @@ impl Decoder {
         }).unwrap_or(false)
     }
 
-    pub fn clear(&mut self) {
-        self.conns.retain(|_, c| !c.is_idle())
+    pub fn clear(&mut self, ts: Timestamp, timeout: Duration) {
+        self.conns.retain(|_, c| !c.is_idle(ts, timeout))
     }
 
     fn parse(&mut self, flow: &Flow) -> Option<Message> {

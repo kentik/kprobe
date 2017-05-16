@@ -86,7 +86,7 @@ impl FlowQueue {
         }
 
         self.flows.clear();
-        self.decoders.clear();
+        self.decoders.clear(ts);
         self.flushed = ts;
 
         while let Some(msg) = libkflow::error() {

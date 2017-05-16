@@ -10,6 +10,7 @@ use http_muncher::{Parser, ParserHandler};
 pub struct Connection {
     req_state: ReqState,
     res_state: ResState,
+    last:      Timestamp,
     pending:   VecDeque<Req>,
 }
 
@@ -70,11 +71,13 @@ impl Connection {
         Connection {
             req_state: ReqState::new(),
             res_state: ResState::new(),
+            last:      Timestamp::zero(),
             pending:   VecDeque::new(),
         }
     }
 
     pub fn parse_req(&mut self, ts: Timestamp, buf: &[u8]) -> Option<&Req> {
+        self.last = ts;
         self.req_state.parse(buf, ts).unwrap_or_else(|_err| {
             //println!("parse_req: error {}", err);
             self.req_state.buffer.clear();
@@ -87,6 +90,7 @@ impl Connection {
     }
 
     pub fn parse_res(&mut self, ts: Timestamp, buf: &[u8]) -> Option<Res> {
+        self.last = ts;
         self.res_state.parse(buf).unwrap_or_else(|_err| {
             //println!("parse_res: error {}", err);
             self.req_state.buffer.clear();
@@ -108,8 +112,9 @@ impl Connection {
         })
     }
 
-    pub fn is_idle(&self) -> bool {
-        self.req_state.is_idle() && self.res_state.is_idle() && self.pending.is_empty()
+    pub fn is_idle(&self, ts: Timestamp, timeout: Duration) -> bool {
+        let idle = self.req_state.is_idle() && self.res_state.is_idle();
+        (idle && self.pending.is_empty()) || (ts - self.last) > timeout
     }
 }
 
