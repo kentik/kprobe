@@ -54,14 +54,6 @@ pub fn decode<'a>(p: &'a EthernetPacket<'a>) -> (Option<u16>, Option<Packet<'a>>
 }
 
 impl<'a> Packet<'a> {
-    pub fn transport(&self) -> Option<Transport> {
-        match *self {
-            Packet::IPv4(ref p) => self.next(p.get_next_level_protocol(), p.payload()),
-            Packet::IPv6(ref p) => self.next(p.get_next_header(),         p.payload()),
-            Packet::Other(..)   => None,
-        }
-    }
-
     pub fn src(&self) -> IpAddr {
         match *self {
             Packet::IPv4(ref p) => IpAddr::V4(p.get_source()),
@@ -91,6 +83,22 @@ impl<'a> Packet<'a> {
             Packet::IPv4(ref p)  => p.packet().len(),
             Packet::IPv6(ref p)  => p.packet().len(),
             Packet::Other(ref o) => o.payload.len(),
+        }
+    }
+
+    pub fn payload(&self) -> &[u8] {
+        match *self {
+            Packet::IPv4(ref p)  => p.payload(),
+            Packet::IPv6(ref p)  => p.payload(),
+            Packet::Other(ref o) => o.payload,
+        }
+    }
+
+    pub fn transport<'n>(&self, p: &'n [u8]) -> Option<Transport<'n>> {
+        match *self {
+            Packet::IPv4(ref ip) => self.next(ip.get_next_level_protocol(), p),
+            Packet::IPv6(ref ip) => self.next(ip.get_next_header(),         p),
+            Packet::Other(..)    => None,
         }
     }
 

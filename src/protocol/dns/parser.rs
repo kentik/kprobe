@@ -303,7 +303,7 @@ fn resolve_ptr<'a>(buf: &'a [u8], msg: &'a [u8], ptr: usize, vec: Vec<u8>, depth
     }
 }
 
-fn parse_ipv6<'a>(buf: &'a [u8]) -> Ipv6Addr {
+fn parse_ipv6(buf: &[u8]) -> Ipv6Addr {
     let mut bytes = [0u8; 16];
     bytes.clone_from_slice(buf);
     Ipv6Addr::from(bytes)

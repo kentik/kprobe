@@ -1,4 +1,4 @@
-#![feature(untagged_unions, collection_placement, placement_in_syntax, retain_hash_collection)]
+#![feature(untagged_unions, collection_placement, placement_in_syntax)]
 
 #[macro_use]
 extern crate clap;
@@ -18,5 +18,6 @@ pub mod libkflow;
 
 pub mod queue;
 pub mod protocol;
+pub mod reasm;
 
 pub use kprobe::Kprobe;

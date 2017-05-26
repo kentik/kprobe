@@ -1,17 +1,17 @@
 [package]
 name    = "kprobe"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Will <will@kentik.com>"]
 links   = "kflow"
 build   = "build.rs"
 
 [dependencies]
-clap      = "2.24.1"
-pnet      = "0.17.1"
-libc      = "0.2.22"
+clap      = "2.24.2"
+libc      = "0.2.23"
+time      = "0.1.37"
 byteorder = "1.0.0"
 nom       = "2.2.1"
-time      = "0.1.37"
+pnet      = "0.17.1"
 pcap      = "0.5.7"
 
 http-muncher = "0.3.1"

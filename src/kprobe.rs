@@ -9,11 +9,13 @@ use pnet::packet::udp::UdpPacket;
 use packet::{self, Packet, Opaque};
 use packet::Transport::*;
 use flow::*;
+use reasm::Reassembler;
 use queue::FlowQueue;
 use libkflow::kflowCustom;
 
 pub struct Kprobe {
     interface: NetworkInterface,
+    asm:       Reassembler,
     queue:     FlowQueue,
 }
 
@@ -21,6 +23,7 @@ impl Kprobe {
     pub fn new(interface: NetworkInterface, customs: Vec<kflowCustom>) -> Kprobe {
         Kprobe {
             interface: interface,
+            asm:       Reassembler::new(),
             queue:     FlowQueue::new(customs),
         }
     }
@@ -55,16 +58,20 @@ impl Kprobe {
                 _                           => Direction::Unknown,
             };
 
-            if let Some(transport) = pkt.transport() {
-                let ts = Timestamp(packet.header.ts);
-                let flow = match transport {
-                    TCP(ref tcp)   => self.tcp(ts, eth, &pkt, tcp),
-                    UDP(ref udp)   => self.udp(ts, eth, &pkt, udp),
-                    ICMP(ref icmp) => self.icmp(ts, eth, &pkt, icmp),
-                    Other(ref o)   => self.ip(ts, eth, &pkt, o),
-                };
-                self.queue.add(dir, flow);
-                self.queue.flush(ts);
+            let ts = Timestamp(packet.header.ts);
+
+            if let Some((frags, payload)) = self.asm.reassemble(ts, &pkt) {
+                if let Some(transport) = pkt.transport(&payload) {
+                    let flow = match transport {
+                        TCP(ref tcp)   => self.tcp(ts, eth, &pkt, tcp),
+                        UDP(ref udp)   => self.udp(ts, eth, &pkt, udp),
+                        ICMP(ref icmp) => self.icmp(ts, eth, &pkt, icmp),
+                        Other(ref o)   => self.ip(ts, eth, &pkt, o),
+                    };
+                    self.queue.add(dir, flow);
+                    self.queue.flush(ts);
+                    self.asm.flush(ts);
+                }
             }
         }
     }
