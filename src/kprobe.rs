@@ -62,12 +62,16 @@ impl Kprobe {
 
             if let Some((frags, payload)) = self.asm.reassemble(ts, &pkt) {
                 if let Some(transport) = pkt.transport(&payload) {
-                    let flow = match transport {
-                        TCP(ref tcp)   => self.tcp(ts, eth, &pkt, tcp),
-                        UDP(ref udp)   => self.udp(ts, eth, &pkt, udp),
-                        ICMP(ref icmp) => self.icmp(ts, eth, &pkt, icmp),
-                        Other(ref o)   => self.ip(ts, eth, &pkt, o),
+                    let mut flow = match transport {
+                        TCP(ref tcp)   => self.tcp(eth, &pkt, tcp),
+                        UDP(ref udp)   => self.udp(eth, &pkt, udp),
+                        ICMP(ref icmp) => self.icmp(eth, &pkt, icmp),
+                        Other(ref o)   => self.ip(eth, &pkt, o),
                     };
+
+                    flow.timestamp  = ts;
+                    flow.fragments += frags;
+
                     self.queue.add(dir, flow);
                     self.queue.flush(ts);
                     self.asm.flush(ts);
@@ -76,9 +80,8 @@ impl Kprobe {
         }
     }
 
-    fn tcp<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Flow<'a> {
+    fn tcp<'a>(&self, eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Flow<'a> {
         Flow{
-            timestamp: ts,
             protocol:  Protocol::TCP,
             ethernet:  eth,
             src:       Addr{addr: p.src(), port: tcp.get_source()},
@@ -87,12 +90,12 @@ impl Kprobe {
             transport: Transport::TCP{ flags: tcp.get_flags() },
             bytes:     p.len(),
             payload:   tcp.payload(),
+            .. Default::default()
         }
     }
 
-    fn udp<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, udp: &'a UdpPacket) -> Flow<'a> {
+    fn udp<'a>(&self, eth: Ethernet, p: &Packet, udp: &'a UdpPacket) -> Flow<'a> {
         Flow{
-            timestamp: ts,
             protocol:  Protocol::UDP,
             ethernet:  eth,
             src:       Addr{addr: p.src(), port: udp.get_source()},
@@ -101,14 +104,14 @@ impl Kprobe {
             transport: Transport::UDP,
             bytes:     p.len(),
             payload:   udp.payload(),
+            .. Default::default()
         }
     }
 
-    fn icmp<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Flow<'a> {
+    fn icmp<'a>(&self, eth: Ethernet, p: &Packet, icmp: &'a IcmpPacket) -> Flow<'a> {
         let pack = ((icmp.get_icmp_type().0 as u16) << 8) | icmp.get_icmp_code().0 as u16;
 
         Flow{
-            timestamp: ts,
             protocol:  Protocol::ICMP,
             ethernet:  eth,
             src:       Addr{addr: p.src(), port: 0   },
@@ -117,12 +120,12 @@ impl Kprobe {
             transport: Transport::ICMP,
             bytes:     p.len(),
             payload:   icmp.payload(),
+            .. Default::default()
         }
     }
 
-    fn ip<'a>(&self, ts: Timestamp, eth: Ethernet, p: &Packet, o: &'a Opaque) -> Flow<'a> {
+    fn ip<'a>(&self, eth: Ethernet, p: &Packet, o: &'a Opaque) -> Flow<'a> {
         Flow{
-            timestamp: ts,
             protocol:  Protocol::Other(o.protocol),
             ethernet:  eth,
             src:       Addr{addr: p.src(), port: 0},
@@ -131,6 +134,7 @@ impl Kprobe {
             transport: Transport::Other,
             bytes:     p.len(),
             payload:   o.payload,
+            .. Default::default()
         }
     }
 }

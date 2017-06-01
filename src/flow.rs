@@ -16,6 +16,7 @@ pub struct Flow<'a> {
     pub tos:       u8,
     pub transport: Transport,
     pub bytes:     usize,
+    pub fragments: usize,
     pub payload:   &'a [u8]
 }
 
@@ -90,6 +91,12 @@ impl Sub for Timestamp {
         let sec = self.0.tv_sec - rhs.0.tv_sec;
         let usec = self.0.tv_usec - rhs.0.tv_usec;
         Duration::seconds(sec) + Duration::microseconds(usec as i64)
+    }
+}
+
+impl<'a> Default for Flow<'a> {
+    fn default() -> Self {
+        unsafe { mem::zeroed() }
     }
 }
 

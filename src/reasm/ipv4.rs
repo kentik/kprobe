@@ -91,7 +91,7 @@ impl Buffer {
     fn fill<'p>(&mut self, p: &Ipv4Packet<'p>, more: bool) {
         let payload    = p.payload();
         let frag_first = p.get_fragment_offset() * 8;
-        let frag_last  = frag_first + payload.len() as u16 - 1;
+        let frag_last  = frag_first.saturating_add(payload.len() as u16) - 1;
 
         for i in 0..self.holes.len() {
             let Hole{first: hole_first, last: hole_last} = self.holes[i];

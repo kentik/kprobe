@@ -1,16 +1,40 @@
+#![allow(dead_code)]
+
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::ops::Deref;
 use std::ptr;
 use libkflow::*;
+use queue::Counter;
+
+const KFLOW_FRAGMENTS:              &str = "FRAGMENTS";
+const KFLOW_RETRANSMITTED_PKTS_IN:  &str = "RETRANSMITTED_IN_PKTS";
+const KFLOW_RETRANSMITTED_PKTS_OUT: &str = "RETRANSMITTED_OUT_PKTS";
 
 pub struct Customs {
-    vec: Vec<kflowCustom>,
+    fragments:       Option<u64>,
+    retransmits_in:  Option<u64>,
+    retransmits_out: Option<u64>,
+    vec:             Vec<kflowCustom>,
 }
 
 impl Customs {
-    pub fn new(cap: usize) -> Self {
+    pub fn new(cs: &[kflowCustom]) -> Self {
+        let cs = cs.iter().map(|c| {
+            (c.name(), c.id)
+        }).collect::<HashMap<_, _>>();
+
         Customs{
-            vec: Vec::with_capacity(cap),
+            fragments:       cs.get(KFLOW_FRAGMENTS).cloned(),
+            retransmits_in:  cs.get(KFLOW_RETRANSMITTED_PKTS_IN).cloned(),
+            retransmits_out: cs.get(KFLOW_RETRANSMITTED_PKTS_OUT).cloned(),
+            vec:             Vec::with_capacity(cs.len()),
+        }
+    }
+
+    pub fn add(&mut self, ctr: &Counter) {
+        if ctr.fragments > 0 {
+            self.fragments.map(|id| self.add_u32(id, ctr.fragments as u32));
         }
     }
 

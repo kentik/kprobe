@@ -16,7 +16,7 @@ pub struct Decoders {
 }
 
 impl Decoders {
-    pub fn new(cs: Vec<kflowCustom>) -> Self {
+    pub fn new(cs: &[kflowCustom]) -> Self {
         Decoders {
             dns:      dns::Decoder::new(&cs),
             http:     http::Decoder::new(&cs),

@@ -2,6 +2,7 @@ use std::ffi::CString;
 use super::conn::*;
 use flow::Timestamp;
 use libc::timeval;
+use time::Duration;
 
 #[test]
 fn test_decode() {
@@ -17,7 +18,7 @@ fn test_decode() {
     let r = c.parse_res(ts(), &b).unwrap();
     assert_eq!(200, r.status);
     assert_eq!(Some(cstr("/")), r.url);
-    assert_eq!(true, c.is_idle());
+    assert_eq!(true, c.is_idle(Timestamp::zero(), Duration::seconds(1)));
 }
 
 #[test]
@@ -30,7 +31,7 @@ fn test_decode_invalid_req() {
         assert!(r.is_none());
     }
 
-    assert_eq!(true, c.is_idle());
+    assert_eq!(true, c.is_idle(Timestamp::zero(), Duration::seconds(1)));
 }
 
 #[test]
@@ -47,7 +48,7 @@ fn test_decode_invalid_res() {
     let r = c.parse_res(ts(), b);
     assert!(r.is_none());
 
-    assert_eq!(true, c.is_idle());
+    assert_eq!(true, c.is_idle(Timestamp::zero(), Duration::seconds(1)));
 }
 
 #[test]

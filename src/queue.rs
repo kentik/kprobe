@@ -11,6 +11,7 @@ pub struct Counter {
     pub tcp_flags: u16,
     pub packets:   u64,
     pub bytes:     u64,
+    pub fragments: u64,
     pub decoder:   Decoder,
 }
 
@@ -25,8 +26,8 @@ impl FlowQueue {
     pub fn new(customs: Vec<kflowCustom>) -> FlowQueue {
         FlowQueue {
             flows:    HashMap::new(),
-            customs:  Customs::new(customs.len()),
-            decoders: Decoders::new(customs),
+            customs:  Customs::new(&customs),
+            decoders: Decoders::new(&customs),
             flushed:  Timestamp::zero(),
         }
     }
@@ -35,12 +36,9 @@ impl FlowQueue {
         let key = Key(flow.protocol, flow.src, flow.dst);
         let dec = self.record(key, dir, &flow);
 
-        self.customs.clear();
-
         if self.decoders.decode(dec, &flow, &mut self.customs) {
             self.flows.remove(&key).map(|ctr| {
-                let cs = Some(&self.customs[..]);
-                libkflow::send(&key, &ctr, cs).expect("failed to send flow");
+                Self::send(&mut self.customs, &key, &ctr)
             });
         }
     }
@@ -55,13 +53,15 @@ impl FlowQueue {
                 tcp_flags: 0,
                 packets:   0,
                 bytes:     0,
+                fragments: 0,
                 decoder:   decoders.classify(flow),
             }
         });
 
-        ctr.tos     |= flow.tos;
-        ctr.packets += 1;
-        ctr.bytes   += flow.bytes as u64;
+        ctr.tos       |= flow.tos;
+        ctr.packets   += 1;
+        ctr.bytes     += flow.bytes as u64;
+        ctr.fragments += flow.fragments as u64;
 
         if let Transport::TCP { flags } = flow.transport {
             ctr.tcp_flags |= flags;
@@ -76,21 +76,24 @@ impl FlowQueue {
             return;
         }
 
-        for (key, ctr) in &self.flows {
-            // let src = format!("{}:{}", key.1.addr, key.1.port);
-            // let dst = format!("{}:{}", key.2.addr, key.2.port);
-
-            // println!("{:?} {}->{} PACKETS {} BYTES {}", key.0, src, dst, ctr.packets, ctr.bytes);
-
-            libkflow::send(key, ctr, None).expect("failed to send flow");
+        for (key, ctr) in self.flows.drain() {
+            Self::send(&mut self.customs, &key, &ctr);
         }
 
-        self.flows.clear();
         self.decoders.clear(ts);
         self.flushed = ts;
 
         while let Some(msg) = libkflow::error() {
             println!("libkflow error: {}", msg);
         }
+    }
+
+    fn send(customs: &mut Customs, key: &Key, ctr: &Counter) {
+        customs.add(&ctr);
+        libkflow::send(key, ctr, match &customs[..] {
+            cs if cs.len() > 0 => Some(cs),
+            _                  => None,
+        }).expect("failed to send flow");
+        customs.clear();
     }
 }
