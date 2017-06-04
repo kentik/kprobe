@@ -1,10 +1,29 @@
 mod ipv4;
 
 use std::borrow::Cow;
-use pnet::packet::{Packet as PacketExt};
 use time::Duration;
 use flow::Timestamp;
 use packet::Packet;
+
+#[derive(Debug)]
+pub struct Output<'p> {
+    pub packets: u16,
+    pub frags:   u16,
+    pub bytes:   usize,
+    pub data:    Cow<'p, [u8]>,
+}
+
+impl<'p> Output<'p> {
+    fn single(p: &'p Packet<'p>) -> Self {
+        let data = Cow::from(p.payload());
+        Self {
+            packets: 1,
+            frags:   0,
+            bytes:   p.len(),
+            data:    data,
+        }
+    }
+}
 
 pub struct Reassembler {
     ipv4:    ipv4::Reassembler,
@@ -21,11 +40,10 @@ impl Reassembler {
         }
     }
 
-    pub fn reassemble<'p>(&mut self, ts: Timestamp, p: &'p Packet<'p>) -> Option<(usize, Cow<'p, [u8]>)> {
+    pub fn reassemble<'p>(&mut self, ts: Timestamp, p: &'p Packet<'p>) -> Option<Output<'p>> {
         match *p {
             Packet::IPv4(ref p) => self.ipv4.reassemble(ts, p),
-            Packet::IPv6(ref p) => Some((0, Cow::from(p.payload()))),
-            Packet::Other(..)   => None,
+            _                   => Some(Output::single(p)),
         }
     }
 

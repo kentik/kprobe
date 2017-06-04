@@ -59,7 +59,7 @@ impl FlowQueue {
         });
 
         ctr.tos       |= flow.tos;
-        ctr.packets   += 1;
+        ctr.packets   += flow.packets as u64;
         ctr.bytes     += flow.bytes as u64;
         ctr.fragments += flow.fragments as u64;
 

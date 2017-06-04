@@ -28,7 +28,7 @@ impl Kprobe {
         }
     }
 
-    pub fn run(&mut self, mut cap: Capture<Active>) -> Result<(), Error>{
+    pub fn run(&mut self, mut cap: Capture<Active>) -> Result<(), Error> {
         loop {
             match cap.next() {
                 Ok(packet)          => self.record(packet),
@@ -60,8 +60,8 @@ impl Kprobe {
 
             let ts = Timestamp(packet.header.ts);
 
-            if let Some((frags, payload)) = self.asm.reassemble(ts, &pkt) {
-                if let Some(transport) = pkt.transport(&payload) {
+            if let Some(out) = self.asm.reassemble(ts, &pkt) {
+                if let Some(transport) = pkt.transport(&out.data) {
                     let mut flow = match transport {
                         TCP(ref tcp)   => self.tcp(eth, &pkt, tcp),
                         UDP(ref udp)   => self.udp(eth, &pkt, udp),
@@ -69,8 +69,10 @@ impl Kprobe {
                         Other(ref o)   => self.ip(eth, &pkt, o),
                     };
 
-                    flow.timestamp  = ts;
-                    flow.fragments += frags;
+                    flow.timestamp = ts;
+                    flow.packets   = out.packets;
+                    flow.fragments = out.frags;
+                    flow.bytes     = out.bytes;
 
                     self.queue.add(dir, flow);
                     self.queue.flush(ts);
@@ -88,7 +90,6 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: tcp.get_destination()},
             tos:       p.tos(),
             transport: Transport::TCP{ flags: tcp.get_flags() },
-            bytes:     p.len(),
             payload:   tcp.payload(),
             .. Default::default()
         }
@@ -102,7 +103,6 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: udp.get_destination()},
             tos:       p.tos(),
             transport: Transport::UDP,
-            bytes:     p.len(),
             payload:   udp.payload(),
             .. Default::default()
         }
@@ -118,7 +118,6 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: pack},
             tos:       p.tos(),
             transport: Transport::ICMP,
-            bytes:     p.len(),
             payload:   icmp.payload(),
             .. Default::default()
         }
@@ -132,7 +131,6 @@ impl Kprobe {
             dst:       Addr{addr: p.dst(), port: 0},
             tos:       p.tos(),
             transport: Transport::Other,
-            bytes:     p.len(),
             payload:   o.payload,
             .. Default::default()
         }

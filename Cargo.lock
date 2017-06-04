@@ -1,6 +1,6 @@
 [root]
 name = "kprobe"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.24.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "gcc"
-version = "0.3.48"
+version = "0.3.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -75,7 +75,7 @@ name = "http-muncher"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "gcc 0.3.48 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -155,7 +155,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "redox_syscall"
-version = "0.1.17"
+version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -274,7 +274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -343,7 +343,7 @@ dependencies = [
 "checksum bitflags 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1370e9fc2a6ae53aea8b7a5110edbd08836ed87c88736dfabccade1c2b44bff4"
 "checksum byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c40977b0ee6b9885c9013cd41d9feffdd22deb3bb4dc3a71d901cc7a77de18c8"
 "checksum clap 2.24.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6b8f69e518f967224e628896b54e41ff6acfb4dcfefc5076325c36525dac900f"
-"checksum gcc 0.3.48 (registry+https://github.com/rust-lang/crates.io-index)" = "3971b255a1e7396f6ef6a3130db691c5d44b3d71346756dc7b258baa29d5fd45"
+"checksum gcc 0.3.50 (registry+https://github.com/rust-lang/crates.io-index)" = "5f837c392f2ea61cb1576eac188653df828c861b7137d74ea4a5caa89621f9e6"
 "checksum http-muncher 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0f0d8b98946459faf4fdfdf6d90e9aac08967b9b9ffe67005d2b1f99115da741"
 "checksum ipnetwork 0.12.4 (registry+https://github.com/rust-lang/crates.io-index)" = "20d809e232d6881e169c23122ec4efd8b4e7ded32b22fdcb8dc140edf465743b"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
@@ -355,7 +355,7 @@ dependencies = [
 "checksum pnet 0.17.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ae956ea8ede0403a6f793a77f05986e9617a341e4a7f098ec599669b60ba1d09"
 "checksum pnet_macros 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)" = "84312aba2e2bd52e5ecd95beb44c58b191e9173810e44f1a58cb85bed65baf1c"
 "checksum pnet_macros_support 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d781ffd3812bf485c4f02210eeec5346ab0c42cdd59881550fff54dab3a098d1"
-"checksum redox_syscall 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)" = "29dbdfd4b9df8ab31dec47c6087b7b13cbf4a776f335e4de8efba8288dda075b"
+"checksum redox_syscall 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)" = "3041aeb6000db123d2c9c751433f526e1f404b23213bd733167ab770c3989b4d"
 "checksum regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1731164734096285ec2a5ec7fea5248ae2f5485b3feeb0115af4fda2183b2d1b"
 "checksum regex-syntax 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ad890a5eef7953f55427c50575c680c42841653abd2b028b68cd223d157f62db"
 "checksum rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)" = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"

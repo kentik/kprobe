@@ -21,3 +21,6 @@ pub mod protocol;
 pub mod reasm;
 
 pub use kprobe::Kprobe;
+
+#[cfg(test)]
+mod tests;

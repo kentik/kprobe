@@ -4,10 +4,11 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::u16;
-use pnet::packet::{Packet as PacketExt};
+use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ipv4::Ipv4Packet;
 use time::Duration;
 use flow::Timestamp;
+use super::Output;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 struct Key(Ipv4Addr, Ipv4Addr, u16, u8);
@@ -19,11 +20,13 @@ pub struct Reassembler {
 
 #[derive(Debug)]
 pub struct Buffer {
-    data:  Vec<u8>,
-    holes: Vec<Hole>,
-    frags: usize,
-    len:   usize,
-    last:  Timestamp,
+    packets: u16,
+    frags:   u16,
+    bytes:   usize,
+    data:    Vec<u8>,
+    len:     usize,
+    holes:   Vec<Hole>,
+    last:    Timestamp,
 }
 
 #[derive(Debug)]
@@ -39,12 +42,20 @@ impl Reassembler {
         }
     }
 
-    pub fn reassemble<'p>(&mut self, ts: Timestamp, p: &'p Ipv4Packet<'p>) -> Option<(usize, Cow<'p, [u8]>)> {
+    pub fn reassemble<'p>(&mut self, ts: Timestamp, p: &'p Ipv4Packet<'p>) -> Option<Output<'p>> {
         let more   = p.get_flags() & 0b001 != 0;
         let offset = p.get_fragment_offset();
 
         if !more && offset == 0 {
-            return Some((0, Cow::from(p.payload())));
+            let payload = p.payload();
+            let bytes   = p.packet_size() + payload.len();
+            let data    = Cow::from(payload);
+            return Some(Output{
+                packets: 1,
+                frags:   0,
+                bytes:   bytes,
+                data:    data,
+            });
         }
 
         let src   = p.get_source();
@@ -61,9 +72,15 @@ impl Reassembler {
         };
 
         if done {
-            self.buffers.remove(&key).map(|Buffer{ mut data, frags, len, .. }| {
-                data.truncate(len);
-                (frags, Cow::from(data))
+            self.buffers.remove(&key).map(|mut buf| {
+                buf.data.truncate(buf.len);
+                let data = Cow::from(buf.data);
+                Output{
+                    packets: buf.packets,
+                    frags:   buf.frags,
+                    bytes:   buf.bytes,
+                    data:    data,
+                }
             })
         } else {
             None
@@ -80,11 +97,13 @@ impl Buffer {
         let data  = vec![0; 65535];
         let holes = vec![Hole::empty()];
         Buffer{
-            data:  data,
-            holes: holes,
-            frags: 0,
-            len:   0,
-            last:  Timestamp::zero(),
+            packets: 0,
+            frags:   0,
+            bytes:   0,
+            data:    data,
+            len:     0,
+            holes:   holes,
+            last:    Timestamp::zero(),
         }
     }
 
@@ -121,8 +140,10 @@ impl Buffer {
             let m = frag_last as usize + 1;
             self.data[n..m].copy_from_slice(payload);
 
-            self.frags += 1;
-            self.len   += payload.len();
+            self.packets += 1;
+            self.frags   += 1;
+            self.bytes   += p.packet_size() + payload.len();
+            self.len     += payload.len();
 
             break;
         }
