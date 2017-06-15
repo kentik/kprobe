@@ -3,7 +3,7 @@ use std::ffi::CString;
 use time::Duration;
 use flow::{Addr, Flow, Timestamp};
 use libkflow::kflowCustom;
-use protocol::Customs;
+use custom::Customs;
 use super::conn::{Connection, Message};
 
 const APPL_LATENCY_MS:      &str = "APPL_LATENCY_MS";

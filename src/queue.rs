@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use flow::*;
+use custom::Customs;
 use libkflow::{self, kflowCustom};
-use protocol::{Customs, Decoder, Decoders};
+use protocol::{Decoder, Decoders};
+use track::Tracker;
 
 #[derive(Debug)]
 pub struct Counter {
@@ -19,6 +21,7 @@ pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
     customs:  Customs,
     decoders: Decoders,
+    tracker:  Tracker,
     flushed:  Timestamp,
 }
 
@@ -28,6 +31,7 @@ impl FlowQueue {
             flows:    HashMap::new(),
             customs:  Customs::new(&customs),
             decoders: Decoders::new(&customs),
+            tracker:  Tracker::new(&customs),
             flushed:  Timestamp::zero(),
         }
     }
@@ -38,13 +42,18 @@ impl FlowQueue {
 
         if self.decoders.decode(dec, &flow, &mut self.customs) {
             self.flows.remove(&key).map(|ctr| {
-                Self::send(&mut self.customs, &key, &ctr)
+                let customs = &mut self.customs;
+                let tracker = &mut self.tracker;
+                Self::send(customs, tracker, &key, &ctr)
             });
         }
     }
 
     fn record(&mut self, key: Key, dir: Direction, flow: &Flow) -> Decoder {
         let decoders = &mut self.decoders;
+
+        self.tracker.add(flow);
+
         let ctr = self.flows.entry(key).or_insert_with(|| {
             Counter {
                 ethernet:  flow.ethernet,
@@ -77,10 +86,11 @@ impl FlowQueue {
         }
 
         for (key, ctr) in self.flows.drain() {
-            Self::send(&mut self.customs, &key, &ctr);
+            Self::send(&mut self.customs, &mut self.tracker, &key, &ctr);
         }
 
         self.decoders.clear(ts);
+        self.tracker.clear(ts);
         self.flushed = ts;
 
         while let Some(msg) = libkflow::error() {
@@ -88,8 +98,9 @@ impl FlowQueue {
         }
     }
 
-    fn send(customs: &mut Customs, key: &Key, ctr: &Counter) {
+    fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &Counter) {
         customs.add(&ctr);
+        tracker.get(key, customs);
         libkflow::send(key, ctr, match &customs[..] {
             cs if cs.len() > 0 => Some(cs),
             _                  => None,

@@ -1,6 +1,7 @@
 use time::Duration;
 use flow::{Flow, Timestamp};
 use flow::Protocol::*;
+use custom::Customs;
 use libkflow::kflowCustom;
 use protocol::*;
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use flow::{Addr, Flow};
 use libkflow::kflowCustom;
-use protocol::Customs;
+use custom::Customs;
 use super::conn::{Connection, CompletedQuery};
 
 pub struct Decoder {
