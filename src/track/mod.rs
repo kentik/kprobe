@@ -1,20 +1,32 @@
 use std::collections::HashMap;
 use time::Duration;
-use flow::{Flow, Key, Timestamp};
+use flow::{Flow, Key, Timestamp, Transport};
 use custom::Customs;
 use libkflow::kflowCustom;
 
-const KFLOW_APPL_LATENCY_MS: &str = "APPL_LATENCY_MS";
+const KFLOW_APPL_LATENCY_MS:      &str = "APPL_LATENCY_MS";
+const KFLOW_CLIENT_NW_LATENCY_MS: &str = "CLIENT_NW_LATENCY_MS";
+const KFLOW_SERVER_NW_LATENCY_MS: &str = "SERVER_NW_LATENCY_MS";
 
 pub struct Tracker {
-    latency: Option<u64>,
-    states:  HashMap<Key, State>,
+    cli_latency: Option<u64>,
+    srv_latency: Option<u64>,
+    app_latency: Option<u64>,
+    states:      HashMap<Key, State>,
 }
 
 pub struct State {
     latency: Option<Duration>,
+    rtt:     Option<RTT>,
+    syn:     Option<Timestamp>,
     payload: Option<Timestamp>,
     last:    Timestamp,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum RTT {
+    Server(Duration),
+    Client(Duration),
 }
 
 impl Tracker {
@@ -24,8 +36,10 @@ impl Tracker {
         }).collect::<HashMap<_, _>>();
 
         Tracker{
-            latency: cs.get(KFLOW_APPL_LATENCY_MS).cloned(),
-            states:  HashMap::new(),
+            cli_latency: cs.get(KFLOW_CLIENT_NW_LATENCY_MS).cloned(),
+            srv_latency: cs.get(KFLOW_SERVER_NW_LATENCY_MS).cloned(),
+            app_latency: cs.get(KFLOW_APPL_LATENCY_MS).cloned(),
+            states:      HashMap::new(),
         }
     }
 
@@ -42,13 +56,46 @@ impl Tracker {
             }
         }
 
+        if let Transport::TCP{ flags } = flow.transport {
+            const SYN: u16 = 0b00010;
+            const ACK: u16 = 0b10000;
+
+            let syn = flags & SYN == SYN;
+            let ack = flags & ACK == ACK;
+
+            if syn {
+                this.syn = Some(flow.timestamp);
+            }
+
+            if syn && ack && this.rtt.is_none() {
+                if let Some(&mut State{syn: Some(syn), ..}) = self.peer(flow) {
+                    this.rtt = Some(RTT::Server(flow.timestamp - syn));
+                }
+            } else if ack && this.rtt.is_none() {
+                if let Some(&mut State{syn: Some(syn), ..}) = self.peer(flow) {
+                    this.rtt = Some(RTT::Client(flow.timestamp - syn));
+                }
+            }
+        }
+
         this.last = flow.timestamp;
     }
 
     pub fn get(&self, key: &Key, cs: &mut Customs) {
         if let Some(ref this) = self.states.get(key) {
+            if let Some(RTT::Client(d)) = this.rtt {
+                let ms = d.num_milliseconds() / 2;
+                self.cli_latency.map(|id| cs.add_u32(id, ms as u32));
+            }
+
+            if let Some(RTT::Server(d)) = this.rtt {
+                let ms = d.num_milliseconds() / 2;
+                self.srv_latency.map(|id| cs.add_u32(id, ms as u32));
+            }
+
             if let Some(d) = this.latency {
-                self.latency.map(|id| cs.add_u32(id, d.num_milliseconds() as u32));
+                let ms = d.num_milliseconds();
+                self.app_latency.map(|id| cs.add_u32(id, ms as u32));
             }
         }
     }
@@ -67,6 +114,8 @@ impl Tracker {
         let mut s = self.states.entry(key).or_insert_with(|| {
             State{
                 latency: None,
+                rtt:     None,
+                syn:     None,
                 payload: None,
                 last:    flow.timestamp,
             }
