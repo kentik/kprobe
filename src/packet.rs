@@ -96,8 +96,8 @@ impl<'a> Packet<'a> {
 
     pub fn transport<'n>(&self, p: &'n [u8]) -> Option<Transport<'n>> {
         match *self {
-            Packet::IPv4(ref ip) => self.next(ip.get_next_level_protocol(), p),
-            Packet::IPv6(ref ip) => self.next(ip.get_next_header(),         p),
+            Packet::IPv4(ref ip) => self.next(ip.get_next_level_protocol(), &p[..ip.payload_size()]),
+            Packet::IPv6(ref ip) => self.next(ip.get_next_header(),         &p[..ip.payload_size()]),
             Packet::Other(..)    => None,
         }
     }
@@ -118,5 +118,21 @@ impl<'a> Opaque<'a> {
             protocol: protocol.into(),
             payload:  payload,
         })
+    }
+}
+
+trait PayloadSize {
+    fn payload_size(&self) -> usize;
+}
+
+impl<'p> PayloadSize for Ipv4Packet<'p> {
+    fn payload_size(&self) -> usize {
+        self.get_total_length() as usize - self.packet_size()
+    }
+}
+
+impl<'p> PayloadSize for Ipv6Packet<'p> {
+    fn payload_size(&self) -> usize {
+        self.get_payload_length() as usize
     }
 }

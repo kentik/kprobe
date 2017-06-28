@@ -142,3 +142,21 @@ fn test_tcp_application_latency() {
 
     assert_eq!(Some(7), trk.latency(&key).map(|d| d.num_milliseconds()));
 }
+
+#[test]
+fn test_ignore_ipv4_ethernet_padding() {
+    let mut cap = Capture::from_file("pcaps/ip/ipv4_eth_padding.pcap").unwrap();
+
+    while let Ok(pkt) = cap.next() {
+        let eth = EthernetPacket::new(pkt.data).unwrap();
+        let ip  = Ipv4Packet::new(eth.payload()).unwrap();
+        let pkt = packet::decode(&eth).1.unwrap();
+
+        let tcp = match pkt.transport(ip.payload()) {
+            Some(packet::Transport::TCP(tcp)) => tcp,
+            _                                 => unreachable!(),
+        };
+
+        assert_eq!(0, tcp.payload().len());
+    }
+}
