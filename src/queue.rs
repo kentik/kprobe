@@ -72,7 +72,7 @@ impl FlowQueue {
         ctr.bytes     += flow.bytes as u64;
         ctr.fragments += flow.fragments as u64;
 
-        if let Transport::TCP { flags } = flow.transport {
+        if let Transport::TCP { flags, .. } = flow.transport {
             ctr.tcp_flags |= flags;
         }
 
@@ -100,7 +100,7 @@ impl FlowQueue {
 
     fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &Counter) {
         customs.add(&ctr);
-        tracker.get(key, customs);
+        tracker.get(key, ctr.direction, customs);
         libkflow::send(key, ctr, match &customs[..] {
             cs if cs.len() > 0 => Some(cs),
             _                  => None,

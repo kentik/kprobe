@@ -7,15 +7,11 @@ use std::ptr;
 use libkflow::*;
 use queue::Counter;
 
-const KFLOW_FRAGMENTS:              &str = "FRAGMENTS";
-const KFLOW_RETRANSMITTED_PKTS_IN:  &str = "RETRANSMITTED_IN_PKTS";
-const KFLOW_RETRANSMITTED_PKTS_OUT: &str = "RETRANSMITTED_OUT_PKTS";
+const KFLOW_FRAGMENTS: &str = "FRAGMENTS";
 
 pub struct Customs {
-    fragments:       Option<u64>,
-    retransmits_in:  Option<u64>,
-    retransmits_out: Option<u64>,
-    vec:             Vec<kflowCustom>,
+    fragments: Option<u64>,
+    vec:       Vec<kflowCustom>,
 }
 
 impl Customs {
@@ -25,10 +21,8 @@ impl Customs {
         }).collect::<HashMap<_, _>>();
 
         Customs{
-            fragments:       cs.get(KFLOW_FRAGMENTS).cloned(),
-            retransmits_in:  cs.get(KFLOW_RETRANSMITTED_PKTS_IN).cloned(),
-            retransmits_out: cs.get(KFLOW_RETRANSMITTED_PKTS_OUT).cloned(),
-            vec:             Vec::with_capacity(cs.len()),
+            fragments: cs.get(KFLOW_FRAGMENTS).cloned(),
+            vec:       Vec::with_capacity(cs.len()),
         }
     }
 

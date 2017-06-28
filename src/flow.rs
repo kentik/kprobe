@@ -48,7 +48,7 @@ pub struct Addr {
 #[derive(Copy, Clone, Debug)]
 pub enum Transport {
     ICMP,
-    TCP  { flags: u16 },
+    TCP  { seq: u32, flags: u16 },
     UDP,
     Other,
 }
@@ -56,7 +56,7 @@ pub enum Transport {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Key(pub Protocol, pub Addr, pub Addr);
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Direction {
     In, Out, Unknown
 }

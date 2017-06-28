@@ -121,6 +121,9 @@ fn test_tcp_application_latency() {
             vlan: None,
         };
 
+        let seq   = tcp.get_sequence();
+        let flags = tcp.get_flags();
+
         trk.add(&Flow{
             timestamp: Timestamp(pkt.header.ts),
             protocol:  Protocol::TCP,
@@ -131,7 +134,7 @@ fn test_tcp_application_latency() {
             packets:   1,
             bytes:     0,
             fragments: 0,
-            transport: Transport::TCP{ flags: tcp.get_flags() },
+            transport: Transport::TCP{ seq, flags },
             payload:   tcp.payload(),
         });
     }
