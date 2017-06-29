@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::cmp::min;
 
 use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
@@ -96,8 +97,8 @@ impl<'a> Packet<'a> {
 
     pub fn transport<'n>(&self, p: &'n [u8]) -> Option<Transport<'n>> {
         match *self {
-            Packet::IPv4(ref ip) => self.next(ip.get_next_level_protocol(), &p[..ip.payload_size()]),
-            Packet::IPv6(ref ip) => self.next(ip.get_next_header(),         &p[..ip.payload_size()]),
+            Packet::IPv4(ref ip) => self.next(ip.get_next_level_protocol(), ip.payload_slice(p)),
+            Packet::IPv6(ref ip) => self.next(ip.get_next_header(),         ip.payload_slice(p)),
             Packet::Other(..)    => None,
         }
     }
@@ -121,18 +122,20 @@ impl<'a> Opaque<'a> {
     }
 }
 
-trait PayloadSize {
-    fn payload_size(&self) -> usize;
+trait PayloadSlice {
+    fn payload_slice<'p>(&self, p: &'p [u8]) -> &'p [u8];
 }
 
-impl<'p> PayloadSize for Ipv4Packet<'p> {
-    fn payload_size(&self) -> usize {
-        self.get_total_length() as usize - self.packet_size()
+impl<'p> PayloadSlice for Ipv4Packet<'p> {
+    fn payload_slice<'b>(&self, p: &'b [u8]) -> &'b [u8] {
+        let n = self.get_total_length() as usize - self.packet_size();
+        &p[..min(p.len(), n)]
     }
 }
 
-impl<'p> PayloadSize for Ipv6Packet<'p> {
-    fn payload_size(&self) -> usize {
-        self.get_payload_length() as usize
+impl<'p> PayloadSlice for Ipv6Packet<'p> {
+    fn payload_slice<'b>(&self, p: &'b [u8]) -> &'b [u8] {
+        let n = self.get_payload_length() as usize;
+        &p[..min(p.len(), n)]
     }
 }
