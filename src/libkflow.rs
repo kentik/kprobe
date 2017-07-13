@@ -112,7 +112,7 @@ pub fn configure(cfg: &Config) -> Result<Vec<kflowCustom>, Error> {
     }
 }
 
-pub fn send(key: &Key, ctr: &Counter, cs: Option<&[kflowCustom]>) -> Result<(), Error> {
+pub fn send(key: &Key, ctr: &Counter, sr: u32, cs: Option<&[kflowCustom]>) -> Result<(), Error> {
     let mut kflow: kflow = Default::default();
     let mut v6src: [u8; 16];
     let mut v6dst: [u8; 16];
@@ -145,13 +145,13 @@ pub fn send(key: &Key, ctr: &Counter, cs: Option<&[kflowCustom]>) -> Result<(), 
         },
     }
 
-    kflow.srcEthMac = pack_mac(&ctr.ethernet.src);
-    kflow.dstEthMac = pack_mac(&ctr.ethernet.dst);
-    kflow.tos       = ctr.tos as u32;
-    kflow.l4SrcPort = key.1.port as u32;
-    kflow.l4DstPort = key.2.port as u32;
-    kflow.tcpFlags  = ctr.tcp_flags as u32;
-    kflow.sampleRate = 1;
+    kflow.srcEthMac  = pack_mac(&ctr.ethernet.src);
+    kflow.dstEthMac  = pack_mac(&ctr.ethernet.dst);
+    kflow.tos        = ctr.tos as u32;
+    kflow.l4SrcPort  = key.1.port as u32;
+    kflow.l4DstPort  = key.2.port as u32;
+    kflow.tcpFlags   = ctr.tcp_flags as u32;
+    kflow.sampleRate = sr;
 
     match ctr.direction {
         Direction::In => {

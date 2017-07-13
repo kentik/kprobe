@@ -10,21 +10,26 @@ use packet::{self, Packet, Opaque};
 use packet::Transport::*;
 use flow::*;
 use reasm::Reassembler;
+use sample::Sampler;
 use queue::FlowQueue;
 use libkflow::kflowCustom;
 
 pub struct Kprobe {
     interface: NetworkInterface,
+    sampler:   Option<Sampler>,
     asm:       Reassembler,
     queue:     FlowQueue,
 }
 
 impl Kprobe {
-    pub fn new(interface: NetworkInterface, customs: Vec<kflowCustom>) -> Kprobe {
+    pub fn new(interface: NetworkInterface, sample: Option<u64>, customs: Vec<kflowCustom>) -> Kprobe {
+        let sampler = sample.map(Sampler::new);
+        let queue   = FlowQueue::new(sample, customs);
         Kprobe {
             interface: interface,
+            sampler:   sampler,
             asm:       Reassembler::new(),
-            queue:     FlowQueue::new(customs),
+            queue:     queue,
         }
     }
 
@@ -73,6 +78,12 @@ impl Kprobe {
                     flow.packets   = out.packets;
                     flow.fragments = out.frags;
                     flow.bytes     = out.bytes;
+
+                    if let Some(ref s) = self.sampler {
+                        if !s.accept(&flow) {
+                            return
+                        }
+                    }
 
                     self.queue.add(dir, flow);
                     self.queue.flush(ts);

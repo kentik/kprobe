@@ -8,6 +8,7 @@ pub fn parse<'a>() -> Args<'a> {
     let matches = clap_app!(kprobe =>
       (version: env!("CARGO_PKG_VERSION"))
       (@arg interface: -i --interface       +takes_value +required "Network interface")
+      (@arg sample:       --sample          +takes_value           "Sample 1:N flows")
       (@arg email:        --email           +takes_value           "API user email")
       (@arg token:        --token           +takes_value           "API access token")
       (@arg device_id:    --("device-id")   +takes_value           "Device ID")
@@ -78,6 +79,14 @@ impl FromArg for NetworkInterface {
     }
 }
 
+impl FromArg for u16 {
+    fn from_arg(value: &str) -> Result<u16, Error> {
+        value.parse().map_err(|_| {
+            Error::Invalid(format!("'{}' is not a number", value))
+        })
+    }
+}
+
 impl FromArg for i32 {
     fn from_arg(value: &str) -> Result<i32, Error> {
         value.parse().map_err(|_| {
@@ -94,8 +103,8 @@ impl FromArg for u32 {
     }
 }
 
-impl FromArg for u16 {
-    fn from_arg(value: &str) -> Result<u16, Error> {
+impl FromArg for u64 {
+    fn from_arg(value: &str) -> Result<u64, Error> {
         value.parse().map_err(|_| {
             Error::Invalid(format!("'{}' is not a number", value))
         })

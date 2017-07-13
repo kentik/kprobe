@@ -13,6 +13,7 @@ fn main() {
     let args    = args::parse();
     let verbose = args.count("verbose");
     let promisc = args.count("promisc") > 0;
+    let sample  = args.opt("sample").unwrap_or(None);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
 
     let mut cfg = libkflow::Config::new();
@@ -67,6 +68,6 @@ fn main() {
     //     cap.filter(filter).unwrap();
     // }
 
-    let mut kprobe = Kprobe::new(interface, customs);
+    let mut kprobe = Kprobe::new(interface, sample, customs);
     kprobe.run(cap).expect("capture succeeded");
 }

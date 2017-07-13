@@ -22,16 +22,18 @@ pub struct FlowQueue {
     customs:  Customs,
     decoders: Decoders,
     tracker:  Tracker,
+    sample:   u32,
     flushed:  Timestamp,
 }
 
 impl FlowQueue {
-    pub fn new(customs: Vec<kflowCustom>) -> FlowQueue {
+    pub fn new(sample: Option<u64>, customs: Vec<kflowCustom>) -> FlowQueue {
         FlowQueue {
             flows:    HashMap::new(),
             customs:  Customs::new(&customs),
             decoders: Decoders::new(&customs),
             tracker:  Tracker::new(&customs),
+            sample:   sample.unwrap_or(1) as u32,
             flushed:  Timestamp::zero(),
         }
     }
@@ -44,7 +46,7 @@ impl FlowQueue {
             self.flows.remove(&key).map(|ctr| {
                 let customs = &mut self.customs;
                 let tracker = &mut self.tracker;
-                Self::send(customs, tracker, &key, &ctr)
+                Self::send(customs, tracker, &key, &ctr, self.sample)
             });
         }
     }
@@ -91,7 +93,7 @@ impl FlowQueue {
 
         for (key, ctr) in self.flows.drain() {
             decoders.append(ctr.decoder, &key, customs);
-            Self::send(customs, tracker, &key, &ctr);
+            Self::send(customs, tracker, &key, &ctr, self.sample);
         }
 
         decoders.clear(ts);
@@ -103,10 +105,10 @@ impl FlowQueue {
         }
     }
 
-    fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &Counter) {
+    fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &Counter, sr: u32) {
         customs.add(&ctr);
         tracker.get(key, ctr.direction, customs);
-        libkflow::send(key, ctr, match &customs[..] {
+        libkflow::send(key, ctr, sr, match &customs[..] {
             cs if cs.len() > 0 => Some(cs),
             _                  => None,
         }).expect("failed to send flow");

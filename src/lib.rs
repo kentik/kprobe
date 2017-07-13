@@ -21,6 +21,7 @@ pub mod custom;
 pub mod queue;
 pub mod protocol;
 pub mod reasm;
+pub mod sample;
 pub mod track;
 
 pub use kprobe::Kprobe;

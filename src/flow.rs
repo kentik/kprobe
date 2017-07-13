@@ -39,7 +39,7 @@ pub enum Protocol {
     Other(u16),
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd)]
 pub struct Addr {
     pub addr: IpAddr,
     pub port: u16,
