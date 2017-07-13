@@ -9,6 +9,7 @@ extern crate nom;
 extern crate libc;
 extern crate time;
 extern crate http_muncher;
+extern crate byteorder;
 
 pub mod args;
 pub mod kprobe;

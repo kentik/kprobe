@@ -1,5 +1,5 @@
 use time::Duration;
-use flow::{Flow, Timestamp};
+use flow::{Flow, Key, Timestamp};
 use flow::Protocol::*;
 use custom::Customs;
 use libkflow::kflowCustom;
@@ -7,12 +7,13 @@ use protocol::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Decoder {
-    DNS, HTTP, Postgres, None
+    DNS, HTTP, Postgres, TLS, None
 }
 
 pub struct Decoders {
     dns:      Option<dns::Decoder>,
     http:     Option<http::Decoder>,
+    tls:      Option<tls::Decoder>,
     postgres: Option<postgres::Decoder>,
 }
 
@@ -21,6 +22,7 @@ impl Decoders {
         Decoders {
             dns:      dns::Decoder::new(&cs),
             http:     http::Decoder::new(&cs),
+            tls:      tls::Decoder::new(&cs),
             postgres: postgres::Decoder::new(&cs),
         }
     }
@@ -31,6 +33,8 @@ impl Decoders {
             (UDP, _, 53)   if self.dns.is_some()      => Decoder::DNS,
             (TCP, 80, _)   if self.http.is_some()     => Decoder::HTTP,
             (TCP, _, 80)   if self.http.is_some()     => Decoder::HTTP,
+            (TCP, 443, _)  if self.tls.is_some()      => Decoder::TLS,
+            (TCP, _, 443)  if self.tls.is_some()      => Decoder::TLS,
             (TCP, 5432, _) if self.postgres.is_some() => Decoder::Postgres,
             (TCP, _, 5432) if self.postgres.is_some() => Decoder::Postgres,
             _                                         => Decoder::None,
@@ -44,15 +48,25 @@ impl Decoders {
 
         match d {
             Decoder::DNS      => self.dns.as_mut().map(|d| d.decode(flow, cs)),
-            Decoder::Postgres => self.postgres.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::HTTP     => self.http.as_mut().map(|d| d.decode(flow, cs)),
+            Decoder::TLS      => self.tls.as_mut().map(|d| d.decode(flow, cs)),
+            Decoder::Postgres => self.postgres.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::None     => None,
         }.unwrap_or(false)
+    }
+
+    pub fn append(&mut self, d: Decoder, key: &Key, cs: &mut Customs) {
+        match d {
+            Decoder::TLS => self.tls.as_mut().map(|d| d.append(key, cs)),
+            _            => None,
+        };
     }
 
     pub fn clear(&mut self, ts: Timestamp) {
         let timeout = Duration::seconds(15);
         self.dns.as_mut().map(|d| d.clear(ts, timeout));
         self.http.as_mut().map(|d| d.clear(ts, timeout));
+        self.tls.as_mut().map(|d| d.clear(ts, timeout));
+        //self.postgres.as_mut().map(|d| d.clear(ts, timeout));
     }
 }

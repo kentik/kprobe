@@ -85,12 +85,17 @@ impl FlowQueue {
             return;
         }
 
+        let customs  = &mut self.customs;
+        let decoders = &mut self.decoders;
+        let tracker  = &mut self.tracker;
+
         for (key, ctr) in self.flows.drain() {
-            Self::send(&mut self.customs, &mut self.tracker, &key, &ctr);
+            decoders.append(ctr.decoder, &key, customs);
+            Self::send(customs, tracker, &key, &ctr);
         }
 
-        self.decoders.clear(ts);
-        self.tracker.clear(ts);
+        decoders.clear(ts);
+        tracker.clear(ts);
         self.flushed = ts;
 
         while let Some(msg) = libkflow::error() {
