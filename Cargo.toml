@@ -1,6 +1,6 @@
 [package]
 name    = "kprobe"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Will <will@kentik.com>"]
 links   = "kflow"
 build   = "build.rs"

@@ -14,6 +14,10 @@ pub struct Decoder {
 
 impl Decoder {
     pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
+        if true {
+            return None;
+        }
+
         let mut ns = HashSet::new();
         ns.insert(KFLOW_HTTP_HOST);
 
