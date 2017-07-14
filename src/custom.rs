@@ -26,7 +26,7 @@ impl Customs {
         }
     }
 
-    pub fn add(&mut self, ctr: &Counter) {
+    pub fn append(&mut self, ctr: &Counter) {
         if ctr.fragments > 0 {
             self.fragments.map(|id| self.add_u32(id, ctr.fragments as u32));
         }

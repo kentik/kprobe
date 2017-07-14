@@ -124,6 +124,11 @@ fn test_tcp_application_latency() {
         let seq   = tcp.get_sequence();
         let flags = tcp.get_flags();
 
+        const FIN: u16 = 0b00001;
+        if flags & FIN == FIN {
+            break;
+        }
+
         trk.add(&Flow{
             timestamp: Timestamp(pkt.header.ts),
             protocol:  Protocol::TCP,

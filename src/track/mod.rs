@@ -28,6 +28,7 @@ pub struct State {
     rtt:         Option<RTT>,
     syn:         Option<Timestamp>,
     payload:     Option<Timestamp>,
+    fin:         Option<Timestamp>,
     seq:         u32,
     retransmits: u64,
     ooorder:     u64,
@@ -66,8 +67,6 @@ impl Tracker {
 
             if let Some(peer @ &mut State{latency: None, ..}) = self.peer(&flow) {
                 peer.latency = peer.payload.map(|ts| flow.timestamp - ts);
-                //let key = Key(flow.protocol, flow.dst, flow.src);
-                //println!("{:?} latency {:?}", key, peer.latency);
             }
         }
 
@@ -93,6 +92,16 @@ impl Tracker {
                 if let Some(&mut State{syn: Some(syn), ..}) = self.peer(flow) {
                     this.rtt = Some(RTT::Client(flow.timestamp - syn));
                 }
+            }
+
+            if this.fin.is_some() {
+                if let Some(&mut State{fin: Some(..), ..}) = self.peer(flow) {
+                    self.states.remove(&Key(flow.protocol, flow.src, flow.dst));
+                    self.states.remove(&Key(flow.protocol, flow.dst, flow.src));
+                    return;
+                }
+            } else if fin {
+                this.fin = Some(flow.timestamp);
             }
 
             let seglen    = flow.payload.len();
@@ -126,7 +135,7 @@ impl Tracker {
         }
     }
 
-    pub fn get(&mut self, key: &Key, dir: Direction, cs: &mut Customs) {
+    pub fn append(&mut self, key: &Key, dir: Direction, cs: &mut Customs) {
         if let Some(ref mut this) = self.states.get_mut(key) {
             let (cli, srv) = match this.rtt {
                 Some(RTT::Client(d)) => (d.num_milliseconds() / 2, 0),
@@ -159,8 +168,8 @@ impl Tracker {
     }
 
     pub fn clear(&mut self, ts: Timestamp) {
-        let timeout = Duration::seconds(60);
-        self.states.retain(|_, s| (ts - s.last) < timeout)
+        let timeout = Duration::seconds(15);
+        self.states.retain(|_, s| (ts - s.last) < timeout);
     }
 
     pub fn latency(&self, key: &Key) -> Option<Duration> {
@@ -188,6 +197,7 @@ impl Tracker {
                 rtt:         None,
                 syn:         None,
                 payload:     None,
+                fin:         None,
                 seq:         seq,
                 retransmits: 0,
                 ooorder:     0,

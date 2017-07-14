@@ -106,8 +106,8 @@ impl FlowQueue {
     }
 
     fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &Counter, sr: u32) {
-        customs.add(&ctr);
-        tracker.get(key, ctr.direction, customs);
+        customs.append(&ctr);
+        tracker.append(key, ctr.direction, customs);
         libkflow::send(key, ctr, sr, match &customs[..] {
             cs if cs.len() > 0 => Some(cs),
             _                  => None,
