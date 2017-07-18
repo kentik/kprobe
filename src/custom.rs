@@ -9,6 +9,7 @@ use queue::Counter;
 
 const KFLOW_FRAGMENTS: &str = "FRAGMENTS";
 
+#[derive(Debug)]
 pub struct Customs {
     fragments: Option<u64>,
     vec:       Vec<kflowCustom>,

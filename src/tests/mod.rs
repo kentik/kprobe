@@ -1,10 +1,10 @@
-use std::net::IpAddr;
+mod iter;
+mod decoders;
+
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::ipv4::Ipv4Packet;
-use pnet::packet::tcp::TcpPacket;
-use pnet::packet::udp::UdpPacket;
 use flow::*;
 use packet;
 use reasm::Reassembler;
@@ -65,35 +65,10 @@ fn test_reassemble_fragmented() {
 
 #[test]
 fn test_udp_application_latency() {
-    let mut cap = Capture::from_file("pcaps/dns/google.com-any.pcap").unwrap();
     let mut trk = Tracker::new(&[]);
 
-    while let Ok(pkt) = cap.next() {
-        let eth = EthernetPacket::new(pkt.data).unwrap();
-        let ip  = Ipv4Packet::new(eth.payload()).unwrap();
-        let udp = UdpPacket::new(ip.payload()).unwrap();
-
-        let src = IpAddr::V4(ip.get_source());
-        let dst = IpAddr::V4(ip.get_destination());
-        let eth = Ethernet{
-            src:  eth.get_source(),
-            dst:  eth.get_destination(),
-            vlan: None,
-        };
-
-        trk.add(&Flow{
-            timestamp: Timestamp(pkt.header.ts),
-            protocol:  Protocol::UDP,
-            ethernet:  eth,
-            src:       Addr{addr: src, port: udp.get_source()},
-            dst:       Addr{addr: dst, port: udp.get_destination()},
-            tos:       0,
-            packets:   1,
-            bytes:     0,
-            fragments: 0,
-            transport: Transport::UDP,
-            payload:   udp.payload(),
-        });
+    for flow in iter::flows("pcaps/dns/google.com-any.pcap") {
+        trk.add(&flow);
     }
 
     let src = Addr{addr: "10.0.0.52".parse().unwrap(), port: 52407};
@@ -105,43 +80,13 @@ fn test_udp_application_latency() {
 
 #[test]
 fn test_tcp_application_latency() {
-    let mut cap = Capture::from_file("pcaps/http/google.com.pcap").unwrap();
     let mut trk = Tracker::new(&[]);
 
-    while let Ok(pkt) = cap.next() {
-        let eth = EthernetPacket::new(pkt.data).unwrap();
-        let ip  = Ipv4Packet::new(eth.payload()).unwrap();
-        let tcp = TcpPacket::new(ip.payload()).unwrap();
-
-        let src = IpAddr::V4(ip.get_source());
-        let dst = IpAddr::V4(ip.get_destination());
-        let eth = Ethernet{
-            src:  eth.get_source(),
-            dst:  eth.get_destination(),
-            vlan: None,
-        };
-
-        let seq   = tcp.get_sequence();
-        let flags = tcp.get_flags();
-
-        const FIN: u16 = 0b00001;
-        if flags & FIN == FIN {
+    for flow in iter::flows("pcaps/http/google.com.pcap") {
+        if flow.tcp_flags() & FIN == FIN {
             break;
         }
-
-        trk.add(&Flow{
-            timestamp: Timestamp(pkt.header.ts),
-            protocol:  Protocol::TCP,
-            ethernet:  eth,
-            src:       Addr{addr: src, port: tcp.get_source()},
-            dst:       Addr{addr: dst, port: tcp.get_destination()},
-            tos:       0,
-            packets:   1,
-            bytes:     0,
-            fragments: 0,
-            transport: Transport::TCP{ seq, flags },
-            payload:   tcp.payload(),
-        });
+        trk.add(&flow);
     }
 
     let src = Addr{addr: "10.211.55.16".parse().unwrap(),   port: 42370};

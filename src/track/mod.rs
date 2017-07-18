@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use time::Duration;
 use flow::{Direction, Flow, Key, Timestamp, Transport};
+use flow::{FIN, SYN, RST, ACK};
 use custom::Customs;
 use libkflow::kflowCustom;
 
@@ -71,11 +72,6 @@ impl Tracker {
         }
 
         if let Transport::TCP{ seq, flags } = flow.transport {
-            const FIN: u16 = 0b00001;
-            const SYN: u16 = 0b00010;
-            const RST: u16 = 0b00100;
-            const ACK: u16 = 0b10000;
-
             let fin = flags & FIN == FIN;
             let syn = flags & SYN == SYN;
             let ack = flags & ACK == ACK;

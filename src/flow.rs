@@ -7,6 +7,11 @@ use libc::{self, timeval};
 use pnet::util::MacAddr;
 use time::{self, Duration};
 
+pub const FIN: u16 = 0b00001;
+pub const SYN: u16 = 0b00010;
+pub const RST: u16 = 0b00100;
+pub const ACK: u16 = 0b10000;
+
 pub struct Flow<'a> {
     pub timestamp: Timestamp,
     pub ethernet:  Ethernet,
@@ -64,6 +69,13 @@ pub enum Direction {
 impl<'a> Flow<'a> {
     pub fn key(&self) -> Key {
         Key(self.protocol, self.src, self.dst)
+    }
+
+    pub fn tcp_flags(&self) -> u16 {
+        match self.transport {
+            Transport::TCP { flags, .. } => flags,
+            _                            => 0,
+        }
     }
 }
 
