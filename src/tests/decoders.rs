@@ -72,7 +72,7 @@ fn decode_dns() {
 }
 
 #[test]
-fn decode_tls() {
+fn decode_tls_handshake() {
     let mut decoders = Decoders::new(CUSTOMS);
     let mut customs  = Customs::new(CUSTOMS);
 
@@ -91,6 +91,22 @@ fn decode_tls() {
     }
 
     assert_eq!(Some(Value::from("google.com")), server_name);
+}
+
+#[test]
+fn decode_tls_ignore_established() {
+    let mut decoders = Decoders::new(CUSTOMS);
+    let mut customs  = Customs::new(CUSTOMS);
+
+    for flow in iter::flows("pcaps/tls/google.com-tls-1.2.pcap").skip(2) {
+        let key = flow.key();
+
+        let d = decoders.classify(&flow);
+        decoders.decode(d, &flow, &mut customs);
+        decoders.append(d, &key,  &mut customs);
+    }
+
+    assert_eq!(0, customs.len());
 }
 
 const CUSTOMS: &[kflowCustom] = &[
@@ -160,14 +176,14 @@ fn value(name: &str, cs: &[kflowCustom]) -> Option<Value> {
     })
 }
 
-fn dump(cs: &[kflowCustom]) {
-    for c in cs {
-        if let Some(def) = CUSTOMS.iter().find(|def| def.id == c.id) {
-            let name  = def.name();
-            let value = Value::from(c);
-            println!("{} => {:?}", name, value);
-        } else {
-            println!("unknown custom column ID: {}", c.id);
-        }
-    }
-}
+// fn dump(cs: &[kflowCustom]) {
+//     for c in cs {
+//         if let Some(def) = CUSTOMS.iter().find(|def| def.id == c.id) {
+//             let name  = def.name();
+//             let value = Value::from(c);
+//             println!("{} => {:?}", name, value);
+//         } else {
+//             println!("unknown custom column ID: {}", c.id);
+//         }
+//     }
+// }

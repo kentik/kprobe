@@ -1,5 +1,6 @@
 use time::Duration;
 use flow::{Flow, Key, Timestamp};
+use flow::{FIN, SYN};
 use flow::Protocol::*;
 use custom::Customs;
 use libkflow::kflowCustom;
@@ -42,7 +43,7 @@ impl Decoders {
     }
 
     pub fn decode(&mut self, d: Decoder, flow: &Flow, cs: &mut Customs) -> bool {
-        if flow.payload.is_empty() {
+        if flow.payload.is_empty() && flow.tcp_flags() & SYN|FIN == 0 {
             return false
         }
 

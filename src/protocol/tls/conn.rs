@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use time::Duration;
-use nom::IResult::Done;
+use nom::IResult::*;
 use super::parser::*;
 use protocol::buf::Buffer;
 use flow::Timestamp;
@@ -38,12 +38,11 @@ impl Connection {
             let mut buf = self.buffer.buf(buf);
             let mut remainder = buf.len();
 
-            if let Done(rest, records) = parse_records(&buf[..]) {
-                for r in records {
-                    state.update(r);
-                }
-                remainder = rest.len();
-            }
+            remainder = match parse_records(&buf) {
+                Done(rest, rs) => state.update(rs, rest),
+                Incomplete(..) => remainder,
+                Error(..)      => 0,
+            };
 
             buf.keep(remainder);
         }
@@ -59,20 +58,23 @@ impl Connection {
 }
 
 impl State {
-    fn update(&mut self, r: Record) {
-        match r {
-            Record::Hello(Hello::Client(ver, host))  => {
-                self.client_ver = Some(ver);
-                self.host_name  = host;
-            },
-            Record::Hello(Hello::Server(ver, suite)) => {
-                self.server_ver   = Some(ver);
-                self.cipher_suite = Some(suite);
-            },
-            Record::Hello(Hello::Done)               => {
-                self.shaken = true;
+    fn update(&mut self, rs: Vec<Record>, rest: &[u8]) -> usize {
+        for r in rs {
+            match r {
+                Record::Hello(Hello::Client(ver, host))  => {
+                    self.client_ver = Some(ver);
+                    self.host_name  = host;
+                },
+                Record::Hello(Hello::Server(ver, suite)) => {
+                    self.server_ver   = Some(ver);
+                    self.cipher_suite = Some(suite);
+                },
+                Record::Hello(Hello::Done)               => {
+                    self.shaken = true;
+                }
+                _                                        => (),
             }
-            _                                        => (),
         }
+        rest.len()
     }
 }

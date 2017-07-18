@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry::*;
+use std::collections::hash_map::VacantEntry;
 use time::Duration;
-use flow::{Addr, Flow, Key, Timestamp};
+use flow::{Addr, Flow, Key, Timestamp, SYN, FIN};
 use libkflow::kflowCustom;
 use custom::Customs;
 use super::conn::Connection;
@@ -32,25 +34,46 @@ impl Decoder {
     }
 
     pub fn decode(&mut self, flow: &Flow, _cs: &mut Customs) -> bool {
-        let conn = self.conn(flow.src, flow.dst);
-        conn.parse(flow.timestamp, flow.payload);
+        if let Some(conn) = self.conn(flow.src, flow.dst, flow.tcp_flags()) {
+            conn.parse(flow.timestamp, flow.payload);
+        }
+
+        if flow.tcp_flags() & FIN == FIN {
+            self.conns.remove(&(flow.src, flow.dst));
+            self.conns.remove(&(flow.dst, flow.src));
+        }
+
         false
     }
 
     pub fn append(&mut self, key: &Key, cs: &mut Customs) {
         let server_name = self.server_name;
-        let state = self.conn(key.1, key.2).state();
-        state.host_name.as_ref().map(|name| cs.add_str(server_name, name));
+        if let Some(conn) = self.conn(key.1, key.2, 0) {
+            let state = conn.state();
+            state.host_name.as_ref().map(|name| cs.add_str(server_name, name));
+        }
     }
 
     pub fn clear(&mut self, ts: Timestamp, timeout: Duration) {
         self.conns.retain(|_, c| !c.is_idle(ts, timeout))
     }
 
-    fn conn(&mut self, src: Addr, dst: Addr) -> &mut Connection {
-        self.conns.entry(match src.port < dst.port {
+    fn conn<'a>(&'a mut self, src: Addr, dst: Addr, flags: u16) -> Option<&'a mut Connection> {
+        let key = match src.port < dst.port {
             true  => (src, dst),
             false => (dst, src),
-        }).or_insert_with(Connection::new)
+        };
+
+        let maybe_insert = |e: VacantEntry<'a, _, _>| -> Option<&'a mut Connection> {
+            match flags & SYN {
+                SYN => Some(e.insert(Connection::new())),
+                _   => None,
+            }
+        };
+
+        match self.conns.entry(key) {
+            Vacant(e)   => maybe_insert(e),
+            Occupied(e) => Some(e.into_mut()),
+        }
     }
 }

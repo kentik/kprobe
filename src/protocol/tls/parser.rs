@@ -118,8 +118,9 @@ fn extension(buf: &[u8]) -> IResult<&[u8], Extension> {
     }
 
     match etype {
-        0x0000 => server_names(rest),
-        n      => Done(&rest[len..], Extension::Other(n)),
+        0x0000 if len > 0 => server_names(rest),
+        0x0000            => Done(&rest[len..], Extension::SNI(Vec::new())),
+        n                 => Done(&rest[len..], Extension::Other(n)),
     }
 }
 
