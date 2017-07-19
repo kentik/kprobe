@@ -27,6 +27,7 @@ pub struct CipherSuite(u16);
 #[derive(Debug)]
 pub enum Extension {
     SNI(Vec<ServerName>),
+    ALPN(Vec<CString>),
     Other(u16),
 }
 
@@ -127,7 +128,7 @@ fn extension(buf: &[u8]) -> IResult<&[u8], Extension> {
 
     match etype {
         0x0000 if len > 0 => server_names(rest),
-        0x0000            => Done(&rest[len..], Extension::SNI(Vec::new())),
+        0x0010 if len > 0 => protocols(rest),
         n                 => Done(&rest[len..], Extension::Other(n)),
     }
 }
@@ -140,11 +141,23 @@ named!(server_names<&[u8], Extension>, do_parse!(
 named!(server_name<&[u8], ServerName>, do_parse!(
     ntype: be_u8
  >> len:   be_u16
- >> name:  map_res!(take_str!(len), CString::new)
+ >> name:  map_res!(take!(len), CString::new)
  >> (match ntype {
          0 => ServerName::HostName(name),
          n => ServerName::Other(n, name),
     })
+));
+
+named!(protocols<&[u8], Extension>, do_parse!(
+    len:  be_u16
+ >> list: flat_map!(take!(len), many0!(cstring))
+ >> (Extension::ALPN(list))
+));
+
+named!(cstring<&[u8], CString>, do_parse!(
+    len: be_u8
+ >> str: map_res!(take!(len), CString::new)
+ >> (str)
 ));
 
 fn find_sni(es: Vec<Extension>) -> Option<CString> {
