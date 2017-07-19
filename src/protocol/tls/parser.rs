@@ -7,6 +7,7 @@ use byteorder::{ByteOrder, BigEndian as BE};
 pub enum Record {
     Hello(Hello),
     Other(u8),
+    Unsupported(Version),
 }
 
 #[derive(Debug)]
@@ -17,7 +18,7 @@ pub enum Hello {
     Other(u8),
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Version(u8, u8);
 
 #[derive(Debug)]
@@ -44,12 +45,19 @@ pub fn record(buf: &[u8]) -> IResult<&[u8], Record> {
     }
 
     let ctype = buf[0];
-    let _ver  = BE::read_u16(&buf[1..3]);
+    let ver   = BE::read_u16(&buf[1..3]);
     let len   = BE::read_u16(&buf[3..5]) as usize;
     let rest  = &buf[5..];
 
     if rest.len() < len {
         return Incomplete(Needed::Size(len - rest.len()));
+    }
+
+    if ver < 0x0301 {
+        let major = (ver >> 8) as u8;
+        let minor = (ver & 0xFF) as u8;
+        let v = Version(major, minor);
+        return Done(&rest[len..], Record::Unsupported(v));
     }
 
     match ctype {

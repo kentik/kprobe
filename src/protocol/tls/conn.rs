@@ -11,13 +11,13 @@ pub struct Connection {
     state:  State,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct State {
     pub client_ver:   Option<Version>,
     pub server_ver:   Option<Version>,
     pub host_name:    Option<CString>,
     pub cipher_suite: Option<CipherSuite>,
-    pub shaken:       bool,
+    pub parsing:      bool,
 }
 
 impl Connection {
@@ -25,7 +25,7 @@ impl Connection {
         Connection {
             buffer: Buffer::new(),
             last:   Timestamp::zero(),
-            state:  Default::default(),
+            state:  State::new(),
         }
     }
 
@@ -34,13 +34,13 @@ impl Connection {
 
         self.last = ts;
 
-        if !state.shaken {
+        if state.parsing {
             let mut buf = self.buffer.buf(buf);
             let mut remainder = buf.len();
 
             remainder = match parse_records(&buf) {
                 Done(rest, rs) => state.update(rs, rest),
-                Incomplete(..) => remainder,
+                Incomplete(..) => state.partial(remainder),
                 Error(..)      => 0,
             };
 
@@ -58,6 +58,16 @@ impl Connection {
 }
 
 impl State {
+    fn new() -> Self {
+        State{
+            client_ver:   None,
+            server_ver:   None,
+            host_name:    None,
+            cipher_suite: None,
+            parsing:      true,
+        }
+    }
+
     fn update(&mut self, rs: Vec<Record>, rest: &[u8]) -> usize {
         for r in rs {
             match r {
@@ -70,11 +80,24 @@ impl State {
                     self.cipher_suite = Some(suite);
                 },
                 Record::Hello(Hello::Done)               => {
-                    self.shaken = true;
-                }
+                    self.parsing = false;
+                },
+                Record::Unsupported(ver)                 => {
+                    self.client_ver = Some(ver);
+                    self.server_ver = Some(ver);
+                    self.parsing    = false;
+                },
                 _                                        => (),
             }
         }
         rest.len()
+    }
+
+    fn partial(&mut self, len: usize) -> usize {
+        if len > 4096 {
+            self.parsing = false;
+            return 0;
+        }
+        len
     }
 }
