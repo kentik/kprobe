@@ -133,17 +133,15 @@ impl Tracker {
 
     pub fn append(&mut self, key: &Key, dir: Direction, cs: &mut Customs) {
         if let Some(ref mut this) = self.states.get_mut(key) {
-            let (cli, srv) = match this.rtt {
-                Some(RTT::Client(d)) => (d.num_milliseconds() / 2, 0),
-                Some(RTT::Server(d)) => (0, d.num_milliseconds() / 2),
-                None                 => (0, 0),
+            match this.rtt {
+                Some(RTT::Client(d)) => self.cli_latency.map(|id| cs.add_latency(id, d / 2)),
+                Some(RTT::Server(d)) => self.srv_latency.map(|id| cs.add_latency(id, d / 2)),
+                None                 => None,
             };
 
-            let app = this.latency.map(|d| d.num_milliseconds()).unwrap_or(0);
-
-            self.cli_latency.map(|id| cs.add_u32(id, cli as u32));
-            self.srv_latency.map(|id| cs.add_u32(id, srv as u32));
-            self.app_latency.map(|id| cs.add_u32(id, app as u32));
+            if let Some(d) = this.latency {
+                self.app_latency.map(|id| cs.add_latency(id, d));
+            }
 
             if this.retransmits > 0 {
                 match dir {

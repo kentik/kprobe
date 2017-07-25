@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::ffi::CStr;
 use std::ops::Deref;
 use std::ptr;
+use time::Duration;
 use libkflow::*;
 use queue::Counter;
 
@@ -53,6 +54,13 @@ impl Customs {
                 u32: val,
             },
         };
+    }
+
+    pub fn add_latency(&mut self, id: u64, d: Duration) {
+        self.add_u32(id, match d.num_milliseconds() {
+            n if n > 0 => n,
+            _          => 1,
+        } as u32);
     }
 
     pub fn clear(&mut self) {
