@@ -61,12 +61,12 @@ impl Tracker {
     }
 
     pub fn add(&mut self, flow: &Flow) {
-        let this = self.this(&flow);
+        let this = self.this(flow);
 
-        if this.payload.is_none() && flow.payload.len() > 0 {
+        if this.payload.is_none() && !flow.payload.is_empty() {
             this.payload = Some(flow.timestamp);
 
-            if let Some(peer @ &mut State{latency: None, ..}) = self.peer(&flow) {
+            if let Some(peer @ &mut State{latency: None, ..}) = self.peer(flow) {
                 peer.latency = peer.payload.map(|ts| flow.timestamp - ts);
             }
         }

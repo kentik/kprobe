@@ -21,10 +21,10 @@ pub struct Decoders {
 impl Decoders {
     pub fn new(cs: &[kflowCustom]) -> Self {
         Decoders {
-            dns:      dns::Decoder::new(&cs),
-            http:     http::Decoder::new(&cs),
-            tls:      tls::Decoder::new(&cs),
-            postgres: postgres::Decoder::new(&cs),
+            dns:      dns::Decoder::new(cs),
+            http:     http::Decoder::new(cs),
+            tls:      tls::Decoder::new(cs),
+            postgres: postgres::Decoder::new(cs),
         }
     }
 
@@ -43,7 +43,7 @@ impl Decoders {
     }
 
     pub fn decode(&mut self, d: Decoder, flow: &Flow, cs: &mut Customs) -> bool {
-        if flow.payload.is_empty() && flow.tcp_flags() & SYN|FIN == 0 {
+        if flow.payload.is_empty() && flow.tcp_flags() & (SYN|FIN) == 0 {
             return false
         }
 
