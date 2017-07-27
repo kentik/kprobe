@@ -14,6 +14,7 @@ pub struct Counter {
     pub packets:   u64,
     pub bytes:     u64,
     pub fragments: u64,
+    pub export:    bool,
     pub decoder:   Decoder,
 }
 
@@ -43,11 +44,14 @@ impl FlowQueue {
         let dec = self.record(key, dir, &flow);
 
         if self.decoders.decode(dec, &flow, &mut self.customs) {
-            self.flows.remove(&key).map(|ctr| {
-                let customs = &mut self.customs;
-                let tracker = &mut self.tracker;
-                Self::send(customs, tracker, &key, &ctr, self.sample)
-            });
+            if flow.export {
+                self.flows.remove(&key).map(|ctr| {
+                    let customs = &mut self.customs;
+                    let tracker = &mut self.tracker;
+                    Self::send(customs, tracker, &key, &ctr, self.sample)
+                });
+            }
+            self.customs.clear();
         }
     }
 
@@ -65,6 +69,7 @@ impl FlowQueue {
                 packets:   0,
                 bytes:     0,
                 fragments: 0,
+                export:    flow.export,
                 decoder:   decoders.classify(flow),
             }
         });
@@ -91,9 +96,10 @@ impl FlowQueue {
         let decoders = &mut self.decoders;
         let tracker  = &mut self.tracker;
 
-        for (key, ctr) in self.flows.drain() {
+        for (key, ctr) in self.flows.drain().filter(|e| e.1.export) {
             decoders.append(ctr.decoder, &key, customs);
             Self::send(customs, tracker, &key, &ctr, self.sample);
+            customs.clear();
         }
 
         decoders.clear(ts);
@@ -112,6 +118,5 @@ impl FlowQueue {
             cs if !cs.is_empty() => Some(cs),
             _                    => None,
         }).expect("failed to send flow");
-        customs.clear();
     }
 }

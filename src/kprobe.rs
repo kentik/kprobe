@@ -11,6 +11,7 @@ use packet::Transport::*;
 use flow::*;
 use reasm::Reassembler;
 use sample::Sampler;
+use sample::Accept::*;
 use queue::FlowQueue;
 use libkflow::kflowCustom;
 
@@ -44,7 +45,7 @@ impl Kprobe {
         }
     }
 
-    fn record<'a>(&mut self, packet: pcap::Packet<'a>) {
+    pub fn record<'a>(&mut self, packet: pcap::Packet<'a>) {
         let eth = match EthernetPacket::new(packet.data) {
             Some(pkt) => pkt,
             None      => return,
@@ -78,10 +79,13 @@ impl Kprobe {
                     flow.packets   = out.packets;
                     flow.fragments = out.frags;
                     flow.bytes     = out.bytes;
+                    flow.export    = true;
 
                     if let Some(ref s) = self.sampler {
-                        if !s.accept(&flow) {
-                            return
+                        match s.accept(&flow) {
+                            Export => flow.export = true,
+                            Decode => flow.export = false,
+                            Ignore => return,
                         }
                     }
 

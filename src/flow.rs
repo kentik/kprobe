@@ -23,6 +23,7 @@ pub struct Flow<'a> {
     pub packets:   u16,
     pub fragments: u16,
     pub bytes:     usize,
+    pub export:    bool,
     pub payload:   &'a [u8]
 }
 

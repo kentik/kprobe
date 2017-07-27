@@ -1,10 +1,16 @@
 mod iter;
 mod decoders;
+mod sampling;
+mod export;
 
+use std::borrow::Cow;
+use std::ffi::CStr;
+use libc::c_char;
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::ipv4::Ipv4Packet;
+use libkflow::*;
 use flow::*;
 use packet;
 use reasm::Reassembler;
@@ -112,4 +118,71 @@ fn test_ignore_ipv4_ethernet_padding() {
 
         assert_eq!(0, tcp.payload().len());
     }
+}
+
+pub const CUSTOMS: &[kflowCustom] = &[
+    custom(b"APPL_LATENCY_MS\0",      01, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_QUERY\0",      02, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_DNS_QUERY_TYPE\0", 03, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RET_CODE\0",   04, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RESPONSE\0",   05, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_URL\0",       06, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_HOST\0",      07, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_REFERER\0",   08, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_UA\0",        09, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_STATUS\0",    10, KFLOW_CUSTOM_U32),
+];
+
+const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {
+    kflowCustom{
+        name:  name as *const [u8] as *const u8 as *const i8,
+        id:    id,
+        vtype: vtype,
+        value: kflowCustomValue{u32: 0},
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Value {
+    Str(String),
+    U32(u32),
+    F32(f32),
+}
+
+impl<'a> From<&'a str> for Value {
+    fn from(s: &'a str) -> Self {
+        Value::Str(s.to_owned())
+    }
+}
+
+impl From<*const c_char> for Value {
+    fn from(p: *const c_char) -> Self {
+        Value::Str(match p.is_null() {
+            true  => Cow::from("NULL"),
+            false => unsafe { CStr::from_ptr(p).to_string_lossy() },
+        }.into_owned())
+    }
+}
+
+impl From<u32> for Value {
+    fn from(n: u32) -> Self {
+        Value::U32(n)
+    }
+}
+
+impl<'a> From<&'a kflowCustom> for Value {
+    fn from(c: &'a kflowCustom) -> Value {
+        match c.vtype {
+            KFLOW_CUSTOM_STR => unsafe { c.value.str.into()      },
+            KFLOW_CUSTOM_U32 => unsafe { Value::U32(c.value.u32) },
+            KFLOW_CUSTOM_F32 => unsafe { Value::F32(c.value.f32) },
+            _                => panic!("kflowCustom has invalid vtype"),
+        }
+    }
+}
+
+pub fn value(name: &str, cs: &[kflowCustom]) -> Option<Value> {
+    CUSTOMS.iter().find(|c| c.name() == name).and_then(|custom| {
+        cs.iter().find(|c| c.id == custom.id).map(Value::from)
+    })
 }
