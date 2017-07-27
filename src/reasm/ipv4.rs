@@ -109,8 +109,12 @@ impl Buffer {
 
     fn fill<'p>(&mut self, p: &Ipv4Packet<'p>, more: bool) {
         let payload    = p.payload();
+        let paylen     = payload.len() as isize;
         let frag_first = p.get_fragment_offset() * 8;
-        let frag_last  = frag_first.saturating_add(payload.len() as u16) - 1;
+        let frag_last  = match (frag_first as isize) + paylen - 1 {
+            n if n > 0 && n < 65535 => n as u16,
+            _                       => return,
+        };
 
         for i in 0..self.holes.len() {
             let Hole{first: hole_first, last: hole_last} = self.holes[i];
