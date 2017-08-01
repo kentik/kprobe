@@ -162,7 +162,7 @@ impl Tracker {
     }
 
     pub fn clear(&mut self, ts: Timestamp) {
-        let timeout = Duration::seconds(15);
+        let timeout = Duration::seconds(60);
         self.states.retain(|_, s| (ts - s.last) < timeout);
     }
 
