@@ -84,7 +84,7 @@ impl Tracker {
                 if let Some(&mut State{syn: Some(syn), ..}) = self.peer(flow) {
                     this.rtt = Some(RTT::Server(flow.timestamp - syn));
                 }
-            } else if ack && this.rtt.is_none() {
+            } else if ack && this.rtt.is_none() && this.syn.is_some() {
                 if let Some(&mut State{syn: Some(syn), ..}) = self.peer(flow) {
                     this.rtt = Some(RTT::Client(flow.timestamp - syn));
                 }
