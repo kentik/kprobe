@@ -57,10 +57,13 @@ impl Customs {
     }
 
     pub fn add_latency(&mut self, id: u64, d: Duration) {
-        self.add_u32(id, match d.num_milliseconds() {
-            n if n > 0 => n,
-            _          => 1,
-        } as u32);
+        let max = Duration::seconds(20);
+        let min = Duration::milliseconds(1);
+        self.add_u32(id, match d {
+            d if d >= min && d <= max => d,
+            d if d >= min             => max,
+            _                         => min,
+        }.num_milliseconds() as u32);
     }
 
     pub fn clear(&mut self) {

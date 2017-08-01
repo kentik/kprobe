@@ -10,9 +10,11 @@ use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::ipv4::Ipv4Packet;
+use time::Duration;
 use libkflow::*;
 use flow::*;
 use packet;
+use custom::Customs;
 use reasm::Reassembler;
 use track::Tracker;
 
@@ -118,6 +120,19 @@ fn test_ignore_ipv4_ethernet_padding() {
 
         assert_eq!(0, tcp.payload().len());
     }
+}
+
+#[test]
+fn test_min_max_latency() {
+    let mut customs = Customs::new(&CUSTOMS);
+
+    customs.add_latency(0, Duration::seconds(1));
+    customs.add_latency(0, Duration::seconds(60));
+    customs.add_latency(0, Duration::seconds(0));
+
+    assert_eq!(unsafe { customs[0].value.u32 }, 1000);
+    assert_eq!(unsafe { customs[1].value.u32 }, 20000);
+    assert_eq!(unsafe { customs[2].value.u32 }, 1);
 }
 
 pub const CUSTOMS: &[kflowCustom] = &[
