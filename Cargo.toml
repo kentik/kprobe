@@ -1,6 +1,6 @@
 [package]
 name    = "kprobe"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Will <will@kentik.com>"]
 links   = "kflow"
 build   = "build.rs"
@@ -13,6 +13,7 @@ byteorder = "1.1.0"
 nom       = "2.2.1"
 pnet      = "0.18.0"
 pcap      = "0.5.7"
+rand      = "0.3.16"
 
 http-muncher = "0.3.1"
 

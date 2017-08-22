@@ -10,6 +10,7 @@ extern crate libc;
 extern crate time;
 extern crate http_muncher;
 extern crate byteorder;
+extern crate rand;
 
 pub mod args;
 pub mod kprobe;
@@ -22,6 +23,7 @@ pub mod queue;
 pub mod protocol;
 pub mod reasm;
 pub mod sample;
+pub mod timer;
 pub mod track;
 
 pub use kprobe::Kprobe;

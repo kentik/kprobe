@@ -1,7 +1,8 @@
+use std::cmp::Ordering;
 use std::fmt;
 use std::mem;
 use std::net::IpAddr;
-use std::ops::Sub;
+use std::ops::{Add, Sub};
 use std::ptr;
 use libc::{self, timeval};
 use pnet::util::MacAddr;
@@ -12,6 +13,7 @@ pub const SYN: u16 = 0b00010;
 pub const RST: u16 = 0b00100;
 pub const ACK: u16 = 0b10000;
 
+#[derive(Clone)]
 pub struct Flow<'a> {
     pub timestamp: Timestamp,
     pub ethernet:  Ethernet,
@@ -98,6 +100,17 @@ impl Timestamp {
     }
 }
 
+impl Add<Duration> for Timestamp {
+    type Output = Timestamp;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        Timestamp(timeval{
+            tv_sec:  self.0.tv_sec + rhs.num_seconds(),
+            tv_usec: self.0.tv_usec,
+        })
+    }
+}
+
 impl Sub for Timestamp {
     type Output = Duration;
 
@@ -105,6 +118,26 @@ impl Sub for Timestamp {
         let sec = self.0.tv_sec - rhs.0.tv_sec;
         let usec = self.0.tv_usec - rhs.0.tv_usec;
         Duration::seconds(sec) + Duration::microseconds(usec as i64)
+    }
+}
+
+impl PartialEq for Timestamp {
+    fn eq(&self, other: &Timestamp) -> bool {
+        let &Timestamp(timeval{tv_sec: a_sec, tv_usec: a_usec}) = self;
+        let &Timestamp(timeval{tv_sec: b_sec, tv_usec: b_usec}) = other;
+        a_sec == b_sec && a_usec == b_usec
+    }
+}
+
+impl PartialOrd for Timestamp {
+    fn partial_cmp(&self, other: &Timestamp) -> Option<Ordering> {
+        let &Timestamp(timeval{tv_sec: a_sec, tv_usec: a_usec}) = self;
+        let &Timestamp(timeval{tv_sec: b_sec, tv_usec: b_usec}) = other;
+        match a_sec - b_sec {
+            n if n == 0 => Some(a_usec.cmp(&b_usec)),
+            n if n >  0 => Some(Ordering::Greater),
+            _           => Some(Ordering::Less),
+        }
     }
 }
 

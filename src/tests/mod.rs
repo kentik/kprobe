@@ -16,7 +16,20 @@ use flow::*;
 use packet;
 use custom::Customs;
 use reasm::Reassembler;
+use timer::Timer;
 use track::Tracker;
+
+#[test]
+fn timer_ready() {
+    let mut timer = Timer::new(Duration::seconds(2));
+    let ts = Timestamp::zero();
+
+    assert_eq!(true,  timer.ready(ts)); // timer starts ready
+    assert_eq!(false, timer.ready(ts + Duration::seconds(1)));
+    assert_eq!(true,  timer.ready(ts + Duration::seconds(2)));
+    assert_eq!(false, timer.ready(ts + Duration::seconds(3)));
+    assert_eq!(true,  timer.ready(ts + Duration::seconds(4)));
+}
 
 #[test]
 fn test_reassemble_single() {
@@ -136,16 +149,17 @@ fn test_min_max_latency() {
 }
 
 pub const CUSTOMS: &[kflowCustom] = &[
-    custom(b"APPL_LATENCY_MS\0",      01, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_QUERY\0",      02, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_DNS_QUERY_TYPE\0", 03, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_RET_CODE\0",   04, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_RESPONSE\0",   05, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_URL\0",       06, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_HOST\0",      07, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_REFERER\0",   08, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_UA\0",        09, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_STATUS\0",    10, KFLOW_CUSTOM_U32),
+    custom(b"FRAGMENTS\0",            01, KFLOW_CUSTOM_U32),
+    custom(b"APPL_LATENCY_MS\0",      02, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_QUERY\0",      03, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_DNS_QUERY_TYPE\0", 04, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RET_CODE\0",   05, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RESPONSE\0",   06, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_URL\0",       07, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_HOST\0",      08, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_REFERER\0",   09, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_UA\0",        10, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_STATUS\0",    11, KFLOW_CUSTOM_U32),
 ];
 
 const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {
