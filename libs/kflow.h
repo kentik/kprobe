@@ -136,6 +136,10 @@ typedef struct {
     uint8_t *ipv6SrcAddr;        // IPv6 src address
     uint64_t srcEthMac;          // src Ethernet MAC address
     uint64_t dstEthMac;          // dst Ethernet MAC address
+    uint8_t *ipv6SrcNextHop;     // src IPv6 nexthhop
+    uint8_t *ipv6DstNextHop;     // dst IPv6 nexthop
+    uint8_t *ipv6SrcRoutePrefix; // src IPv6 route prefix
+    uint8_t *ipv6DstRoutePrefix; // dst IPv6 route prefix
 
     kflowCustom *customs;        // custom field array
     uint32_t numCustoms;         // custom field count

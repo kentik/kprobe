@@ -335,6 +335,11 @@ pub struct kflow {
     pub ipv6SrcAddr: *const u8,
     pub srcEthMac: u64,
     pub dstEthMac: u64,
+    pub ipv6SrcNextHop: *const u8,
+    pub ipv6DstNextHop: *const u8,
+    pub ipv6SrcRoutePrefix: *const u8,
+    pub ipv6DstRoutePrefix: *const u8,
+
     pub customs: *const kflowCustom,
     pub numCustoms: u32,
 }
