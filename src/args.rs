@@ -17,6 +17,7 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg api_url:      --("api-url")     +takes_value           "API URL")
       (@arg flow_url:     --("flow-url")    +takes_value           "Flow URL")
       (@arg metrics_url:  --("metrics-url") +takes_value           "Metrics URL")
+      (@arg proxy_url:    --("proxy-url")   +takes_value           "Proxy URL")
       (@arg promisc:      --promisc                                "Promiscuous mode")
       (@arg snaplen:      --snaplen         +takes_value           "Capture snaplen")
       (@arg verbose: -v                     ...                    "Verbose output")

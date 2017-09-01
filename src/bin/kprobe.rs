@@ -25,6 +25,7 @@ fn main() {
     cfg.device_id   = args.arg("device_id").unwrap_or(cfg.device_id);
     cfg.device_if   = args.opt("device_if").unwrap_or(cfg.device_if);
     cfg.device_ip   = args.opt("device_ip").unwrap_or(cfg.device_ip);
+    cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
     cfg.verbose     = verbose.saturating_sub(1) as u32;
 
     let interface: NetworkInterface = args.arg("interface").unwrap_or_else(|err| {
