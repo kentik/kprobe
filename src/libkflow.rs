@@ -53,7 +53,7 @@ impl Config {
             api: API {
                 email: CString::new("test@example.com").unwrap(),
                 token: CString::new("token").unwrap(),
-                url:   CString::new("https://api.kentik.com/api/v5").unwrap(),
+                url:   CString::new("https://api.kentik.com/api/internal").unwrap(),
             },
             metrics: Metrics {
                 interval: Duration::minutes(1),
@@ -63,7 +63,7 @@ impl Config {
             device_id: 0,
             device_if: None,
             device_ip: None,
-            timeout:   Duration::seconds(0),
+            timeout:   Duration::seconds(30),
             verbose:   0,
         }
     }
