@@ -16,7 +16,12 @@ fn main() {
     let sample  = args.opt("sample").unwrap_or(None);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
 
-    let mut cfg = libkflow::Config::new();
+    let interface: NetworkInterface = args.arg("interface").unwrap_or_else(|err| {
+        println!("{}", err);
+        exit(1)
+    });
+
+    let mut cfg = libkflow::Config::new(&interface.name, snaplen, promisc);
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
     cfg.api.email   = args.arg("email").unwrap_or(cfg.api.email);
     cfg.api.token   = args.arg("token").unwrap_or(cfg.api.token);
@@ -27,11 +32,6 @@ fn main() {
     cfg.device_ip   = args.opt("device_ip").unwrap_or(cfg.device_ip);
     cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
     cfg.verbose     = verbose.saturating_sub(1) as u32;
-
-    let interface: NetworkInterface = args.arg("interface").unwrap_or_else(|err| {
-        println!("{}", err);
-        exit(1)
-    });
 
     if verbose > 0 {
         println!("libkflow-{}", libkflow::version());

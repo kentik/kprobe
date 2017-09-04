@@ -16,6 +16,7 @@ use super::queue::Counter;
 pub struct Config {
     pub url:       CString,
     pub api:       API,
+    pub capture:   Capture,
     pub metrics:   Metrics,
     pub proxy:     Option<CString>,
     pub device_id: u32,
@@ -33,6 +34,13 @@ pub struct API {
 }
 
 #[derive(Debug)]
+pub struct Capture {
+    pub device:  CString,
+    pub snaplen: i32,
+    pub promisc: bool,
+}
+
+#[derive(Debug)]
 pub struct Metrics {
     pub interval: Duration,
     pub url:      CString,
@@ -47,15 +55,20 @@ pub enum Error {
 }
 
 impl Config {
-    pub fn new() -> Self {
+    pub fn new(device: &str, snaplen: i32, promisc: bool) -> Self {
         Config {
             url: CString::new("https://flow.kentik.com/chf").unwrap(),
-            api: API {
+            api: API{
                 email: CString::new("test@example.com").unwrap(),
                 token: CString::new("token").unwrap(),
                 url:   CString::new("https://api.kentik.com/api/internal").unwrap(),
             },
-            metrics: Metrics {
+            capture: Capture{
+                device:  CString::new(device).unwrap(),
+                snaplen: snaplen,
+                promisc: promisc,
+            },
+            metrics: Metrics{
                 interval: Duration::minutes(1),
                 url:      CString::new("https://flow.kentik.com/tsdb").unwrap(),
             },
@@ -77,6 +90,11 @@ pub fn configure(cfg: &Config) -> Result<Vec<kflowCustom>, Error> {
             token: cfg.api.token.as_ptr(),
             URL:   cfg.api.url.as_ptr(),
 
+        },
+        capture: kflowConfigCapture {
+            device:  cfg.capture.device.as_ptr(),
+            snaplen: cfg.capture.snaplen,
+            promisc: cfg.capture.promisc as libc::c_int,
         },
         metrics: kflowConfigMetrics {
             interval: cfg.metrics.interval.num_minutes() as libc::c_int,
@@ -229,6 +247,7 @@ pub const KFLOW_CUSTOM_F32: libc::c_int = 3;
 struct kflowConfig {
     URL:       *const libc::c_char,
     API:       kflowConfigAPI,
+    capture:   kflowConfigCapture,
     metrics:   kflowConfigMetrics,
     proxy:     kflowConfigProxy,
     device_id: libc::c_int,
@@ -243,6 +262,13 @@ struct kflowConfigAPI {
     email: *const libc::c_char,
     token: *const libc::c_char,
     URL:   *const libc::c_char,
+}
+
+#[repr(C)]
+struct kflowConfigCapture {
+    device:  *const libc::c_char,
+    snaplen: libc::c_int,
+    promisc: libc::c_int,
 }
 
 #[repr(C)]
