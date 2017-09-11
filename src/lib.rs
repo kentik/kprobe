@@ -13,6 +13,7 @@ extern crate byteorder;
 extern crate rand;
 
 pub mod args;
+pub mod config;
 pub mod kprobe;
 pub mod packet;
 pub mod flow;
@@ -27,6 +28,7 @@ pub mod timer;
 pub mod track;
 
 pub use kprobe::Kprobe;
+pub use config::Config;
 
 #[cfg(test)]
 mod tests;

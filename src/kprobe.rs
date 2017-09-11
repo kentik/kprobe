@@ -6,6 +6,7 @@ use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
+use config::Config;
 use packet::{self, Packet, Opaque};
 use packet::Transport::*;
 use flow::*;
@@ -13,7 +14,6 @@ use reasm::Reassembler;
 use sample::Sampler;
 use sample::Accept::*;
 use queue::FlowQueue;
-use libkflow::kflowCustom;
 
 pub struct Kprobe {
     interface: NetworkInterface,
@@ -23,14 +23,12 @@ pub struct Kprobe {
 }
 
 impl Kprobe {
-    pub fn new(interface: NetworkInterface, sample: Option<u64>, customs: Vec<kflowCustom>) -> Kprobe {
-        let sampler = sample.map(Sampler::new);
-        let queue   = FlowQueue::new(sample, customs);
+    pub fn new(interface: NetworkInterface, cfg: &Config) -> Kprobe {
         Kprobe {
             interface: interface,
-            sampler:   sampler,
+            sampler:   cfg.sampler(),
             asm:       Reassembler::new(),
-            queue:     queue,
+            queue:     cfg.queue(),
         }
     }
 

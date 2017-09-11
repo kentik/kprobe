@@ -32,12 +32,12 @@ pub struct FlowQueue {
 }
 
 impl FlowQueue {
-    pub fn new(sample: Option<u64>, customs: Vec<kflowCustom>) -> FlowQueue {
+    pub fn new(sample: Option<u64>, customs: &[kflowCustom], decoders: Decoders) -> FlowQueue {
         FlowQueue {
             flows:    HashMap::new(),
-            customs:  Customs::new(&customs),
-            decoders: Decoders::new(&customs),
-            tracker:  Tracker::new(&customs),
+            customs:  Customs::new(customs),
+            decoders: decoders,
+            tracker:  Tracker::new(customs),
             sample:   sample.unwrap_or(1) as u32,
             compact:  Timer::new(Duration::seconds(30)),
             export:   Timer::new(Duration::seconds(2)),
