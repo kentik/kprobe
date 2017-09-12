@@ -10,20 +10,23 @@ const KFLOW_CLIENT_NW_LATENCY_MS:   &str = "CLIENT_NW_LATENCY_MS";
 const KFLOW_SERVER_NW_LATENCY_MS:   &str = "SERVER_NW_LATENCY_MS";
 const KFLOW_RETRANSMITTED_PKTS_IN:  &str = "RETRANSMITTED_IN_PKTS";
 const KFLOW_RETRANSMITTED_PKTS_OUT: &str = "RETRANSMITTED_OUT_PKTS";
+const KFLOW_REPEATED_RETRANSMITS:   &str = "REPEATED_RETRANSMITS";
 const KFLOW_OOORDER_PKTS_IN:        &str = "OOORDER_IN_PKTS";
 const KFLOW_OOORDER_PKTS_OUT:       &str = "OOORDER_OUT_PKTS";
 
 pub struct Tracker {
-    cli_latency:     Option<u64>,
-    srv_latency:     Option<u64>,
-    app_latency:     Option<u64>,
-    retransmits_in:  Option<u64>,
-    retransmits_out: Option<u64>,
-    ooorder_in:      Option<u64>,
-    ooorder_out:     Option<u64>,
-    states:          HashMap<Key, State>,
+    cli_latency:  Option<u64>,
+    srv_latency:  Option<u64>,
+    app_latency:  Option<u64>,
+    retx_in:      Option<u64>,
+    retx_out:     Option<u64>,
+    retx_repeats: Option<u64>,
+    ooorder_in:   Option<u64>,
+    ooorder_out:  Option<u64>,
+    states:       HashMap<Key, State>,
 }
 
+#[derive(Debug)]
 pub struct State {
     latency:     Option<Duration>,
     rtt:         Option<RTT>,
@@ -31,9 +34,17 @@ pub struct State {
     payload:     Option<Timestamp>,
     fin:         Option<Timestamp>,
     seq:         u32,
-    retransmits: u64,
+    retransmits: Retransmits,
     ooorder:     u64,
     last:        Timestamp,
+}
+
+#[derive(Debug)]
+struct Retransmits {
+    serial:  u32,
+    total:   u32,
+    repeats: u32,
+    seq:     u32,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -49,14 +60,15 @@ impl Tracker {
         }).collect::<HashMap<_, _>>();
 
         Tracker{
-            cli_latency:     cs.get(KFLOW_CLIENT_NW_LATENCY_MS).cloned(),
-            srv_latency:     cs.get(KFLOW_SERVER_NW_LATENCY_MS).cloned(),
-            app_latency:     cs.get(KFLOW_APPL_LATENCY_MS).cloned(),
-            retransmits_in:  cs.get(KFLOW_RETRANSMITTED_PKTS_IN).cloned(),
-            retransmits_out: cs.get(KFLOW_RETRANSMITTED_PKTS_OUT).cloned(),
-            ooorder_in:      cs.get(KFLOW_OOORDER_PKTS_IN).cloned(),
-            ooorder_out:     cs.get(KFLOW_OOORDER_PKTS_OUT).cloned(),
-            states:          HashMap::new(),
+            cli_latency:  cs.get(KFLOW_CLIENT_NW_LATENCY_MS).cloned(),
+            srv_latency:  cs.get(KFLOW_SERVER_NW_LATENCY_MS).cloned(),
+            app_latency:  cs.get(KFLOW_APPL_LATENCY_MS).cloned(),
+            retx_in:      cs.get(KFLOW_RETRANSMITTED_PKTS_IN).cloned(),
+            retx_out:     cs.get(KFLOW_RETRANSMITTED_PKTS_OUT).cloned(),
+            retx_repeats: cs.get(KFLOW_REPEATED_RETRANSMITS).cloned(),
+            ooorder_in:   cs.get(KFLOW_OOORDER_PKTS_IN).cloned(),
+            ooorder_out:  cs.get(KFLOW_OOORDER_PKTS_OUT).cloned(),
+            states:       HashMap::new(),
         }
     }
 
@@ -111,7 +123,7 @@ impl Tracker {
                 };
 
                 if !ooo {
-                    this.retransmits += 1;
+                    this.retransmits.add(seq);
                 } else {
                     this.ooorder += 1;
                 }
@@ -143,12 +155,18 @@ impl Tracker {
                 self.app_latency.map(|id| cs.add_latency(id, d));
             }
 
-            if this.retransmits > 0 {
+            let (retransmits, repeats) = this.retransmits.get();
+            this.retransmits.reset();
+
+            if retransmits > 0 {
                 match dir {
-                    Direction::In => &self.retransmits_in,
-                    _             => &self.retransmits_out,
-                }.map(|id| cs.add_u32(id, this.retransmits as u32));
-                this.retransmits = 0;
+                    Direction::In => &self.retx_in,
+                    _             => &self.retx_out,
+                }.map(|id| cs.add_u32(id, retransmits));
+            }
+
+            if repeats > 0 {
+                self.retx_repeats.map(|id| cs.add_u32(id, repeats));
             }
 
             if this.ooorder > 0 {
@@ -170,8 +188,8 @@ impl Tracker {
         self.states.get(key).and_then(|s| s.latency)
     }
 
-    pub fn retransmits(&self, key: &Key) -> Option<u64> {
-        self.states.get(key).map(|s| s.retransmits)
+    pub fn retransmits(&self, key: &Key) -> Option<(u32, u32)> {
+        self.states.get(key).map(|s| s.retransmits.get())
     }
 
     pub fn ooorder(&self, key: &Key) -> Option<u64> {
@@ -193,7 +211,7 @@ impl Tracker {
                 payload:     None,
                 fin:         None,
                 seq:         seq,
-                retransmits: 0,
+                retransmits: Retransmits::new(seq),
                 ooorder:     0,
                 last:        flow.timestamp,
             }
@@ -206,5 +224,40 @@ impl Tracker {
         self.states.get_mut(&key).map(|s| unsafe {
             &mut *(s as *mut State)
         })
+    }
+}
+
+impl Retransmits {
+    fn new(seq: u32) -> Self {
+        Retransmits{
+            serial:  0,
+            total:   0,
+            repeats: 0,
+            seq:     seq,
+        }
+    }
+
+    fn add(&mut self, seq: u32) {
+        self.total += 1;
+
+        if seq == self.seq {
+            self.serial += 1;
+        } else {
+            self.serial = 0;
+            self.seq    = seq;
+        }
+
+        if self.serial == 3 {
+            self.repeats += 1;
+        }
+    }
+
+    fn get(&self) -> (u32, u32) {
+        (self.total, self.repeats)
+    }
+
+    fn reset(&mut self) {
+        self.total   = 0;
+        self.repeats = 0;
     }
 }

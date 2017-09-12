@@ -118,6 +118,43 @@ fn test_tcp_application_latency() {
 }
 
 #[test]
+fn test_tcp_retransmits() {
+    let mut trk = Tracker::new(&[]);
+
+    for flow in iter::flows("pcaps/tcp/tcp_retransmit.pcap") {
+        trk.add(&flow);
+    }
+
+    let src  = "10.211.55.2".parse().unwrap();
+    let dst  = Addr{addr: "10.211.55.16".parse().unwrap(), port: 2222};
+    let key0 = Key(Protocol::TCP, Addr{addr: src, port: 52952}, dst);
+    let key1 = Key(Protocol::TCP, Addr{addr: src, port: 52953}, dst);
+
+    assert_eq!(Some((8, 1)), trk.retransmits(&key0));
+    assert_eq!(Some((6, 1)), trk.retransmits(&key1));
+}
+
+#[test]
+fn test_tcp_tracker_customs() {
+    let mut trk = Tracker::new(&CUSTOMS);
+
+    for flow in iter::flows("pcaps/tcp/tcp_retransmit.pcap") {
+        trk.add(&flow);
+    }
+
+    let mut customs = Customs::new(&CUSTOMS);
+    let src  = "10.211.55.2".parse().unwrap();
+    let dst  = Addr{addr: "10.211.55.16".parse().unwrap(), port: 2222};
+    let key0 = Key(Protocol::TCP, Addr{addr: src, port: 52952}, dst);
+
+    trk.append(&key0, Direction::Out, &mut customs);
+
+    assert_eq!(Some(Value::from(1)), value("CLIENT_NW_LATENCY_MS", &customs));
+    assert_eq!(Some(Value::from(8)), value("RETRANSMITTED_OUT_PKTS", &customs));
+    assert_eq!(Some(Value::from(1)), value("REPEATED_RETRANSMITS", &customs));
+}
+
+#[test]
 fn test_ignore_ipv4_ethernet_padding() {
     let mut cap = Capture::from_file("pcaps/ip/ipv4_eth_padding.pcap").unwrap();
 
@@ -149,17 +186,24 @@ fn test_min_max_latency() {
 }
 
 pub const CUSTOMS: &[kflowCustom] = &[
-    custom(b"FRAGMENTS\0",            01, KFLOW_CUSTOM_U32),
-    custom(b"APPL_LATENCY_MS\0",      02, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_QUERY\0",      03, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_DNS_QUERY_TYPE\0", 04, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_RET_CODE\0",   05, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_RESPONSE\0",   06, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_URL\0",       07, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_HOST\0",      08, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_REFERER\0",   09, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_UA\0",        10, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_STATUS\0",    11, KFLOW_CUSTOM_U32),
+    custom(b"FRAGMENTS\0",              01, KFLOW_CUSTOM_U32),
+    custom(b"APPL_LATENCY_MS\0",        02, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_QUERY\0",        03, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_DNS_QUERY_TYPE\0",   04, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RET_CODE\0",     05, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RESPONSE\0",     06, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_URL\0",         07, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_HOST\0",        08, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_REFERER\0",     09, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_UA\0",          10, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_STATUS\0",      11, KFLOW_CUSTOM_U32),
+    custom(b"CLIENT_NW_LATENCY_MS\0",   12, KFLOW_CUSTOM_U32),
+    custom(b"SERVER_NW_LATENCY_MS\0",   13, KFLOW_CUSTOM_U32),
+    custom(b"RETRANSMITTED_IN_PKTS\0",  14, KFLOW_CUSTOM_U32),
+    custom(b"RETRANSMITTED_OUT_PKTS\0", 15, KFLOW_CUSTOM_U32),
+    custom(b"REPEATED_RETRANSMITS\0",   16, KFLOW_CUSTOM_U32),
+    custom(b"OOORDER_IN_PKTS\0",        17, KFLOW_CUSTOM_U32),
+    custom(b"OOORDER_OUT_PKTS\0",       18, KFLOW_CUSTOM_U32),
 ];
 
 const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {
