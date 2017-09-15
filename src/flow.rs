@@ -5,6 +5,7 @@ use std::net::IpAddr;
 use std::ops::{Add, Sub};
 use std::ptr;
 use libc::{self, timeval};
+use pnet::packet::tcp::TcpPacket;
 use pnet::util::MacAddr;
 use time::{self, Duration};
 
@@ -56,9 +57,15 @@ pub struct Addr {
 #[derive(Copy, Clone, Debug)]
 pub enum Transport {
     ICMP,
-    TCP  { seq: u32, flags: u16 },
+    TCP  { seq: u32, flags: u16, window: Window },
     UDP,
     Other,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Window {
+    pub size:  u32,
+    pub scale: u8,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -147,6 +154,15 @@ impl<'a> Default for Flow<'a> {
     }
 }
 
+impl Default for Window {
+    fn default() -> Self {
+        Window{
+            size:  0,
+            scale: 0,
+        }
+    }
+}
+
 impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let tm = time::at(time::Timespec{
@@ -178,5 +194,25 @@ impl fmt::Debug for Timestamp {
             .field("tv_sec", &self.0.tv_sec)
             .field("tv_usec", &self.0.tv_usec)
             .finish()
+    }
+}
+
+pub fn tcp_window(p: &TcpPacket) -> Window {
+    let mut scale = 1u8;
+
+    if p.get_flags() & SYN == SYN {
+        use pnet::packet::Packet;
+        use pnet::packet::tcp::TcpOptionNumbers::WSCALE;
+
+        for o in p.get_options_iter().filter(|o| o.get_number() == WSCALE) {
+            if let &[n] = o.payload() {
+                scale = n;
+            }
+        }
+    }
+
+    Window {
+        size:  p.get_window() as u32,
+        scale: scale,
     }
 }

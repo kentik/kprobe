@@ -31,11 +31,12 @@ fn exported_counter_updated_on_add() {
 
     let mut flow_a = flow(23, 31, true);
     let mut flow_b = flow_a.clone();
+    let win = Default::default();
 
     flow_a.tos       = 1;
     flow_b.tos       = 2;
-    flow_a.transport = Transport::TCP{seq: 61, flags: SYN};
-    flow_b.transport = Transport::TCP{seq: 62, flags: ACK};
+    flow_a.transport = Transport::TCP{seq: 61, flags: SYN, window: win};
+    flow_b.transport = Transport::TCP{seq: 62, flags: ACK, window: win};
 
     queue.add(Direction::Out, flow_a.clone());
     queue.add(Direction::Out, flow_b.clone());
@@ -200,7 +201,7 @@ fn flow<'a>(src: u32, dst: u32, export: bool) -> Flow<'a> {
         src:       Addr{addr: IpAddr::V4(src.into()), port: src as u16},
         dst:       Addr{addr: IpAddr::V4(dst.into()), port: dst as u16},
         tos:       7,
-        transport: Transport::TCP{seq: 11, flags: SYN},
+        transport: Transport::TCP{seq: 11, flags: SYN, window: Default::default()},
         packets:   13,
         fragments: 17,
         bytes:     19,

@@ -67,8 +67,9 @@ impl<'a> Iterator for FlowIterator<'a> {
 }
 
 fn tcp<'a>(eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Flow<'a> {
-    let seq   = tcp.get_sequence();
-    let flags = tcp.get_flags();
+    let seq    = tcp.get_sequence();
+    let flags  = tcp.get_flags();
+    let window = tcp_window(tcp);
 
     Flow{
         protocol:  Protocol::TCP,
@@ -76,7 +77,7 @@ fn tcp<'a>(eth: Ethernet, p: &Packet, tcp: &'a TcpPacket) -> Flow<'a> {
         src:       Addr{addr: p.src(), port: tcp.get_source()},
         dst:       Addr{addr: p.dst(), port: tcp.get_destination()},
         tos:       p.tos(),
-        transport: Transport::TCP{ seq, flags },
+        transport: Transport::TCP{ seq, flags, window },
         payload:   tcp.payload(),
         .. Default::default()
     }

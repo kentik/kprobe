@@ -86,7 +86,7 @@ fn test_reassemble_fragmented() {
 
 #[test]
 fn test_udp_application_latency() {
-    let mut trk = Tracker::new(&[]);
+    let mut trk = Tracker::new(&CUSTOMS);
 
     for flow in iter::flows("pcaps/dns/google.com-any.pcap") {
         trk.add(&flow);
@@ -97,11 +97,16 @@ fn test_udp_application_latency() {
     let key = Key(Protocol::UDP, src, dst);
 
     assert_eq!(Some(44), trk.latency(&key).map(|d| d.num_milliseconds()));
+
+    let mut customs = Customs::new(&CUSTOMS);
+    trk.append(&key, Direction::Out, &mut customs);
+
+    assert_eq!(Some(Value::from(44)), value("APPL_LATENCY_MS", &customs));
 }
 
 #[test]
 fn test_tcp_application_latency() {
-    let mut trk = Tracker::new(&[]);
+    let mut trk = Tracker::new(&CUSTOMS);
 
     for flow in iter::flows("pcaps/http/google.com.pcap") {
         if flow.tcp_flags() & FIN == FIN {
@@ -115,13 +120,18 @@ fn test_tcp_application_latency() {
     let key = Key(Protocol::TCP, src, dst);
 
     assert_eq!(Some(7), trk.latency(&key).map(|d| d.num_milliseconds()));
+
+    let mut customs = Customs::new(&CUSTOMS);
+    trk.append(&key, Direction::Out, &mut customs);
+
+    assert_eq!(Some(Value::from(7)), value("APPL_LATENCY_MS", &customs));
 }
 
 #[test]
 fn test_tcp_retransmits() {
-    let mut trk = Tracker::new(&[]);
+    let mut trk = Tracker::new(&CUSTOMS);
 
-    for flow in iter::flows("pcaps/tcp/tcp_retransmit.pcap") {
+    for flow in iter::flows("pcaps/tcp/retransmits.pcap") {
         trk.add(&flow);
     }
 
@@ -132,26 +142,65 @@ fn test_tcp_retransmits() {
 
     assert_eq!(Some((8, 1)), trk.retransmits(&key0));
     assert_eq!(Some((6, 1)), trk.retransmits(&key1));
+
+    let mut customs = Customs::new(&CUSTOMS);
+    trk.append(&key0, Direction::Out, &mut customs);
+
+    assert_eq!(Some(Value::from(8)), value("RETRANSMITTED_OUT_PKTS", &customs));
+    assert_eq!(Some(Value::from(1)), value("REPEATED_RETRANSMITS", &customs));
+
+    customs.clear();
+    trk.append(&key1, Direction::In, &mut customs);
+
+    assert_eq!(Some(Value::from(6)), value("RETRANSMITTED_IN_PKTS", &customs));
+    assert_eq!(Some(Value::from(1)), value("REPEATED_RETRANSMITS", &customs));
 }
 
 #[test]
-fn test_tcp_tracker_customs() {
+fn test_tcp_receive_window() {
+    let mut trk = Tracker::new(&CUSTOMS);
+    let windows = [65535, 1024, 131744, 131744, 0, 1024];
+
+    for (flow, window) in iter::flows("pcaps/tcp/zero_windows.pcap").zip(windows.iter()) {
+        let mut customs = Customs::new(&CUSTOMS);
+        let window = Value::from(*window);
+
+        trk.add(&flow);
+        trk.append(&flow.key(), Direction::In, &mut customs);
+
+        assert_eq!(Some(window), value("RECEIVE_WINDOW", &customs));
+    }
+
     let mut trk = Tracker::new(&CUSTOMS);
 
-    for flow in iter::flows("pcaps/tcp/tcp_retransmit.pcap") {
+    for flow in iter::flows("pcaps/tcp/zero_windows.pcap").skip(2) {
+        let mut customs = Customs::new(&CUSTOMS);
+
+        trk.add(&flow);
+        trk.append(&flow.key(), Direction::In, &mut customs);
+
+        assert_eq!(None, value("RECEIVE_WINDOW", &customs));
+    }
+}
+
+#[test]
+fn test_tcp_zero_windows() {
+    let mut trk = Tracker::new(&CUSTOMS);
+
+    for flow in iter::flows("pcaps/tcp/zero_windows.pcap") {
         trk.add(&flow);
     }
 
+    let src = Addr{addr: "10.211.55.16".parse().unwrap(), port: 2222};
+    let dst = Addr{addr: "10.211.55.2".parse().unwrap(),  port: 58377};
+    let key = Key(Protocol::TCP, src, dst);
+
+    assert_eq!(Some(10), trk.zwindows(&key));
+
     let mut customs = Customs::new(&CUSTOMS);
-    let src  = "10.211.55.2".parse().unwrap();
-    let dst  = Addr{addr: "10.211.55.16".parse().unwrap(), port: 2222};
-    let key0 = Key(Protocol::TCP, Addr{addr: src, port: 52952}, dst);
+    trk.append(&key, Direction::In, &mut customs);
 
-    trk.append(&key0, Direction::Out, &mut customs);
-
-    assert_eq!(Some(Value::from(1)), value("CLIENT_NW_LATENCY_MS", &customs));
-    assert_eq!(Some(Value::from(8)), value("RETRANSMITTED_OUT_PKTS", &customs));
-    assert_eq!(Some(Value::from(1)), value("REPEATED_RETRANSMITS", &customs));
+    assert_eq!(Some(Value::from(10)), value("ZERO_WINDOWS", &customs));
 }
 
 #[test]
@@ -204,6 +253,8 @@ pub const CUSTOMS: &[kflowCustom] = &[
     custom(b"REPEATED_RETRANSMITS\0",   16, KFLOW_CUSTOM_U32),
     custom(b"OOORDER_IN_PKTS\0",        17, KFLOW_CUSTOM_U32),
     custom(b"OOORDER_OUT_PKTS\0",       18, KFLOW_CUSTOM_U32),
+    custom(b"RECEIVE_WINDOW\0",         19, KFLOW_CUSTOM_U32),
+    custom(b"ZERO_WINDOWS\0",           20, KFLOW_CUSTOM_U32),
 ];
 
 const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {

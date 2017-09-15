@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use time::Duration;
-use flow::{Direction, Flow, Key, Timestamp, Transport};
+use flow::{Direction, Flow, Key, Timestamp, Transport, Window};
 use flow::{FIN, SYN, RST, ACK};
 use custom::Customs;
 use libkflow::kflowCustom;
@@ -13,6 +13,8 @@ const KFLOW_RETRANSMITTED_PKTS_OUT: &str = "RETRANSMITTED_OUT_PKTS";
 const KFLOW_REPEATED_RETRANSMITS:   &str = "REPEATED_RETRANSMITS";
 const KFLOW_OOORDER_PKTS_IN:        &str = "OOORDER_IN_PKTS";
 const KFLOW_OOORDER_PKTS_OUT:       &str = "OOORDER_OUT_PKTS";
+const KFLOW_RECEIVE_WINDOW:         &str = "RECEIVE_WINDOW";
+const KFLOW_ZERO_WINDOWS:           &str = "ZERO_WINDOWS";
 
 pub struct Tracker {
     cli_latency:  Option<u64>,
@@ -23,6 +25,8 @@ pub struct Tracker {
     retx_repeats: Option<u64>,
     ooorder_in:   Option<u64>,
     ooorder_out:  Option<u64>,
+    rwindow:      Option<u64>,
+    zwindows:     Option<u64>,
     states:       HashMap<Key, State>,
 }
 
@@ -34,8 +38,10 @@ pub struct State {
     payload:     Option<Timestamp>,
     fin:         Option<Timestamp>,
     seq:         u32,
+    window:      Window,
     retransmits: Retransmits,
-    ooorder:     u64,
+    ooorder:     u32,
+    zwindows:    u32,
     last:        Timestamp,
 }
 
@@ -68,6 +74,8 @@ impl Tracker {
             retx_repeats: cs.get(KFLOW_REPEATED_RETRANSMITS).cloned(),
             ooorder_in:   cs.get(KFLOW_OOORDER_PKTS_IN).cloned(),
             ooorder_out:  cs.get(KFLOW_OOORDER_PKTS_OUT).cloned(),
+            rwindow:      cs.get(KFLOW_RECEIVE_WINDOW).cloned(),
+            zwindows:     cs.get(KFLOW_ZERO_WINDOWS).cloned(),
             states:       HashMap::new(),
         }
     }
@@ -83,7 +91,7 @@ impl Tracker {
             }
         }
 
-        if let Transport::TCP{ seq, flags } = flow.transport {
+        if let Transport::TCP{ seq, flags, window, .. } = flow.transport {
             let fin = flags & FIN == FIN;
             let syn = flags & SYN == SYN;
             let ack = flags & ACK == ACK;
@@ -110,6 +118,17 @@ impl Tracker {
                 }
             } else if fin {
                 this.fin = Some(flow.timestamp);
+            }
+
+            if ack && !syn {
+                let size  = window.size;
+                let scale = this.window.scale;
+
+                this.window.size = size << scale;
+
+                if this.window.size == 0 {
+                    this.zwindows += 1;
+                }
             }
 
             let seglen    = flow.payload.len();
@@ -173,8 +192,17 @@ impl Tracker {
                 match dir {
                     Direction::In => &self.ooorder_in,
                     _             => &self.ooorder_out,
-                }.map(|id| cs.add_u32(id, this.ooorder as u32));
+                }.map(|id| cs.add_u32(id, this.ooorder));
                 this.ooorder = 0;
+            }
+
+            if this.syn.is_some() {
+                self.rwindow.map(|id| cs.add_u32(id, this.window.size));
+            }
+
+            if this.zwindows > 0 {
+                self.zwindows.map(|id| cs.add_u32(id, this.zwindows));
+                this.zwindows = 0;
             }
         }
     }
@@ -184,24 +212,12 @@ impl Tracker {
         self.states.retain(|_, s| (ts - s.last) < timeout);
     }
 
-    pub fn latency(&self, key: &Key) -> Option<Duration> {
-        self.states.get(key).and_then(|s| s.latency)
-    }
-
-    pub fn retransmits(&self, key: &Key) -> Option<(u32, u32)> {
-        self.states.get(key).map(|s| s.retransmits.get())
-    }
-
-    pub fn ooorder(&self, key: &Key) -> Option<u64> {
-        self.states.get(key).map(|s| s.ooorder)
-    }
-
     fn this<'a>(&mut self, flow: &Flow) -> &'a mut State {
         let key = Key(flow.protocol, flow.src, flow.dst);
         let mut s = self.states.entry(key).or_insert_with(|| {
-            let seq = match flow.transport {
-                Transport::TCP{ seq, .. } => seq,
-                _                         => 0,
+            let (seq, win) = match flow.transport {
+                Transport::TCP{seq, window, ..} => (seq, window),
+                _                               => (0, Default::default()),
             };
 
             State{
@@ -211,8 +227,10 @@ impl Tracker {
                 payload:     None,
                 fin:         None,
                 seq:         seq,
+                window:      win,
                 retransmits: Retransmits::new(seq),
                 ooorder:     0,
+                zwindows:    0,
                 last:        flow.timestamp,
             }
         });
@@ -259,5 +277,24 @@ impl Retransmits {
     fn reset(&mut self) {
         self.total   = 0;
         self.repeats = 0;
+    }
+}
+
+#[cfg(test)]
+impl Tracker {
+    pub fn latency(&self, key: &Key) -> Option<Duration> {
+        self.states.get(key).and_then(|s| s.latency)
+    }
+
+    pub fn retransmits(&self, key: &Key) -> Option<(u32, u32)> {
+        self.states.get(key).map(|s| s.retransmits.get())
+    }
+
+    pub fn ooorder(&self, key: &Key) -> Option<u32> {
+        self.states.get(key).map(|s| s.ooorder)
+    }
+
+    pub fn zwindows(&self, key: &Key) -> Option<u32> {
+        self.states.get(key).map(|s| s.zwindows)
     }
 }
