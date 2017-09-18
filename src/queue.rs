@@ -45,9 +45,9 @@ impl FlowQueue {
         }
     }
 
-    pub fn add(&mut self, dir: Direction, flow: Flow) {
+    pub fn add(&mut self, flow: Flow) {
         let key = Key(flow.protocol, flow.src, flow.dst);
-        let dec = self.record(key, dir, &flow);
+        let dec = self.record(key, &flow);
 
         if self.decoders.decode(dec, &flow, &mut self.customs) {
             if flow.export {
@@ -61,7 +61,7 @@ impl FlowQueue {
         }
     }
 
-    fn record(&mut self, key: Key, dir: Direction, flow: &Flow) -> Decoder {
+    fn record(&mut self, key: Key, flow: &Flow) -> Decoder {
         let decoders = &mut self.decoders;
         let timeout  = &mut self.timeout;
 
@@ -71,7 +71,7 @@ impl FlowQueue {
             let export = timeout.first(flow.timestamp);
             Counter {
                 ethernet:  flow.ethernet,
-                direction: dir,
+                direction: flow.direction,
                 tos:       0,
                 tcp_flags: 0,
                 packets:   0,

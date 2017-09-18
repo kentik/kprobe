@@ -5,6 +5,7 @@ mod export;
 
 use std::borrow::Cow;
 use std::ffi::CStr;
+use std::net::IpAddr;
 use libc::c_char;
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
@@ -309,4 +310,26 @@ pub fn value(name: &str, cs: &[kflowCustom]) -> Option<Value> {
     CUSTOMS.iter().find(|c| c.name() == name).and_then(|custom| {
         cs.iter().find(|c| c.id == custom.id).map(Value::from)
     })
+}
+
+fn flow<'a>(src: u32, dst: u32, export: bool) -> Flow<'a> {
+    Flow{
+        timestamp: Timestamp::zero(),
+        ethernet:  Ethernet{
+            src:  "00:01:02:03:04:05".parse().unwrap(),
+            dst:  "00:0a:0b:0c:0d:0e".parse().unwrap(),
+            vlan:  None,
+        },
+        protocol:  Protocol::TCP,
+        src:       Addr{addr: IpAddr::V4(src.into()), port: src as u16},
+        dst:       Addr{addr: IpAddr::V4(dst.into()), port: dst as u16},
+        tos:       7,
+        transport: Transport::TCP{seq: 11, flags: SYN, window: Default::default()},
+        packets:   13,
+        fragments: 17,
+        bytes:     19,
+        direction: Direction::Out,
+        export:    export,
+        ..Default::default()
+    }
 }

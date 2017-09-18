@@ -77,6 +77,7 @@ impl Kprobe {
                     flow.packets   = out.packets;
                     flow.fragments = out.frags;
                     flow.bytes     = out.bytes;
+                    flow.direction = dir;
                     flow.export    = true;
 
                     if let Some(ref s) = self.sampler {
@@ -87,7 +88,7 @@ impl Kprobe {
                         }
                     }
 
-                    self.queue.add(dir, flow);
+                    self.queue.add(flow);
                     self.queue.export(ts);
                     self.asm.flush(ts);
                 }

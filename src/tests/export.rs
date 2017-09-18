@@ -1,4 +1,3 @@
-use std::net::IpAddr;
 use std::panic;
 use protocol::Decoders;
 use queue::FlowQueue;
@@ -14,7 +13,7 @@ fn new_flow_export_timeout_correct() {
     let flow = flow(23, 31, true);
     let key  = flow.key();
 
-    queue.add(Direction::Out, flow.clone());
+    queue.add(flow.clone());
 
     let min  = flow.timestamp + Duration::seconds(0);
     let max  = flow.timestamp + Duration::seconds(15);
@@ -38,8 +37,8 @@ fn exported_counter_updated_on_add() {
     flow_a.transport = Transport::TCP{seq: 61, flags: SYN, window: win};
     flow_b.transport = Transport::TCP{seq: 62, flags: ACK, window: win};
 
-    queue.add(Direction::Out, flow_a.clone());
-    queue.add(Direction::Out, flow_b.clone());
+    queue.add(flow_a.clone());
+    queue.add(flow_b.clone());
 
     let key = flow_a.key();
     let ctr = &queue[&key];
@@ -60,7 +59,7 @@ fn unexported_counter_not_updated_on_add() {
     let flow = flow(23, 31, false);
     let key  = flow.key();
 
-    queue.add(Direction::Out, flow);
+    queue.add(flow);
 
     let ctr = &queue[&key];
     assert_eq!(ctr.tos,       0);
@@ -77,8 +76,9 @@ fn exported_flow_sent_on_decode() {
     let decoders  = Decoders::new(customs);
     let mut queue = FlowQueue::new(None, customs, decoders);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
-        flow.export = true;
-        queue.add(Direction::In, flow);
+        flow.direction = Direction::In;
+        flow.export    = true;
+        queue.add(flow);
     }
 }
 
@@ -89,8 +89,9 @@ fn exported_flow_sent_on_export() {
     let decoders  = Decoders::new(customs);
     let mut queue = FlowQueue::new(None, customs, decoders);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
-        flow.export = true;
-        queue.add(Direction::In, flow);
+        flow.direction = Direction::In;
+        flow.export    = true;
+        queue.add(flow);
     }
     queue.export(Timestamp::now());
 }
@@ -101,8 +102,9 @@ fn unexported_flow_not_sent_on_decode() {
     let decoders  = Decoders::new(customs);
     let mut queue = FlowQueue::new(None, customs, decoders);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
-        flow.export = false;
-        queue.add(Direction::In, flow);
+        flow.direction = Direction::In;
+        flow.export    = false;
+        queue.add(flow);
     }
 }
 
@@ -112,8 +114,9 @@ fn unexported_flow_not_sent_on_export() {
     let decoders  = Decoders::new(customs);
     let mut queue = FlowQueue::new(None, customs, decoders);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
-        flow.export = false;
-        queue.add(Direction::In, flow);
+        flow.direction = Direction::In;
+        flow.export    = false;
+        queue.add(flow);
     }
     queue.export(Timestamp::now());
 }
@@ -126,8 +129,9 @@ fn customs_appended_on_decode() {
     for mut flow in iter::flows("pcaps/dns/google.com-any.pcap") {
         let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
             flow.fragments = 2;
+            flow.direction = Direction::Out;
             flow.export    = true;
-            queue.add(Direction::Out, flow);
+            queue.add(flow);
         }));
 
         let customs = queue.customs();
@@ -144,7 +148,7 @@ fn customs_appended_on_export() {
 
     let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
         let flow = flow(32, 31, true);
-        queue.add(Direction::Out, flow);
+        queue.add(flow);
         queue.export(Timestamp::now());
     }));
 
@@ -163,7 +167,8 @@ fn active_flows_retained_on_compact() {
     for (src, dst) in vec![(23, 31), (47, 53)] {
         let mut flow = flow(src, dst, false);
         flow.timestamp = export + Duration::seconds(1);
-        queue.add(Direction::In, flow);
+        flow.direction = Direction::In;
+        queue.add(flow);
     }
 
     assert_eq!(2, queue.len());
@@ -180,32 +185,12 @@ fn expired_flows_removed_on_compact() {
     let export = Timestamp::zero() + Duration::seconds(30);
 
     for (src, dst) in vec![(23, 31), (47, 53)] {
-        let flow = flow(src, dst, false);
-        queue.add(Direction::In, flow);
+        let mut flow = flow(src, dst, false);
+        flow.direction = Direction::In;
+        queue.add(flow);
     }
 
     assert_eq!(2, queue.len());
     queue.export(export);
     assert_eq!(0, queue.len());
-}
-
-fn flow<'a>(src: u32, dst: u32, export: bool) -> Flow<'a> {
-    Flow{
-        timestamp: Timestamp::zero(),
-        ethernet:  Ethernet{
-            src:  "00:01:02:03:04:05".parse().unwrap(),
-            dst:  "00:0a:0b:0c:0d:0e".parse().unwrap(),
-            vlan:  None,
-        },
-        protocol:  Protocol::TCP,
-        src:       Addr{addr: IpAddr::V4(src.into()), port: src as u16},
-        dst:       Addr{addr: IpAddr::V4(dst.into()), port: dst as u16},
-        tos:       7,
-        transport: Transport::TCP{seq: 11, flags: SYN, window: Default::default()},
-        packets:   13,
-        fragments: 17,
-        bytes:     19,
-        export:    export,
-        ..Default::default()
-    }
 }
