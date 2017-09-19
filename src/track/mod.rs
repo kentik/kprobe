@@ -1,9 +1,12 @@
+pub mod id;
+
 use std::collections::HashMap;
 use time::Duration;
 use flow::{Direction, Flow, Key, Timestamp, Transport, Window};
 use flow::{FIN, SYN, RST, ACK};
 use custom::Customs;
 use libkflow::kflowCustom;
+use track::id::Generator;
 
 const KFLOW_APPL_LATENCY_MS:        &str = "APPL_LATENCY_MS";
 const KFLOW_CLIENT_NW_LATENCY_MS:   &str = "CLIENT_NW_LATENCY_MS";
@@ -15,8 +18,10 @@ const KFLOW_OOORDER_PKTS_IN:        &str = "OOORDER_IN_PKTS";
 const KFLOW_OOORDER_PKTS_OUT:       &str = "OOORDER_OUT_PKTS";
 const KFLOW_RECEIVE_WINDOW:         &str = "RECEIVE_WINDOW";
 const KFLOW_ZERO_WINDOWS:           &str = "ZERO_WINDOWS";
+const KFLOW_CONNECTION_ID:          &str = "CONNECTION_ID";
 
 pub struct Tracker {
+    conn_id:      Option<u64>,
     cli_latency:  Option<u64>,
     srv_latency:  Option<u64>,
     app_latency:  Option<u64>,
@@ -27,11 +32,13 @@ pub struct Tracker {
     ooorder_out:  Option<u64>,
     rwindow:      Option<u64>,
     zwindows:     Option<u64>,
+    generator:    Generator,
     states:       HashMap<Key, State>,
 }
 
 #[derive(Debug)]
 pub struct State {
+    id:          u32,
     latency:     Option<Duration>,
     rtt:         Option<RTT>,
     syn:         Option<Timestamp>,
@@ -66,6 +73,7 @@ impl Tracker {
         }).collect::<HashMap<_, _>>();
 
         Tracker{
+            conn_id:      cs.get(KFLOW_CONNECTION_ID).cloned(),
             cli_latency:  cs.get(KFLOW_CLIENT_NW_LATENCY_MS).cloned(),
             srv_latency:  cs.get(KFLOW_SERVER_NW_LATENCY_MS).cloned(),
             app_latency:  cs.get(KFLOW_APPL_LATENCY_MS).cloned(),
@@ -76,6 +84,7 @@ impl Tracker {
             ooorder_out:  cs.get(KFLOW_OOORDER_PKTS_OUT).cloned(),
             rwindow:      cs.get(KFLOW_RECEIVE_WINDOW).cloned(),
             zwindows:     cs.get(KFLOW_ZERO_WINDOWS).cloned(),
+            generator:    Generator::new(),
             states:       HashMap::new(),
         }
     }
@@ -164,6 +173,10 @@ impl Tracker {
 
     pub fn append(&mut self, key: &Key, dir: Direction, cs: &mut Customs) {
         if let Some(ref mut this) = self.states.get_mut(key) {
+            if this.id != 0 {
+                self.conn_id.map(|id| cs.add_u32(id, this.id));
+            }
+
             match this.rtt {
                 Some(RTT::Client(d)) => self.cli_latency.map(|id| cs.add_latency(id, d / 2)),
                 Some(RTT::Server(d)) => self.srv_latency.map(|id| cs.add_latency(id, d / 2)),
@@ -214,13 +227,16 @@ impl Tracker {
 
     fn this<'a>(&mut self, flow: &Flow) -> &'a mut State {
         let key = Key(flow.protocol, flow.src, flow.dst);
+        let gen = &mut self.generator;
         let mut s = self.states.entry(key).or_insert_with(|| {
-            let (seq, win) = match flow.transport {
-                Transport::TCP{seq, window, ..} => (seq, window),
-                _                               => (0, Default::default()),
+            let (id, seq, win) = match flow.transport {
+                Transport::TCP{seq, window, ..} => (gen.id(&flow), seq, window),
+                Transport::UDP                  => (gen.id(&flow), 0, Window::default()),
+                _                               => (0,             0, Window::default()),
             };
 
             State{
+                id:          id,
                 latency:     None,
                 rtt:         None,
                 syn:         None,

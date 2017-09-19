@@ -5,6 +5,7 @@ mod export;
 
 use std::borrow::Cow;
 use std::ffi::CStr;
+use std::mem::swap;
 use std::net::IpAddr;
 use libc::c_char;
 use pcap::Capture;
@@ -19,6 +20,7 @@ use custom::Customs;
 use reasm::Reassembler;
 use timer::Timer;
 use track::Tracker;
+use track::id::Generator;
 
 #[test]
 fn timer_ready() {
@@ -205,6 +207,52 @@ fn test_tcp_zero_windows() {
 }
 
 #[test]
+fn test_id_generator() {
+    let g = Generator::new();
+    let mut a = flow(23, 31, false);
+    let mut b = flow(31, 23, false);
+
+    a.ethernet.vlan = Some(41);
+    b.ethernet.vlan = Some(41);
+    swap(&mut b.ethernet.src, &mut b.ethernet.dst);
+    a.direction = Direction::Out;
+    b.direction = Direction::In;
+
+    let a = g.id(&a);
+    let b = g.id(&b);
+    assert_eq!(a, b);
+}
+
+#[test]
+fn test_connection_id() {
+    let mut trk = Tracker::new(&CUSTOMS);
+
+    let mut a = flow(23, 31, false);
+    let mut b = flow(31, 23, false);
+
+    swap(&mut b.ethernet.src, &mut b.ethernet.dst);
+    a.direction = Direction::Out;
+    b.direction = Direction::In;
+
+    trk.add(&a);
+    trk.add(&b);
+
+    let mut customs = Customs::new(&CUSTOMS);
+
+    trk.append(&a.key(), a.direction, &mut customs);
+    let ida = value("CONNECTION_ID", &customs);
+    assert!(ida.is_some());
+
+    customs.clear();
+
+    trk.append(&b.key(), b.direction, &mut customs);
+    let idb = value("CONNECTION_ID", &customs);
+    assert!(idb.is_some());
+
+    assert_eq!(ida, idb);
+}
+
+#[test]
 fn test_ignore_ipv4_ethernet_padding() {
     let mut cap = Capture::from_file("pcaps/ip/ipv4_eth_padding.pcap").unwrap();
 
@@ -256,6 +304,7 @@ pub const CUSTOMS: &[kflowCustom] = &[
     custom(b"OOORDER_OUT_PKTS\0",       18, KFLOW_CUSTOM_U32),
     custom(b"RECEIVE_WINDOW\0",         19, KFLOW_CUSTOM_U32),
     custom(b"ZERO_WINDOWS\0",           20, KFLOW_CUSTOM_U32),
+    custom(b"CONNECTION_ID\0",          21, KFLOW_CUSTOM_U32),
 ];
 
 const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {
