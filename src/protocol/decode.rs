@@ -3,7 +3,6 @@ use flow::{Flow, Key, Timestamp};
 use flow::{FIN, SYN};
 use flow::Protocol::*;
 use custom::Customs;
-use libkflow::kflowCustom;
 use protocol::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -11,6 +10,7 @@ pub enum Decoder {
     DNS, HTTP, Postgres, TLS, None
 }
 
+#[derive(Default)]
 pub struct Decoders {
     dns:      Option<dns::Decoder>,
     http:     Option<http::Decoder>,
@@ -19,11 +19,15 @@ pub struct Decoders {
 }
 
 impl Decoders {
-    pub fn new(cs: &[kflowCustom]) -> Self {
-        Decoders {
-            dns:      dns::Decoder::new(cs),
-            http:     http::Decoder::new(cs),
-            tls:      tls::Decoder::new(cs),
+    pub fn new(cs: &Customs, decode: bool) -> Self {
+        if !decode {
+            return Default::default()
+        }
+
+        Decoders{
+            dns:      dns::Decoder::new(cs).ok(),
+            http:     http::Decoder::new(cs).ok(),
+            tls:      tls::Decoder::new(cs).ok(),
             postgres: postgres::Decoder::new(cs),
         }
     }

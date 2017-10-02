@@ -4,8 +4,8 @@ use super::*;
 
 #[test]
 fn decode_http() {
-    let mut decoders = Decoders::new(CUSTOMS);
-    let mut customs  = Customs::new(CUSTOMS);
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut decoders = Decoders::new(&customs, true);
 
     let mut req_url:    Option<Value> = None;
     let mut req_host:   Option<Value> = None;
@@ -17,11 +17,11 @@ fn decode_http() {
         let d = decoders.classify(&flow);
         decoders.decode(d, &flow, &mut customs);
 
-        req_url    = value("KFLOW_HTTP_URL", &customs).or_else(|| req_url);
-        req_host   = value("KFLOW_HTTP_HOST", &customs).or_else(|| req_host);
-        req_ua     = value("KFLOW_HTTP_UA", &customs).or_else(|| req_ua);
-        res_status = value("KFLOW_HTTP_STATUS", &customs).or_else(|| res_status);
-        latency    = value("APPL_LATENCY_MS", &customs).or_else(|| latency);
+        req_url    = value(HTTP_URL, &customs).or_else(|| req_url);
+        req_host   = value(HTTP_HOST, &customs).or_else(|| req_host);
+        req_ua     = value(HTTP_UA, &customs).or_else(|| req_ua);
+        res_status = value(HTTP_STATUS, &customs).or_else(|| res_status);
+        latency    = value(APP_LATENCY, &customs).or_else(|| latency);
 
         customs.clear();
     }
@@ -35,8 +35,8 @@ fn decode_http() {
 
 #[test]
 fn decode_dns() {
-    let mut decoders = Decoders::new(CUSTOMS);
-    let mut customs  = Customs::new(CUSTOMS);
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut decoders = Decoders::new(&customs, true);
 
     let mut query_name: Option<Value> = None;
     let mut query_type: Option<Value> = None;
@@ -48,11 +48,11 @@ fn decode_dns() {
         let d = decoders.classify(&flow);
         decoders.decode(d, &flow, &mut customs);
 
-        query_name = value("KFLOW_DNS_QUERY", &customs).or_else(|| query_name);
-        query_type = value("KFLOW_DNS_QUERY_TYPE", &customs).or_else(|| query_type);
-        reply_code = value("KFLOW_DNS_RET_CODE", &customs).or_else(|| reply_code);
-        reply_data = value("KFLOW_DNS_RESPONSE", &customs).or_else(|| reply_data);
-        latency    = value("APPL_LATENCY_MS", &customs).or_else(|| latency);
+        query_name = value(DNS_QUERY_NAME, &customs).or_else(|| query_name);
+        query_type = value(DNS_QUERY_TYPE, &customs).or_else(|| query_type);
+        reply_code = value(DNS_REPLY_CODE, &customs).or_else(|| reply_code);
+        reply_data = value(DNS_REPLY_DATA, &customs).or_else(|| reply_data);
+        latency    = value(APP_LATENCY, &customs).or_else(|| latency);
 
         customs.clear();
     }
@@ -68,8 +68,8 @@ fn decode_dns() {
 
 #[test]
 fn decode_tls_handshake() {
-    let mut decoders = Decoders::new(CUSTOMS);
-    let mut customs  = Customs::new(CUSTOMS);
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut decoders = Decoders::new(&customs, true);
 
     let mut server_name: Option<Value> = None;
 
@@ -80,7 +80,7 @@ fn decode_tls_handshake() {
         decoders.decode(d, &flow, &mut customs);
         decoders.append(d, &key,  &mut customs);
 
-        server_name = value("KFLOW_HTTP_HOST", &customs).or_else(|| server_name);
+        server_name = value(TLS_SERVER_NAME, &customs).or_else(|| server_name);
 
         customs.clear();
     }
@@ -90,8 +90,8 @@ fn decode_tls_handshake() {
 
 #[test]
 fn decode_tls_ignore_established() {
-    let mut decoders = Decoders::new(CUSTOMS);
-    let mut customs  = Customs::new(CUSTOMS);
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut decoders = Decoders::new(&customs, true);
 
     for flow in iter::flows("pcaps/tls/google.com-tls-1.2.pcap").skip(2) {
         let key = flow.key();

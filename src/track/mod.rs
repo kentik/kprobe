@@ -4,21 +4,8 @@ use std::collections::HashMap;
 use time::Duration;
 use flow::{Direction, Flow, Key, Timestamp, Transport, Window};
 use flow::{FIN, SYN, RST, ACK};
-use custom::Customs;
-use libkflow::kflowCustom;
+use custom::*;
 use track::id::Generator;
-
-const KFLOW_APPL_LATENCY_MS:        &str = "APPL_LATENCY_MS";
-const KFLOW_CLIENT_NW_LATENCY_MS:   &str = "CLIENT_NW_LATENCY_MS";
-const KFLOW_SERVER_NW_LATENCY_MS:   &str = "SERVER_NW_LATENCY_MS";
-const KFLOW_RETRANSMITTED_PKTS_IN:  &str = "RETRANSMITTED_IN_PKTS";
-const KFLOW_RETRANSMITTED_PKTS_OUT: &str = "RETRANSMITTED_OUT_PKTS";
-const KFLOW_REPEATED_RETRANSMITS:   &str = "REPEATED_RETRANSMITS";
-const KFLOW_OOORDER_PKTS_IN:        &str = "OOORDER_IN_PKTS";
-const KFLOW_OOORDER_PKTS_OUT:       &str = "OOORDER_OUT_PKTS";
-const KFLOW_RECEIVE_WINDOW:         &str = "RECEIVE_WINDOW";
-const KFLOW_ZERO_WINDOWS:           &str = "ZERO_WINDOWS";
-const KFLOW_CONNECTION_ID:          &str = "CONNECTION_ID";
 
 pub struct Tracker {
     conn_id:      Option<u64>,
@@ -67,23 +54,19 @@ pub enum RTT {
 }
 
 impl Tracker {
-    pub fn new(cs: &[kflowCustom]) -> Self {
-        let cs = cs.iter().map(|c| {
-            (c.name(), c.id)
-        }).collect::<HashMap<_, _>>();
-
+    pub fn new(cs: &Customs) -> Self {
         Tracker{
-            conn_id:      cs.get(KFLOW_CONNECTION_ID).cloned(),
-            cli_latency:  cs.get(KFLOW_CLIENT_NW_LATENCY_MS).cloned(),
-            srv_latency:  cs.get(KFLOW_SERVER_NW_LATENCY_MS).cloned(),
-            app_latency:  cs.get(KFLOW_APPL_LATENCY_MS).cloned(),
-            retx_in:      cs.get(KFLOW_RETRANSMITTED_PKTS_IN).cloned(),
-            retx_out:     cs.get(KFLOW_RETRANSMITTED_PKTS_OUT).cloned(),
-            retx_repeats: cs.get(KFLOW_REPEATED_RETRANSMITS).cloned(),
-            ooorder_in:   cs.get(KFLOW_OOORDER_PKTS_IN).cloned(),
-            ooorder_out:  cs.get(KFLOW_OOORDER_PKTS_OUT).cloned(),
-            rwindow:      cs.get(KFLOW_RECEIVE_WINDOW).cloned(),
-            zwindows:     cs.get(KFLOW_ZERO_WINDOWS).cloned(),
+            conn_id:      cs.get(CONNECTION_ID).ok(),
+            cli_latency:  cs.get(CLIENT_NW_LATENCY).ok(),
+            srv_latency:  cs.get(SERVER_NW_LATENCY).ok(),
+            app_latency:  cs.get(APP_LATENCY).ok(),
+            retx_in:      cs.get(RETRANSMITTED_IN).ok(),
+            retx_out:     cs.get(RETRANSMITTED_OUT).ok(),
+            retx_repeats: cs.get(REPEATED_RETRANSMITS).ok(),
+            ooorder_in:   cs.get(OOORDER_IN).ok(),
+            ooorder_out:  cs.get(OOORDER_OUT).ok(),
+            rwindow:      cs.get(RECEIVE_WINDOW).ok(),
+            zwindows:     cs.get(ZERO_WINDOWS).ok(),
             generator:    Generator::new(),
             states:       HashMap::new(),
         }

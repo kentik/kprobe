@@ -1,5 +1,5 @@
+use custom::Customs;
 use libkflow::kflowCustom;
-use protocol::Decoders;
 use queue::FlowQueue;
 use sample::Sampler;
 
@@ -11,10 +11,8 @@ pub struct Config {
 
 impl Config {
     pub fn queue(&self) -> FlowQueue {
-        FlowQueue::new(self.sample, &self.customs, match self.decode {
-            true  => Decoders::new(&self.customs),
-            false => Decoders::new(&[]),
-        })
+        let customs = Customs::new(&self.customs);
+        FlowQueue::new(self.sample, customs, self.decode)
     }
 
     pub fn sampler(&self) -> Option<Sampler> {

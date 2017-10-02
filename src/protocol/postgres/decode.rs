@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use flow::{Addr, Flow};
-use libkflow::kflowCustom;
 use custom::Customs;
 use super::conn::{Connection, CompletedQuery};
 
@@ -9,7 +8,7 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
+    pub fn new(cs: &Customs) -> Option<Decoder> {
         let _ = cs;
         // FIXME: WIP
         None

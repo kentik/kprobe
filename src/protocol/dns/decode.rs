@@ -1,16 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::CString;
 use time::Duration;
 use flow::{Addr, Flow, Timestamp};
-use libkflow::kflowCustom;
-use custom::Customs;
+use custom::*;
 use super::conn::{Connection, Message};
-
-const APPL_LATENCY_MS:      &str = "APPL_LATENCY_MS";
-const KFLOW_DNS_QUERY:      &str = "KFLOW_DNS_QUERY";
-const KFLOW_DNS_QUERY_TYPE: &str = "KFLOW_DNS_QUERY_TYPE";
-const KFLOW_DNS_RET_CODE:   &str = "KFLOW_DNS_RET_CODE";
-const KFLOW_DNS_RESPONSE:   &str = "KFLOW_DNS_RESPONSE";
 
 pub struct Decoder {
     query_name: u64,
@@ -25,28 +18,13 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
-        let mut ns = HashSet::new();
-        ns.insert(APPL_LATENCY_MS);
-        ns.insert(KFLOW_DNS_QUERY);
-        ns.insert(KFLOW_DNS_QUERY_TYPE);
-        ns.insert(KFLOW_DNS_RESPONSE);
-        ns.insert(KFLOW_DNS_RET_CODE);
-
-        let cs = cs.iter().filter_map(|c| {
-            ns.get(c.name()).map(|n| (*n, c.id))
-        }).collect::<HashMap<_, _>>();
-
-        if ns.len() != cs.len() {
-            return None;
-        }
-
-        Some(Decoder{
-            query_name: cs[KFLOW_DNS_QUERY],
-            query_type: cs[KFLOW_DNS_QUERY_TYPE],
-            reply_code: cs[KFLOW_DNS_RET_CODE],
-            reply_data: cs[KFLOW_DNS_RESPONSE],
-            latency:    cs[APPL_LATENCY_MS],
+    pub fn new(cs: &Customs) -> Result<Decoder, ()> {
+        Ok(Decoder{
+            query_name: cs.get(DNS_QUERY_NAME)?,
+            query_type: cs.get(DNS_QUERY_TYPE)?,
+            reply_code: cs.get(DNS_REPLY_CODE)?,
+            reply_data: cs.get(DNS_REPLY_DATA)?,
+            latency:    cs.get(APP_LATENCY)?,
             name_str:   None,
             data_str:   None,
             empty:      Default::default(),

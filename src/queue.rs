@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use time::Duration;
 use flow::*;
 use custom::Customs;
-use libkflow::{self, kflowCustom};
+use libkflow;
 use protocol::{Decoder, Decoders};
 use timer::{Timeout, Timer};
 use track::Tracker;
@@ -22,9 +22,9 @@ pub struct Counter {
 
 pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
-    customs:  Customs,
     decoders: Decoders,
     tracker:  Tracker,
+    customs:  Customs,
     sample:   u32,
     compact:  Timer,
     export:   Timer,
@@ -32,12 +32,12 @@ pub struct FlowQueue {
 }
 
 impl FlowQueue {
-    pub fn new(sample: Option<u64>, customs: &[kflowCustom], decoders: Decoders) -> FlowQueue {
+    pub fn new(sample: Option<u64>, customs: Customs, decode: bool) -> FlowQueue {
         FlowQueue {
             flows:    HashMap::new(),
-            customs:  Customs::new(customs),
-            decoders: decoders,
-            tracker:  Tracker::new(customs),
+            decoders: Decoders::new(&customs, decode),
+            tracker:  Tracker::new(&customs),
+            customs:  customs,
             sample:   sample.unwrap_or(1) as u32,
             compact:  Timer::new(Duration::seconds(30)),
             export:   Timer::new(Duration::seconds(2)),

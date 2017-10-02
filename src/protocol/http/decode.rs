@@ -1,17 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::CString;
 use time::Duration;
 use flow::{Addr, Flow, Timestamp};
-use libkflow::kflowCustom;
-use custom::Customs;
+use custom::*;
 use super::conn::{Connection, Res};
-
-const APPL_LATENCY_MS:       &str = "APPL_LATENCY_MS";
-const KFLOW_HTTP_URL:        &str = "KFLOW_HTTP_URL";
-const KFLOW_HTTP_HOST:       &str = "KFLOW_HTTP_HOST";
-const KFLOW_HTTP_REFERER:    &str = "KFLOW_HTTP_REFERER";
-const KFLOW_HTTP_USER_AGENT: &str = "KFLOW_HTTP_UA";
-const KFLOW_HTTP_STATUS:     &str = "KFLOW_HTTP_STATUS";
 
 pub struct Decoder {
     req_url:     u64,
@@ -26,30 +18,14 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
-        let mut ns = HashSet::new();
-        ns.insert(APPL_LATENCY_MS);
-        ns.insert(KFLOW_HTTP_URL);
-        ns.insert(KFLOW_HTTP_HOST);
-        ns.insert(KFLOW_HTTP_REFERER);
-        ns.insert(KFLOW_HTTP_USER_AGENT);
-        ns.insert(KFLOW_HTTP_STATUS);
-
-        let cs = cs.iter().filter_map(|c| {
-            ns.get(c.name()).map(|n| (*n, c.id))
-        }).collect::<HashMap<_, _>>();
-
-        if ns.len() != cs.len() {
-            return None;
-        }
-
-        Some(Decoder{
-            req_url:     cs[KFLOW_HTTP_URL],
-            req_host:    cs[KFLOW_HTTP_HOST],
-            req_referer: cs[KFLOW_HTTP_REFERER],
-            req_ua:      cs[KFLOW_HTTP_USER_AGENT],
-            res_status:  cs[KFLOW_HTTP_STATUS],
-            latency:     cs[APPL_LATENCY_MS],
+    pub fn new(cs: &Customs) -> Result<Decoder, ()> {
+        Ok(Decoder{
+            req_url:     cs.get(HTTP_URL)?,
+            req_host:    cs.get(HTTP_HOST)?,
+            req_referer: cs.get(HTTP_REFERER)?,
+            req_ua:      cs.get(HTTP_UA)?,
+            res_status:  cs.get(HTTP_STATUS)?,
+            latency:     cs.get(APP_LATENCY)?,
             empty:       Default::default(),
             res:         None,
             conns:       HashMap::new(),

@@ -16,7 +16,7 @@ use time::Duration;
 use libkflow::*;
 use flow::*;
 use packet;
-use custom::Customs;
+use custom::*;
 use reasm::Reassembler;
 use timer::Timer;
 use track::Tracker;
@@ -89,7 +89,7 @@ fn test_reassemble_fragmented() {
 
 #[test]
 fn test_udp_application_latency() {
-    let mut trk = Tracker::new(&CUSTOMS);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/dns/google.com-any.pcap") {
         trk.add(&flow);
@@ -104,12 +104,12 @@ fn test_udp_application_latency() {
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key, Direction::Out, &mut customs);
 
-    assert_eq!(Some(Value::from(44)), value("APPL_LATENCY_MS", &customs));
+    assert_eq!(Some(Value::from(44)), value(APP_LATENCY, &customs));
 }
 
 #[test]
 fn test_tcp_application_latency() {
-    let mut trk = Tracker::new(&CUSTOMS);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/http/google.com.pcap") {
         if flow.tcp_flags() & FIN == FIN {
@@ -127,12 +127,12 @@ fn test_tcp_application_latency() {
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key, Direction::Out, &mut customs);
 
-    assert_eq!(Some(Value::from(7)), value("APPL_LATENCY_MS", &customs));
+    assert_eq!(Some(Value::from(7)), value(APP_LATENCY, &customs));
 }
 
 #[test]
 fn test_tcp_retransmits() {
-    let mut trk = Tracker::new(&CUSTOMS);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/tcp/retransmits.pcap") {
         trk.add(&flow);
@@ -149,19 +149,19 @@ fn test_tcp_retransmits() {
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key0, Direction::Out, &mut customs);
 
-    assert_eq!(Some(Value::from(8)), value("RETRANSMITTED_OUT_PKTS", &customs));
-    assert_eq!(Some(Value::from(1)), value("REPEATED_RETRANSMITS", &customs));
+    assert_eq!(Some(Value::from(8)), value(RETRANSMITTED_OUT, &customs));
+    assert_eq!(Some(Value::from(1)), value(REPEATED_RETRANSMITS, &customs));
 
     customs.clear();
     trk.append(&key1, Direction::In, &mut customs);
 
-    assert_eq!(Some(Value::from(6)), value("RETRANSMITTED_IN_PKTS", &customs));
-    assert_eq!(Some(Value::from(1)), value("REPEATED_RETRANSMITS", &customs));
+    assert_eq!(Some(Value::from(6)), value(RETRANSMITTED_IN, &customs));
+    assert_eq!(Some(Value::from(1)), value(REPEATED_RETRANSMITS, &customs));
 }
 
 #[test]
 fn test_tcp_receive_window() {
-    let mut trk = Tracker::new(&CUSTOMS);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
     let windows = [65535, 1024, 131744, 131744, 0, 1024];
 
     for (flow, window) in iter::flows("pcaps/tcp/zero_windows.pcap").zip(windows.iter()) {
@@ -171,10 +171,10 @@ fn test_tcp_receive_window() {
         trk.add(&flow);
         trk.append(&flow.key(), Direction::In, &mut customs);
 
-        assert_eq!(Some(window), value("RECEIVE_WINDOW", &customs));
+        assert_eq!(Some(window), value(RECEIVE_WINDOW, &customs));
     }
 
-    let mut trk = Tracker::new(&CUSTOMS);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/tcp/zero_windows.pcap").skip(2) {
         let mut customs = Customs::new(&CUSTOMS);
@@ -182,13 +182,13 @@ fn test_tcp_receive_window() {
         trk.add(&flow);
         trk.append(&flow.key(), Direction::In, &mut customs);
 
-        assert_eq!(None, value("RECEIVE_WINDOW", &customs));
+        assert_eq!(None, value(RECEIVE_WINDOW, &customs));
     }
 }
 
 #[test]
 fn test_tcp_zero_windows() {
-    let mut trk = Tracker::new(&CUSTOMS);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/tcp/zero_windows.pcap") {
         trk.add(&flow);
@@ -203,7 +203,7 @@ fn test_tcp_zero_windows() {
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key, Direction::In, &mut customs);
 
-    assert_eq!(Some(Value::from(10)), value("ZERO_WINDOWS", &customs));
+    assert_eq!(Some(Value::from(10)), value(ZERO_WINDOWS, &customs));
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn test_id_generator() {
 
 #[test]
 fn test_connection_id() {
-    let mut trk = Tracker::new(&CUSTOMS);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     let mut a = flow(23, 31, false);
     let mut b = flow(31, 23, false);
@@ -240,13 +240,13 @@ fn test_connection_id() {
     let mut customs = Customs::new(&CUSTOMS);
 
     trk.append(&a.key(), a.direction, &mut customs);
-    let ida = value("CONNECTION_ID", &customs);
+    let ida = value(CONNECTION_ID, &customs);
     assert!(ida.is_some());
 
     customs.clear();
 
     trk.append(&b.key(), b.direction, &mut customs);
-    let idb = value("CONNECTION_ID", &customs);
+    let idb = value(CONNECTION_ID, &customs);
     assert!(idb.is_some());
 
     assert_eq!(ida, idb);

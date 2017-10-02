@@ -371,7 +371,7 @@ pub struct kflow {
 }
 
 impl kflowCustom {
-    pub fn name<'a>(&self) -> &'a str {
+    pub fn name(&self) -> &str {
         unsafe {
             CStr::from_ptr(self.name).to_str().unwrap_or("")
         }

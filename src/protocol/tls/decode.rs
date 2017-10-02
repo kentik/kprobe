@@ -1,13 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
 use std::collections::hash_map::VacantEntry;
 use time::Duration;
 use flow::{Addr, Flow, Key, Timestamp, SYN, FIN};
-use libkflow::kflowCustom;
-use custom::Customs;
+use custom::*;
 use super::conn::Connection;
-
-const KFLOW_HTTP_HOST: &str = "KFLOW_HTTP_HOST";
 
 pub struct Decoder {
     server_name: u64,
@@ -15,20 +12,9 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn new(cs: &[kflowCustom]) -> Option<Decoder> {
-        let mut ns = HashSet::new();
-        ns.insert(KFLOW_HTTP_HOST);
-
-        let cs = cs.iter().filter_map(|c| {
-            ns.get(c.name()).map(|n| (*n, c.id))
-        }).collect::<HashMap<_, _>>();
-
-        if ns.len() != cs.len() {
-            return None;
-        }
-
-        Some(Decoder{
-            server_name: cs[KFLOW_HTTP_HOST],
+    pub fn new(cs: &Customs) -> Result<Decoder, ()> {
+        Ok(Decoder{
+            server_name: cs.get(TLS_SERVER_NAME)?,
             conns:       HashMap::new(),
         })
     }
