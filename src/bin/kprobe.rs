@@ -5,6 +5,7 @@ extern crate pnet;
 use std::process::exit;
 use kprobe::{args, Config, Kprobe};
 use kprobe::libkflow;
+use kprobe::protocol::Classify;
 use pnet::datalink::NetworkInterface;
 use pcap::{Capture, Device};
 use libkflow::Error::*;
@@ -69,10 +70,11 @@ fn main() {
     //     cap.filter(filter).unwrap();
     // }
 
-    let mut kprobe = Kprobe::new(interface, &Config{
-        customs: customs,
-        decode:  true,
-        sample:  sample,
+    let mut kprobe = Kprobe::new(interface, Config{
+        classify: Classify::new(),
+        customs:  customs,
+        decode:   true,
+        sample:   sample,
     });
     kprobe.run(cap).expect("capture succeeded");
 }

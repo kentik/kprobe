@@ -1,11 +1,11 @@
 use time::Duration;
 use flow::{Flow, Key, Timestamp};
 use flow::{FIN, SYN};
-use flow::Protocol::*;
+use flow::Protocol::{TCP, UDP};
 use custom::Customs;
 use protocol::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Decoder {
     DNS, HTTP, Postgres, TLS, None
 }
@@ -19,31 +19,27 @@ pub struct Decoders {
 }
 
 impl Decoders {
-    pub fn new(cs: &Customs, decode: bool) -> Self {
-        if !decode {
-            return Default::default()
+    pub fn new(cs: &Customs, classify: &mut Classify, decode: bool) -> Self {
+        let mut decoders = Self::default();
+
+        if decode {
+            if let Ok(d) = dns::Decoder::new(cs) {
+                classify.add(UDP, 53, Decoder::DNS);
+                decoders.dns = Some(d);
+            }
+
+            if let Ok(d) = http::Decoder::new(cs) {
+                classify.add(TCP, 80, Decoder::HTTP);
+                decoders.http = Some(d);
+            }
+
+            if let Ok(d) = tls::Decoder::new(cs) {
+                classify.add(TCP, 443, Decoder::TLS);
+                decoders.tls = Some(d);
+            }
         }
 
-        Decoders{
-            dns:      dns::Decoder::new(cs).ok(),
-            http:     http::Decoder::new(cs).ok(),
-            tls:      tls::Decoder::new(cs).ok(),
-            postgres: postgres::Decoder::new(cs),
-        }
-    }
-
-    pub fn classify(&self, flow: &Flow) -> Decoder {
-        match (flow.protocol, flow.src.port, flow.dst.port) {
-            (UDP, 53, _)   if self.dns.is_some()      => Decoder::DNS,
-            (UDP, _, 53)   if self.dns.is_some()      => Decoder::DNS,
-            (TCP, 80, _)   if self.http.is_some()     => Decoder::HTTP,
-            (TCP, _, 80)   if self.http.is_some()     => Decoder::HTTP,
-            (TCP, 443, _)  if self.tls.is_some()      => Decoder::TLS,
-            (TCP, _, 443)  if self.tls.is_some()      => Decoder::TLS,
-            (TCP, 5432, _) if self.postgres.is_some() => Decoder::Postgres,
-            (TCP, _, 5432) if self.postgres.is_some() => Decoder::Postgres,
-            _                                         => Decoder::None,
-        }
+        decoders
     }
 
     pub fn decode(&mut self, d: Decoder, flow: &Flow, cs: &mut Customs) -> bool {

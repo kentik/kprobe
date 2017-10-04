@@ -3,7 +3,7 @@ use time::Duration;
 use flow::*;
 use custom::Customs;
 use libkflow;
-use protocol::{Decoder, Decoders};
+use protocol::{Classify, Decoder, Decoders};
 use timer::{Timeout, Timer};
 use track::Tracker;
 
@@ -24,6 +24,7 @@ pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
     decoders: Decoders,
     tracker:  Tracker,
+    classify: Classify,
     customs:  Customs,
     sample:   u32,
     compact:  Timer,
@@ -32,11 +33,12 @@ pub struct FlowQueue {
 }
 
 impl FlowQueue {
-    pub fn new(sample: Option<u64>, customs: Customs, decode: bool) -> FlowQueue {
+    pub fn new(sample: Option<u64>, customs: Customs, mut classify: Classify, decode: bool) -> FlowQueue {
         FlowQueue {
             flows:    HashMap::new(),
-            decoders: Decoders::new(&customs, decode),
+            decoders: Decoders::new(&customs, &mut classify, decode),
             tracker:  Tracker::new(&customs),
+            classify: classify,
             customs:  customs,
             sample:   sample.unwrap_or(1) as u32,
             compact:  Timer::new(Duration::seconds(30)),
@@ -62,7 +64,7 @@ impl FlowQueue {
     }
 
     fn record(&mut self, key: Key, flow: &Flow) -> Decoder {
-        let decoders = &mut self.decoders;
+        let classify = &mut self.classify;
         let timeout  = &mut self.timeout;
 
         self.tracker.add(flow);
@@ -77,7 +79,7 @@ impl FlowQueue {
                 packets:   0,
                 bytes:     0,
                 fragments: 0,
-                decoder:   decoders.classify(flow),
+                decoder:   classify.find(flow),
                 export:    export,
             }
         });
@@ -128,7 +130,7 @@ impl FlowQueue {
     fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &mut Counter, sr: u32) {
         customs.append(ctr);
         tracker.append(key, ctr.direction, customs);
-        libkflow::send(key, ctr, sr, match &customs[..] {
+        libkflow::send(key, ctr, sr, match &customs {
             cs if !cs.is_empty() => Some(cs),
             _                    => None,
         }).expect("failed to send flow");

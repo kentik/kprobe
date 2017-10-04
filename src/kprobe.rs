@@ -23,7 +23,7 @@ pub struct Kprobe {
 }
 
 impl Kprobe {
-    pub fn new(interface: NetworkInterface, cfg: &Config) -> Kprobe {
+    pub fn new(interface: NetworkInterface, cfg: Config) -> Kprobe {
         Kprobe {
             interface: interface,
             sampler:   cfg.sampler(),

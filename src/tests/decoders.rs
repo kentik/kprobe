@@ -1,11 +1,12 @@
 use custom::Customs;
-use protocol::Decoders;
+use protocol::{Classify, Decoder, Decoders};
 use super::*;
 
 #[test]
 fn decode_http() {
     let mut customs  = Customs::new(&CUSTOMS);
-    let mut decoders = Decoders::new(&customs, true);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
 
     let mut req_url:    Option<Value> = None;
     let mut req_host:   Option<Value> = None;
@@ -14,7 +15,7 @@ fn decode_http() {
     let mut latency:    Option<Value> = None;
 
     for flow in iter::flows("pcaps/http/google.com.pcap") {
-        let d = decoders.classify(&flow);
+        let d = classify.find(&flow);
         decoders.decode(d, &flow, &mut customs);
 
         req_url    = value(HTTP_URL, &customs).or_else(|| req_url);
@@ -36,7 +37,8 @@ fn decode_http() {
 #[test]
 fn decode_dns() {
     let mut customs  = Customs::new(&CUSTOMS);
-    let mut decoders = Decoders::new(&customs, true);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
 
     let mut query_name: Option<Value> = None;
     let mut query_type: Option<Value> = None;
@@ -45,7 +47,7 @@ fn decode_dns() {
     let mut latency:    Option<Value> = None;
 
     for flow in iter::flows("pcaps/dns/google.com-any.pcap").take(2) {
-        let d = decoders.classify(&flow);
+        let d = classify.find(&flow);
         decoders.decode(d, &flow, &mut customs);
 
         query_name = value(DNS_QUERY_NAME, &customs).or_else(|| query_name);
@@ -69,14 +71,15 @@ fn decode_dns() {
 #[test]
 fn decode_tls_handshake() {
     let mut customs  = Customs::new(&CUSTOMS);
-    let mut decoders = Decoders::new(&customs, true);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
 
     let mut server_name: Option<Value> = None;
 
     for flow in iter::flows("pcaps/tls/google.com-tls-1.2.pcap") {
         let key = flow.key();
 
-        let d = decoders.classify(&flow);
+        let d = classify.find(&flow);
         decoders.decode(d, &flow, &mut customs);
         decoders.append(d, &key,  &mut customs);
 
@@ -91,12 +94,13 @@ fn decode_tls_handshake() {
 #[test]
 fn decode_tls_ignore_established() {
     let mut customs  = Customs::new(&CUSTOMS);
-    let mut decoders = Decoders::new(&customs, true);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
 
     for flow in iter::flows("pcaps/tls/google.com-tls-1.2.pcap").skip(2) {
         let key = flow.key();
 
-        let d = decoders.classify(&flow);
+        let d = classify.find(&flow);
         decoders.decode(d, &flow, &mut customs);
         decoders.append(d, &key,  &mut customs);
     }
@@ -104,8 +108,25 @@ fn decode_tls_ignore_established() {
     assert_eq!(0, customs.len());
 }
 
+#[test]
+fn classify_ok() {
+    let mut classify = Classify::new();
+    classify.add(Protocol::UDP, 53, Decoder::DNS);
+    classify.add(Protocol::TCP, 80, Decoder::HTTP);
+    classify.add(Protocol::TCP, 22, Decoder::TLS);
 
+    let mut dns_flow = flow(0, 53, false);
+    dns_flow.protocol = Protocol::UDP;
 
+    let http_flow = flow(0, 80, false);
+    let tls_flow  = flow(0, 22, false);
+    let none_flow = flow(0, 33, false);
+
+    assert_eq!(Decoder::DNS,  classify.find(&dns_flow));
+    assert_eq!(Decoder::HTTP, classify.find(&http_flow));
+    assert_eq!(Decoder::TLS,  classify.find(&tls_flow));
+    assert_eq!(Decoder::None, classify.find(&none_flow));
+}
 
 // fn dump(cs: &[kflowCustom]) {
 //     for c in cs {
