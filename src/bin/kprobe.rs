@@ -13,6 +13,7 @@ use libkflow::Error::*;
 fn main() {
     let args    = args::parse();
     let verbose = args.count("verbose");
+    let decode  = args.count("no_decode") == 0;
     let promisc = args.count("promisc") > 0;
     let sample  = args.opt("sample").unwrap_or(None);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
@@ -73,7 +74,7 @@ fn main() {
     let mut kprobe = Kprobe::new(interface, Config{
         classify: Classify::new(),
         customs:  customs,
-        decode:   true,
+        decode:   decode,
         sample:   sample,
     });
     kprobe.run(cap).expect("capture succeeded");
