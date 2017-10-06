@@ -34,16 +34,16 @@ impl Classify {
         }
     }
 
-    fn search(vec: &Vec<Decoder>, src: u16, dst: u16) -> Decoder {
+    fn search(ds: &[Decoder], src: u16, dst: u16) -> Decoder {
         let (x, y) = match src.cmp(&dst) {
             Less | Equal => (src as usize, dst as usize),
             Greater      => (dst as usize, src as usize),
         };
 
-        match vec.get(x) {
-            None | Some(&Decoder::None) => vec.get(y),
+        match ds.get(x) {
+            None | Some(&Decoder::None) => ds.get(y),
             decoder                     => decoder,
-        }.map(|d| *d).unwrap_or(Decoder::None)
+        }.cloned().unwrap_or(Decoder::None)
     }
 
     fn insert(vec: &mut Vec<Decoder>, port: u16, d: Decoder) {

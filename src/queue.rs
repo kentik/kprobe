@@ -107,7 +107,7 @@ impl FlowQueue {
         let decoders = &mut self.decoders;
         let tracker  = &mut self.tracker;
 
-        for (key, ctr) in self.flows.iter_mut() {
+        for (key, ctr) in &mut self.flows {
             if ctr.export <= ts && ctr.packets > 0 {
                 decoders.append(ctr.decoder, key, customs);
                 Self::send(customs, tracker, key, ctr, self.sample);

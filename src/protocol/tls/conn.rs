@@ -30,7 +30,7 @@ impl Connection {
     }
 
     pub fn parse(&mut self, ts: Timestamp, buf: &[u8]) {
-        let mut state = &mut self.state;
+        let state = &mut self.state;
 
         self.last = ts;
 

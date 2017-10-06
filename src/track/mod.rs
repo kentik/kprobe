@@ -211,11 +211,11 @@ impl Tracker {
     fn this<'a>(&mut self, flow: &Flow) -> &'a mut State {
         let key = Key(flow.protocol, flow.src, flow.dst);
         let gen = &mut self.generator;
-        let mut s = self.states.entry(key).or_insert_with(|| {
+        let s = self.states.entry(key).or_insert_with(|| {
             let (id, seq, win) = match flow.transport {
-                Transport::TCP{seq, window, ..} => (gen.id(&flow), seq, window),
-                Transport::UDP                  => (gen.id(&flow), 0, Window::default()),
-                _                               => (0,             0, Window::default()),
+                Transport::TCP{seq, window, ..} => (gen.id(flow), seq, window),
+                Transport::UDP                  => (gen.id(flow), 0, Window::default()),
+                _                               => (0,            0, Window::default()),
             };
 
             State{
