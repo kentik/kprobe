@@ -1,9 +1,11 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry::*;
+use std::collections::hash_map::VacantEntry;
 use std::ffi::CString;
 use time::Duration;
-use flow::{Addr, Flow, Timestamp};
+use flow::{Addr, Flow, Timestamp, SYN};
 use custom::*;
-use super::conn::{Connection, Res};
+use super::conn::Connection;
 
 pub struct Decoder {
     req_url:     u64,
@@ -13,7 +15,6 @@ pub struct Decoder {
     res_status:  u64,
     latency:     u64,
     empty:       CString,
-    res:         Option<Res>,
     conns:       HashMap<(Addr, Addr), Connection>,
 }
 
@@ -27,16 +28,15 @@ impl Decoder {
             res_status:  cs.get(HTTP_STATUS)?,
             latency:     cs.get(APP_LATENCY)?,
             empty:       Default::default(),
-            res:         None,
             conns:       HashMap::new(),
         })
     }
 
     pub fn decode(&mut self, flow: &Flow, cs: &mut Customs) -> bool {
-        match (flow.src.port, flow.dst.port) {
-            (_, 80) => self.parse_req(flow, cs),
-            (80, _) => self.parse_res(flow, cs),
-            _       => false,
+        match self.conn(flow.src, flow.dst, flow.tcp_flags()) {
+            Some(ref mut c) if c.is_client(flow) => self.parse_req(c, flow, cs),
+            Some(ref mut c)                      => self.parse_res(c, flow, cs),
+            None                                 => false,
         }
     }
 
@@ -44,17 +44,38 @@ impl Decoder {
         self.conns.retain(|_, c| !c.is_idle(ts, timeout))
     }
 
-    fn parse_req(&mut self, flow: &Flow, cs: &mut Customs) -> bool {
-        let addr = (flow.src, flow.dst);
-        let conn = self.conns.entry(addr).or_insert_with(Connection::new);
+    fn conn<'a>(&mut self, src: Addr, dst: Addr, flags: u16) -> Option<&'a mut Connection> {
+        let key = match src.port < dst.port {
+            true  => (src, dst),
+            false => (dst, src),
+        };
 
+        let maybe_insert = |e: VacantEntry<'a, _, _>| -> Option<&'a mut Connection> {
+            match flags & SYN {
+                SYN => Some(e.insert(Connection::new(dst.port))),
+                _   => None,
+            }
+        };
+
+        // safe because self.conns will not be accessed in parse_req or parse_res
+        let conns: &'a mut HashMap<_, _> = unsafe {
+            &mut *(&mut self.conns as *mut HashMap<_, _>)
+        };
+
+        match conns.entry(key) {
+            Vacant(e)   => maybe_insert(e),
+            Occupied(e) => Some(e.into_mut()),
+        }
+    }
+
+    fn parse_req(&self, c: &mut Connection, flow: &Flow, cs: &mut Customs) -> bool {
         let req_url     = self.req_url;
         let req_host    = self.req_host;
         let req_referer = self.req_referer;
         let req_ua      = self.req_ua;
         let empty       = &self.empty;
 
-        conn.parse_req(flow.timestamp, flow.payload).map(|req| {
+        c.parse_req(flow.timestamp, flow.payload).map(|req| {
             // println!("got http request {:#?}", req);
             cs.add_str(req_url, req.url.as_ref().unwrap_or(empty));
             cs.add_str(req_host, req.host.as_ref().unwrap_or(empty));
@@ -64,12 +85,7 @@ impl Decoder {
         }).unwrap_or(false)
     }
 
-    fn parse_res(&mut self, flow: &Flow, cs: &mut Customs) -> bool {
-        let addr = (flow.dst, flow.src);
-        let conn = self.conns.entry(addr).or_insert_with(Connection::new);
-
-        self.res = conn.parse_res(flow.timestamp, flow.payload);
-
+    fn parse_res(&self, c: &mut Connection, flow: &Flow, cs: &mut Customs) -> bool {
         let req_url     = self.req_url;
         let req_host    = self.req_host;
         let req_referer = self.req_referer;
@@ -78,7 +94,7 @@ impl Decoder {
         let latency     = self.latency;
         let empty       = &self.empty;
 
-        self.res.as_ref().map(|res| {
+        c.parse_res(flow.timestamp, flow.payload).map(|res| {
             // println!("got http response {:#?}", res);
             cs.add_str(req_url, res.url.as_ref().unwrap_or(empty));
             cs.add_str(req_host, res.host.as_ref().unwrap_or(empty));

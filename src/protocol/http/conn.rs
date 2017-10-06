@@ -2,16 +2,18 @@ use std::ascii::AsciiExt;
 use std::collections::VecDeque;
 use std::ffi::CString;
 use std::slice;
-use flow::Timestamp;
+use flow::{Flow, Timestamp};
 use time::Duration;
 use protocol::buf::Buffer;
 use http_muncher::{Parser, ParserHandler};
 
 pub struct Connection {
+    server:    u16,
     req_state: ReqState,
     res_state: ResState,
     last:      Timestamp,
     pending:   VecDeque<Req>,
+    response:  Option<Res>,
 }
 
 #[derive(Debug)]
@@ -67,13 +69,19 @@ enum Header {
 type Result<T> = ::std::result::Result<Option<T>, String>;
 
 impl Connection {
-    pub fn new() -> Self {
+    pub fn new(server: u16) -> Self {
         Connection {
+            server:    server,
             req_state: ReqState::new(),
             res_state: ResState::new(),
             last:      Timestamp::zero(),
             pending:   VecDeque::new(),
+            response:  None,
         }
+    }
+
+    pub fn is_client(&self, flow: &Flow) -> bool {
+        flow.dst.port == self.server
     }
 
     pub fn parse_req(&mut self, ts: Timestamp, buf: &[u8]) -> Option<&Req> {
@@ -89,7 +97,7 @@ impl Connection {
         })
     }
 
-    pub fn parse_res(&mut self, ts: Timestamp, buf: &[u8]) -> Option<Res> {
+    pub fn parse_res(&mut self, ts: Timestamp, buf: &[u8]) -> Option<&Res> {
         self.last = ts;
         self.res_state.parse(buf).unwrap_or_else(|_err| {
             //println!("parse_res: error {}", err);
@@ -97,8 +105,8 @@ impl Connection {
             self.res_state.buffer.clear();
             self.pending.clear();
             None
-        }).and_then(|status| {
-            self.pending.pop_front().map(move |req| {
+        }).and_then(move |status| {
+            self.response = self.pending.pop_front().map(move |req| {
                 let latency = ts - req.ts;
                 Res{
                     status:  status,
@@ -108,7 +116,8 @@ impl Connection {
                     ua:      req.ua,
                     latency: latency,
                 }
-            })
+            });
+            self.response.as_ref()
         })
     }
 

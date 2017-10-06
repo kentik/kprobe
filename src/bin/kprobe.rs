@@ -6,6 +6,8 @@ use std::process::exit;
 use kprobe::{args, Config, Kprobe};
 use kprobe::libkflow;
 use kprobe::protocol::Classify;
+use kprobe::flow::Protocol::TCP;
+use kprobe::protocol::Decoder;
 use pnet::datalink::NetworkInterface;
 use pcap::{Capture, Device};
 use libkflow::Error::*;
@@ -55,6 +57,12 @@ fn main() {
         exit(1);
     });
 
+    let mut classify = Classify::new();
+
+    for port in args.args("http_port").unwrap_or_default() {
+        classify.add(TCP, port, Decoder::HTTP);
+    }
+
     let dev = Device::list().unwrap().into_iter()
         .find(|d| d.name == interface.name)
         .unwrap();
@@ -72,7 +80,7 @@ fn main() {
     // }
 
     let mut kprobe = Kprobe::new(interface, Config{
-        classify: Classify::new(),
+        classify: classify,
         customs:  customs,
         decode:   decode,
         sample:   sample,
