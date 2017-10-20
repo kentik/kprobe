@@ -1,6 +1,7 @@
 use time::Duration;
 use custom::Customs;
 use protocol::{Classify, Decoder, Decoders};
+use queue::Counter;
 use super::*;
 
 #[test]
@@ -187,6 +188,38 @@ fn classify_ok() {
     assert_eq!(Decoder::HTTP, classify.find(&http_flow));
     assert_eq!(Decoder::TLS,  classify.find(&tls_flow));
     assert_eq!(Decoder::None, classify.find(&none_flow));
+}
+
+#[test]
+fn app_protocol_ok() {
+    let mut customs = Customs::new(&CUSTOMS);
+
+    let specs = &[
+        (Protocol::UDP, 53,  Decoder::DNS,  Value::from(1)),
+        (Protocol::TCP, 80,  Decoder::HTTP, Value::from(2)),
+        (Protocol::TCP, 443, Decoder::TLS,  Value::from(3)),
+    ];
+
+    for &(protocol, port, decoder, ref app_proto) in specs {
+        let mut flow = flow(0, port, false);
+        flow.protocol = protocol;
+
+        customs.append(&Counter{
+            ethernet:  flow.ethernet,
+            direction: flow.direction,
+            tos:       flow.tos,
+            tcp_flags: flow.tcp_flags(),
+            bytes:     flow.bytes as u64,
+            packets:   flow.packets as u64,
+            fragments: flow.fragments as u64,
+            decoder:   decoder,
+            export:    Timestamp::zero(),
+        });
+
+        assert_eq!(Some(app_proto), value(APP_PROTOCOL, &customs).as_ref());
+
+        customs.clear();
+    }
 }
 
 // fn dump(cs: &[kflowCustom]) {

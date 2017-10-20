@@ -287,6 +287,29 @@ pub const CUSTOMS: &[kflowCustom] = &[
     custom(b"FRAGMENTS\0",              01, KFLOW_CUSTOM_U32),
     custom(b"APPL_LATENCY_MS\0",        02, KFLOW_CUSTOM_U32),
     custom(b"FPEX_LATENCY_MS\0",        03, KFLOW_CUSTOM_U32),
+    custom(b"CLIENT_NW_LATENCY_MS\0",   04, KFLOW_CUSTOM_U32),
+    custom(b"SERVER_NW_LATENCY_MS\0",   05, KFLOW_CUSTOM_U32),
+    custom(b"RETRANSMITTED_PKTS\0",     06, KFLOW_CUSTOM_U32),
+    custom(b"REPEATED_RETRANSMITS\0",   07, KFLOW_CUSTOM_U32),
+    custom(b"OOORDER_PKTS\0",           08, KFLOW_CUSTOM_U32),
+    custom(b"RECEIVE_WINDOW\0",         09, KFLOW_CUSTOM_U32),
+    custom(b"ZERO_WINDOWS\0",           10, KFLOW_CUSTOM_U32),
+    custom(b"CONNECTION_ID\0",          11, KFLOW_CUSTOM_U32),
+    custom(b"APP_PROTOCOL\0",           12, KFLOW_CUSTOM_U32),
+    custom(b"INT00\0",                  13, KFLOW_CUSTOM_U32),
+    custom(b"INT01\0",                  14, KFLOW_CUSTOM_U32),
+    custom(b"INT02\0",                  15, KFLOW_CUSTOM_U32),
+    custom(b"INT03\0",                  16, KFLOW_CUSTOM_U32),
+    custom(b"STR00\0",                  17, KFLOW_CUSTOM_STR),
+    custom(b"STR01\0",                  18, KFLOW_CUSTOM_STR),
+    custom(b"STR02\0",                  19, KFLOW_CUSTOM_STR),
+    custom(b"STR03\0",                  20, KFLOW_CUSTOM_STR),
+];
+
+pub const _CUSTOMS: &[kflowCustom] = &[
+    custom(b"FRAGMENTS\0",              01, KFLOW_CUSTOM_U32),
+    custom(b"APPL_LATENCY_MS\0",        02, KFLOW_CUSTOM_U32),
+    custom(b"FPEX_LATENCY_MS\0",        03, KFLOW_CUSTOM_U32),
     custom(b"KFLOW_DNS_QUERY\0",        04, KFLOW_CUSTOM_STR),
     custom(b"KFLOW_DNS_QUERY_TYPE\0",   05, KFLOW_CUSTOM_U32),
     custom(b"KFLOW_DNS_RET_CODE\0",     06, KFLOW_CUSTOM_U32),
@@ -356,10 +379,8 @@ impl<'a> From<&'a kflowCustom> for Value {
     }
 }
 
-pub fn value(name: &str, cs: &[kflowCustom]) -> Option<Value> {
-    CUSTOMS.iter().find(|c| c.name() == name).and_then(|custom| {
-        cs.iter().find(|c| c.id == custom.id).map(Value::from)
-    })
+pub fn value(name: &str, cs: &Customs) -> Option<Value> {
+    cs.get(name).ok().and_then(|id| cs.iter().find(|c| c.id == id).map(Value::from))
 }
 
 fn flow<'a>(src: u32, dst: u32, export: bool) -> Flow<'a> {

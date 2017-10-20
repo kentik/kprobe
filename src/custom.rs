@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::ptr;
 use time::Duration;
 use libkflow::*;
+use protocol::Decoder;
 use queue::Counter;
 
 pub const FRAGMENTS:            &str = "FRAGMENTS";
@@ -31,10 +32,13 @@ pub const HTTP_HOST:            &str = "KFLOW_HTTP_HOST";
 pub const HTTP_REFERER:         &str = "KFLOW_HTTP_REFERER";
 pub const HTTP_UA:              &str = "KFLOW_HTTP_UA";
 pub const HTTP_STATUS:          &str = "KFLOW_HTTP_STATUS";
-pub const TLS_SERVER_NAME:      &str = "KFLOW_HTTP_HOST";
+pub const TLS_SERVER_NAME:      &str = "TLS_SERVER_NAME";
+pub const TLS_SERVER_VERSION:   &str = "TLS_SERVER_VERSION";
+pub const TLS_CIPHER_SUITE:     &str = "TLS_CIPHER_SUITE";
 
 #[derive(Debug)]
 pub struct Customs {
+    app_proto: Option<u64>,
     fragments: Option<u64>,
     fields:    HashMap<String, u64>,
     vec:       Vec<kflowCustom>,
@@ -42,11 +46,45 @@ pub struct Customs {
 
 impl Customs {
     pub fn new(cs: &[kflowCustom]) -> Self {
-        let fields = cs.iter().map(|c| {
+        let mut fields = cs.iter().map(|c| {
             (c.name().to_owned(), c.id)
         }).collect::<HashMap<_, _>>();
 
+        if fields.contains_key("APP_PROTOCOL") {
+            let str00 = fields["STR00"];
+            let str01 = fields["STR01"];
+            let str02 = fields["STR02"];
+            let str03 = fields["STR03"];
+            let int00 = fields["INT00"];
+            let int01 = fields["INT01"];
+            let ooo   = fields["OOORDER_PKTS"];
+            let retx  = fields["RETRANSMITTED_PKTS"];
+
+            fields.insert(DNS_QUERY_NAME.to_owned(),     str00);
+            fields.insert(DNS_QUERY_TYPE.to_owned(),     int00);
+            fields.insert(DNS_REPLY_CODE.to_owned(),     int01);
+            fields.insert(DNS_REPLY_DATA.to_owned(),     str01);
+
+            fields.insert(HTTP_URL.to_owned(),           str00);
+            fields.insert(HTTP_HOST.to_owned(),          str01);
+            fields.insert(HTTP_REFERER.to_owned(),       str02);
+            fields.insert(HTTP_UA.to_owned(),            str03);
+            fields.insert(HTTP_STATUS.to_owned(),        int00);
+
+            fields.insert(TLS_SERVER_NAME.to_owned(),    str00);
+            fields.insert(TLS_SERVER_VERSION.to_owned(), int00);
+            fields.insert(TLS_CIPHER_SUITE.to_owned(),   int01);
+
+            fields.insert(OOORDER_IN.to_owned(),         ooo);
+            fields.insert(OOORDER_OUT.to_owned(),        ooo);
+            fields.insert(RETRANSMITTED_IN.to_owned(),   retx);
+            fields.insert(RETRANSMITTED_OUT.to_owned(),  retx);
+        } else if let Some(id) = fields.get(HTTP_HOST).cloned() {
+            fields.insert(TLS_SERVER_NAME.to_owned(), id);
+        }
+
         Customs{
+            app_proto: fields.get(APP_PROTOCOL).cloned(),
             fragments: fields.get(FRAGMENTS).cloned(),
             fields:    fields,
             vec:       Vec::with_capacity(cs.len()),
@@ -57,6 +95,15 @@ impl Customs {
         if ctr.fragments > 0 {
             self.fragments.map(|id| self.add_u32(id, ctr.fragments as u32));
         }
+
+        self.app_proto.map(|id| {
+            match ctr.decoder {
+                Decoder::DNS  => self.add_u32(id, 1),
+                Decoder::HTTP => self.add_u32(id, 2),
+                Decoder::TLS  => self.add_u32(id, 3),
+                _             => (),
+            }
+        });
     }
 
     pub fn add_str(&mut self, id: u64, val: &CStr) {
