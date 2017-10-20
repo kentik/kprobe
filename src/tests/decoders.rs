@@ -136,7 +136,9 @@ fn decode_tls_handshake() {
     let mut classify = Classify::new();
     let mut decoders = Decoders::new(&customs, &mut classify, true);
 
-    let mut server_name: Option<Value> = None;
+    let mut server_name:  Option<Value> = None;
+    let mut server_ver:   Option<Value> = None;
+    let mut cipher_suite: Option<Value> = None;
 
     for flow in iter::flows("pcaps/tls/google.com-tls-1.2.pcap") {
         let key = flow.key();
@@ -145,12 +147,16 @@ fn decode_tls_handshake() {
         decoders.decode(d, &flow, &mut customs);
         decoders.append(d, &key,  &mut customs);
 
-        server_name = value(TLS_SERVER_NAME, &customs).or_else(|| server_name);
+        server_name  = value(TLS_SERVER_NAME, &customs).or_else(|| server_name);
+        server_ver   = value(TLS_SERVER_VERSION, &customs).or_else(|| server_ver);
+        cipher_suite = value(TLS_CIPHER_SUITE, &customs).or_else(|| cipher_suite);
 
         customs.clear();
     }
 
     assert_eq!(Some(Value::from("google.com")), server_name);
+    assert_eq!(Some(Value::from(0x0303)), server_ver);
+    assert_eq!(Some(Value::from(0xc02b)), cipher_suite);
 }
 
 #[test]

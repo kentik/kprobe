@@ -7,15 +7,19 @@ use custom::*;
 use super::conn::Connection;
 
 pub struct Decoder {
-    server_name: u64,
-    conns:       HashMap<(Addr, Addr), Connection>,
+    server_name:  u64,
+    server_ver:   Option<u64>,
+    cipher_suite: Option<u64>,
+    conns:        HashMap<(Addr, Addr), Connection>,
 }
 
 impl Decoder {
     pub fn new(cs: &Customs) -> Result<Decoder, ()> {
         Ok(Decoder{
-            server_name: cs.get(TLS_SERVER_NAME)?,
-            conns:       HashMap::new(),
+            server_name:  cs.get(TLS_SERVER_NAME)?,
+            server_ver:   cs.get(TLS_SERVER_VERSION).ok(),
+            cipher_suite: cs.get(TLS_CIPHER_SUITE).ok(),
+            conns:        HashMap::new(),
         })
     }
 
@@ -33,10 +37,24 @@ impl Decoder {
     }
 
     pub fn append(&mut self, key: &Key, cs: &mut Customs) {
-        let server_name = self.server_name;
+        let server_name  = self.server_name;
+        let server_ver   = self.server_ver;
+        let cipher_suite = self.cipher_suite;
+
         if let Some(conn) = self.conn(key.1, key.2, 0) {
             let state = conn.state();
+
             state.host_name.as_ref().map(|name| cs.add_str(server_name, name));
+
+            state.server_ver.and_then(|ver| server_ver.map(|id| {
+                let major = ver.0 as u32;
+                let minor = ver.1 as u32;
+                cs.add_u32(id, major << 8 | minor);
+            }));
+
+            state.cipher_suite.and_then(|suite| cipher_suite.map(|id| {
+                cs.add_u32(id, suite.0 as u32);
+            }));
         }
     }
 

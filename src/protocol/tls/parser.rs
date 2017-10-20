@@ -19,10 +19,10 @@ pub enum Hello {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Version(u8, u8);
+pub struct Version(pub u8, pub u8);
 
-#[derive(Debug)]
-pub struct CipherSuite(u16);
+#[derive(Copy, Clone, Debug)]
+pub struct CipherSuite(pub u16);
 
 #[derive(Debug)]
 pub enum Extension {
