@@ -94,7 +94,7 @@ impl State {
     }
 
     fn partial(&mut self, len: usize) -> usize {
-        if len > 4096 {
+        if len > 8192 {
             self.parsing = false;
             return 0;
         }
