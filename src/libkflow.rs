@@ -24,6 +24,8 @@ pub struct Config {
     pub device_ip: Option<CString>,
     pub timeout:   Duration,
     pub verbose:   u32,
+    pub program:   CString,
+    pub version:   CString,
 }
 
 #[derive(Debug)]
@@ -56,6 +58,8 @@ pub enum Error {
 
 impl Config {
     pub fn new(device: &str, snaplen: i32, promisc: bool) -> Self {
+        let program = env!("CARGO_PKG_NAME");
+        let version = env!("CARGO_PKG_VERSION");
         Config {
             url: CString::new("https://flow.kentik.com/chf").unwrap(),
             api: API{
@@ -78,6 +82,8 @@ impl Config {
             device_ip: None,
             timeout:   Duration::seconds(30),
             verbose:   0,
+            program:   CString::new(program).unwrap(),
+            version:   CString::new(version).unwrap(),
         }
     }
 }
@@ -108,6 +114,8 @@ pub fn configure(cfg: &Config) -> Result<Vec<kflowCustom>, Error> {
         device_ip: cfg.device_ip.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
         timeout:   cfg.timeout.num_milliseconds() as libc::c_int,
         verbose:   cfg.verbose as libc::c_int,
+        program:   cfg.program.as_ptr(),
+        version:   cfg.version.as_ptr(),
     };
 
     let mut c_customs: *mut kflowCustom = ptr::null_mut();
@@ -255,6 +263,8 @@ struct kflowConfig {
     device_ip: *const libc::c_char,
     timeout:   libc::c_int,
     verbose:   libc::c_int,
+    program:   *const libc::c_char,
+    version:   *const libc::c_char,
 }
 
 #[repr(C)]
