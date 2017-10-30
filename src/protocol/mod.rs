@@ -1,6 +1,7 @@
 pub mod buf;
 pub mod classify;
 pub mod decode;
+pub mod dhcp;
 pub mod dns;
 pub mod http;
 pub mod postgres;

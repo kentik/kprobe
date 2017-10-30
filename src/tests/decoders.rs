@@ -1,8 +1,58 @@
 use time::Duration;
+use std::net::Ipv4Addr;
 use custom::Customs;
 use protocol::{Classify, Decoder, Decoders};
 use queue::Counter;
 use super::*;
+
+#[test]
+fn decode_dhcp() {
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
+
+    let mut flows = iter::flows("pcaps/dhcp/dhcpv4.pcap");
+
+    let mac     = Value::from("00:1c:42:60:bb:37");
+    let host    = Value::from("chdev");
+    let domain  = Value::from("localdomain");
+    let yiaddr  = Value::from("10.211.55.16".parse::<Ipv4Addr>().unwrap());
+    let siaddr  = Value::from("10.211.55.1".parse::<Ipv4Addr>().unwrap());
+    let lease   = Value::from(1800);
+
+    // Request
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+
+    assert_eq!(Some(Value::from(1)), value(DHCP_OP, &customs));
+    assert_eq!(Some(Value::from(3)), value(DHCP_MSG_TYPE, &customs));
+    assert_eq!(Some(Value::from(0)), value(DHCP_CI_ADDR, &customs));
+    assert_eq!(Some(Value::from(0)), value(DHCP_YI_ADDR, &customs));
+    assert_eq!(Some(Value::from(0)), value(DHCP_SI_ADDR, &customs));
+    assert_eq!(Some(mac.clone()),    value(DHCP_CH_ADDR, &customs));
+    assert_eq!(Some(host.clone()),   value(DHCP_HOSTNAME, &customs));
+    assert_eq!(None,                 value(DHCP_DOMAIN, &customs));
+    assert_eq!(None,                 value(DHCP_LEASE, &customs));
+    assert_eq!(None,                 value(APP_LATENCY, &customs));
+
+    customs.clear();
+
+    // ACK
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+
+    assert_eq!(Some(Value::from(2)), value(DHCP_OP, &customs));
+    assert_eq!(Some(Value::from(5)), value(DHCP_MSG_TYPE, &customs));
+    assert_eq!(Some(Value::from(0)), value(DHCP_CI_ADDR, &customs));
+    assert_eq!(Some(yiaddr),         value(DHCP_YI_ADDR, &customs));
+    assert_eq!(Some(siaddr),         value(DHCP_SI_ADDR, &customs));
+    assert_eq!(Some(mac.clone()),    value(DHCP_CH_ADDR, &customs));
+    assert_eq!(Some(host.clone()),   value(DHCP_HOSTNAME, &customs));
+    assert_eq!(Some(domain.clone()), value(DHCP_DOMAIN, &customs));
+    assert_eq!(Some(lease.clone()),  value(DHCP_LEASE, &customs));
+    assert_eq!(Some(Value::from(1)), value(APP_LATENCY, &customs));
+}
+
 
 #[test]
 fn decode_http() {

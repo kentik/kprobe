@@ -6,7 +6,7 @@ mod export;
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::mem::swap;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 use libc::c_char;
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
@@ -300,10 +300,12 @@ pub const CUSTOMS: &[kflowCustom] = &[
     custom(b"INT01\0",                  14, KFLOW_CUSTOM_U32),
     custom(b"INT02\0",                  15, KFLOW_CUSTOM_U32),
     custom(b"INT03\0",                  16, KFLOW_CUSTOM_U32),
-    custom(b"STR00\0",                  17, KFLOW_CUSTOM_STR),
-    custom(b"STR01\0",                  18, KFLOW_CUSTOM_STR),
-    custom(b"STR02\0",                  19, KFLOW_CUSTOM_STR),
-    custom(b"STR03\0",                  20, KFLOW_CUSTOM_STR),
+    custom(b"INT04\0",                  17, KFLOW_CUSTOM_U32),
+    custom(b"INT05\0",                  18, KFLOW_CUSTOM_U32),
+    custom(b"STR00\0",                  19, KFLOW_CUSTOM_STR),
+    custom(b"STR01\0",                  20, KFLOW_CUSTOM_STR),
+    custom(b"STR02\0",                  21, KFLOW_CUSTOM_STR),
+    custom(b"STR03\0",                  22, KFLOW_CUSTOM_STR),
 ];
 
 pub const _CUSTOMS: &[kflowCustom] = &[
@@ -340,7 +342,7 @@ const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Str(String),
     U32(u32),
@@ -365,6 +367,12 @@ impl From<*const c_char> for Value {
 impl From<u32> for Value {
     fn from(n: u32) -> Self {
         Value::U32(n)
+    }
+}
+
+impl From<Ipv4Addr> for Value {
+    fn from(v: Ipv4Addr) -> Self {
+        Value::U32(v.into())
     }
 }
 

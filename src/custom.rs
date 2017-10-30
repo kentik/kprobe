@@ -35,6 +35,15 @@ pub const HTTP_STATUS:          &str = "KFLOW_HTTP_STATUS";
 pub const TLS_SERVER_NAME:      &str = "TLS_SERVER_NAME";
 pub const TLS_SERVER_VERSION:   &str = "TLS_SERVER_VERSION";
 pub const TLS_CIPHER_SUITE:     &str = "TLS_CIPHER_SUITE";
+pub const DHCP_OP:              &str = "DHCP_OP";
+pub const DHCP_MSG_TYPE:        &str = "DHCP_MSG_TYPE";
+pub const DHCP_CI_ADDR:         &str = "DHCP_CI_ADDR";
+pub const DHCP_YI_ADDR:         &str = "DHCP_YI_ADDR";
+pub const DHCP_SI_ADDR:         &str = "DHCP_SI_ADDR";
+pub const DHCP_LEASE:           &str = "DHCP_LEASE";
+pub const DHCP_CH_ADDR:         &str = "DHCP_CH_ADDR";
+pub const DHCP_HOSTNAME:        &str = "DHCP_HOSTNAME";
+pub const DHCP_DOMAIN:          &str = "DHCP_DOMAIN";
 
 #[derive(Debug)]
 pub struct Customs {
@@ -57,6 +66,10 @@ impl Customs {
             let str03 = fields["STR03"];
             let int00 = fields["INT00"];
             let int01 = fields["INT01"];
+            let int02 = fields["INT02"];
+            let int03 = fields["INT03"];
+            let int04 = fields["INT04"];
+            let int05 = fields["INT05"];
             let ooo   = fields["OOORDER_PKTS"];
             let retx  = fields["RETRANSMITTED_PKTS"];
 
@@ -74,6 +87,16 @@ impl Customs {
             fields.insert(TLS_SERVER_NAME.to_owned(),    str00);
             fields.insert(TLS_SERVER_VERSION.to_owned(), int00);
             fields.insert(TLS_CIPHER_SUITE.to_owned(),   int01);
+
+            fields.insert(DHCP_OP.to_owned(),            int00);
+            fields.insert(DHCP_MSG_TYPE.to_owned(),      int01);
+            fields.insert(DHCP_CI_ADDR.to_owned(),       int02);
+            fields.insert(DHCP_YI_ADDR.to_owned(),       int03);
+            fields.insert(DHCP_SI_ADDR.to_owned(),       int04);
+            fields.insert(DHCP_LEASE.to_owned(),         int05);
+            fields.insert(DHCP_CH_ADDR.to_owned(),       str00);
+            fields.insert(DHCP_HOSTNAME.to_owned(),      str01);
+            fields.insert(DHCP_DOMAIN.to_owned(),        str02);
 
             fields.insert(OOORDER_IN.to_owned(),         ooo);
             fields.insert(OOORDER_OUT.to_owned(),        ooo);
@@ -101,6 +124,7 @@ impl Customs {
                 Decoder::DNS  => self.add_u32(id, 1),
                 Decoder::HTTP => self.add_u32(id, 2),
                 Decoder::TLS  => self.add_u32(id, 3),
+                Decoder::DHCP => self.add_u32(id, 4),
                 _             => (),
             }
         });
