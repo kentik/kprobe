@@ -1,3 +1,4 @@
+use time::Duration;
 use custom::Customs;
 use protocol::{Classify, Decoder, Decoders};
 use super::*;
@@ -32,6 +33,29 @@ fn decode_http() {
     assert_eq!(Some(Value::from("curl/7.38.0")), req_ua);
     assert_eq!(Some(Value::from(302)), res_status);
     assert_eq!(Some(Value::from(7)),latency);
+}
+
+#[test]
+fn decode_http_reset_latency() {
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
+
+    let mut latency: Option<Value> = None;
+
+    for i in 0..2 {
+        let extra = Duration::seconds(i * 2);
+        for mut flow in iter::flows("pcaps/http/google.com.pcap") {
+            let d = classify.find(&flow);
+
+            flow.timestamp = flow.timestamp + extra;
+            decoders.decode(d, &flow, &mut customs);
+            latency = value(APP_LATENCY, &customs).or_else(|| latency);
+
+            customs.clear();
+        }
+        assert_eq!(Some(Value::from(7)),latency);
+    }
 }
 
 #[test]

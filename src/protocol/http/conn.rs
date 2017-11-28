@@ -159,7 +159,7 @@ impl ReqState {
                 host:    self.state.host.take(),
                 referer: self.state.referer.take(),
                 ua:      self.state.ua.take(),
-                ts:      self.ts.unwrap(),
+                ts:      self.ts.take().unwrap(),
             });
             self.state.complete = false;
             self.parser = Parser::request();
