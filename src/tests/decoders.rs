@@ -36,6 +36,25 @@ fn decode_http() {
 }
 
 #[test]
+fn decode_http_dir_correct() {
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
+
+    let mut req_host: Option<Value> = None;
+
+    // skip the SYN packet, verify server port correct for SYNACK
+    for flow in iter::flows("pcaps/http/google.com.pcap").skip(1) {
+        let d = classify.find(&flow);
+        decoders.decode(d, &flow, &mut customs);
+        req_host = value(HTTP_HOST, &customs).or_else(|| req_host);
+        customs.clear();
+    }
+
+    assert_eq!(Some(Value::from("google.com")), req_host);
+}
+
+#[test]
 fn decode_http_reset_latency() {
     let mut customs  = Customs::new(&CUSTOMS);
     let mut classify = Classify::new();

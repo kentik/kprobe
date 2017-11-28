@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry::*;
 use std::collections::hash_map::VacantEntry;
 use std::ffi::CString;
 use time::Duration;
-use flow::{Addr, Flow, Timestamp, SYN, FIN};
+use flow::{Addr, Flow, Timestamp, SYN, ACK, FIN};
 use custom::*;
 use super::conn::Connection;
 
@@ -60,9 +60,11 @@ impl Decoder {
         };
 
         let maybe_insert = |e: VacantEntry<'a, _, _>| -> Option<&'a mut Connection> {
-            match flags & SYN {
-                SYN => Some(e.insert(Connection::new(dst.port))),
-                _   => None,
+            const SYNACK: u16 = SYN|ACK;
+            match flags & SYNACK {
+                SYN    => Some(e.insert(Connection::new(dst.port))),
+                SYNACK => Some(e.insert(Connection::new(src.port))),
+                _      => None,
             }
         };
 
