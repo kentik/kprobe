@@ -8,8 +8,7 @@ use kprobe::libkflow;
 use kprobe::protocol::Classify;
 use kprobe::flow::Protocol::TCP;
 use kprobe::protocol::Decoder;
-use pnet::datalink::NetworkInterface;
-use pcap::{Capture, Device};
+use pcap::Capture;
 use libkflow::Error::*;
 
 fn main() {
@@ -17,18 +16,15 @@ fn main() {
     let verbose = args.count("verbose");
     let decode  = args.count("no_decode") == 0;
     let promisc = args.count("promisc") > 0;
-    let sample  = args.opt("sample").unwrap_or(None);
+    let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
 
-    let interface: NetworkInterface = args.arg("interface").unwrap_or_else(|err| {
-        println!("{}", err);
-        exit(1)
-    });
+    let (interface, device) = args.arg("interface").unwrap_or_else(abort);
 
     let mut cfg = libkflow::Config::new(&interface.name, snaplen, promisc);
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
-    cfg.api.email   = args.arg("email").unwrap_or(cfg.api.email);
-    cfg.api.token   = args.arg("token").unwrap_or(cfg.api.token);
+    cfg.api.email   = args.arg("email").unwrap_or_else(abort);
+    cfg.api.token   = args.arg("token").unwrap_or_else(abort);
     cfg.api.url     = args.arg("api_url").unwrap_or(cfg.api.url);
     cfg.metrics.url = args.arg("metrics_url").unwrap_or(cfg.metrics.url);
     cfg.device_id   = args.arg("device_id").unwrap_or(cfg.device_id);
@@ -63,11 +59,7 @@ fn main() {
         classify.add(TCP, port, Decoder::HTTP);
     }
 
-    let dev = Device::list().unwrap().into_iter()
-        .find(|d| d.name == interface.name)
-        .unwrap();
-
-    let cap = Capture::from_device(dev).unwrap()
+    let cap = Capture::from_device(device).unwrap()
         .buffer_size(100_000_000)
         .timeout(15*1000) // FIXME: should be same as flush timeout
         .snaplen(snaplen)
@@ -86,4 +78,9 @@ fn main() {
         sample:   sample,
     });
     kprobe.run(cap).expect("capture succeeded");
+}
+
+fn abort<T>(e: args::Error) -> T {
+    println!("{}", e);
+    exit(1);
 }

@@ -1,4 +1,5 @@
 use clap::{ArgMatches, Values};
+use pcap::Device;
 use pnet::datalink::{self, NetworkInterface};
 use std::borrow::Cow;
 use std::fmt;
@@ -7,22 +8,22 @@ use std::ffi::{CString, NulError};
 pub fn parse<'a>() -> Args<'a> {
     let matches = clap_app!(kprobe =>
       (version: env!("CARGO_PKG_VERSION"))
-      (@arg interface: -i --interface       +takes_value +required "Network interface")
-      (@arg sample:       --sample          +takes_value           "Sample 1:N flows")
-      (@arg email:        --email           +takes_value           "API user email")
-      (@arg token:        --token           +takes_value           "API access token")
-      (@arg device_id:    --("device-id")   +takes_value           "Device ID")
-      (@arg device_if:    --("device-if")   +takes_value           "Device interface")
-      (@arg device_ip:    --("device-ip")   +takes_value           "Device IP")
-      (@arg api_url:      --("api-url")     +takes_value           "API URL")
-      (@arg flow_url:     --("flow-url")    +takes_value           "Flow URL")
-      (@arg metrics_url:  --("metrics-url") +takes_value           "Metrics URL")
-      (@arg proxy_url:    --("proxy-url")   +takes_value           "Proxy URL")
-      (@arg http_port:    --("http-port")   +takes_value           "Decode HTTP on port")
-      (@arg no_decode:    --("no-decode")                          "No protocol decoding")
-      (@arg promisc:      --promisc                                "Promiscuous mode")
-      (@arg snaplen:      --snaplen         +takes_value           "Capture snaplen")
-      (@arg verbose: -v                     ...                    "Verbose output")
+      (@arg interface: -i --interface       <interface> "Network interface")
+      (@arg email:        --email           <email>     "API user email")
+      (@arg token:        --token           <token>     "API access token")
+      (@arg sample:       --sample          [N]         "Sample 1:N flows")
+      (@arg device_id:    --("device-id")   [ID]        "Device ID")
+      (@arg device_if:    --("device-if")   [interface] "Device interface")
+      (@arg device_ip:    --("device-ip")   [IP]        "Device IP")
+      (@arg api_url:      --("api-url")     [URL]       "API URL")
+      (@arg flow_url:     --("flow-url")    [URL]       "Flow URL")
+      (@arg metrics_url:  --("metrics-url") [URL]       "Metrics URL")
+      (@arg proxy_url:    --("proxy-url")   [URL]       "Proxy URL")
+      (@arg http_port:    --("http-port")   [port]      "Decode HTTP on port")
+      (@arg no_decode:    --("no-decode")               "No protocol decoding")
+      (@arg promisc:      --promisc                     "Promiscuous mode")
+      (@arg snaplen:      --snaplen         [N]         "Capture snaplen")
+      (@arg verbose: -v                     ...         "Verbose output")
     ).get_matches();
     Args{matches: matches}
 }
@@ -73,12 +74,22 @@ pub trait FromArg: Sized {
     fn from_arg(&str) -> Result<Self, Error>;
 }
 
-impl FromArg for NetworkInterface {
-    fn from_arg(value: &str) -> Result<NetworkInterface, Error> {
+impl FromArg for (NetworkInterface, Device) {
+    fn from_arg(value: &str) -> Result<Self, Error> {
         let mut interfaces = datalink::interfaces().into_iter();
-        interfaces.find(|i| i.name == value).ok_or_else(|| {
+        let mut devices    = Device::list().map_err(|e| {
+            Error::Invalid(format!("pcap error '{}'", e))
+        })?.into_iter();
+
+        let interface = interfaces.find(|i| i.name == value).ok_or_else(|| {
             Error::Invalid(format!("unknown interface '{}'", value))
-        })
+        })?;
+
+        let device = devices.find(|d| d.name == value).ok_or_else(|| {
+            Error::Invalid(format!("unsupported interface '{}'", value))
+        })?;
+
+        Ok((interface, device))
     }
 }
 
