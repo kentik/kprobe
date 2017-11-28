@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry::*;
 use std::collections::hash_map::VacantEntry;
 use std::ffi::CString;
 use time::Duration;
-use flow::{Addr, Flow, Timestamp, SYN};
+use flow::{Addr, Flow, Timestamp, SYN, FIN};
 use custom::*;
 use super::conn::Connection;
 
@@ -33,10 +33,19 @@ impl Decoder {
     }
 
     pub fn decode(&mut self, flow: &Flow, cs: &mut Customs) -> bool {
-        match self.conn(flow.src, flow.dst, flow.tcp_flags()) {
+        let flags = flow.tcp_flags();
+        let decoded = match self.conn(flow.src, flow.dst, flags) {
             Some(ref mut c) if c.is_client(flow) => self.parse_req(c, flow, cs),
             Some(ref mut c)                      => self.parse_res(c, flow, cs),
             None                                 => false,
+        };
+
+        if !decoded && !flow.payload.is_empty() && flags & FIN == FIN {
+            let mut flow = flow.clone();
+            flow.payload = &[];
+            self.decode(&flow, cs)
+        } else {
+            decoded
         }
     }
 

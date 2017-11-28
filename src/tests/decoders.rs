@@ -59,6 +59,24 @@ fn decode_http_reset_latency() {
 }
 
 #[test]
+fn decode_http_1_0_fin_data() {
+    let mut customs  = Customs::new(&CUSTOMS);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
+
+    let mut res_status: Option<Value> = None;
+
+    for flow in iter::flows("pcaps/http/http-1.0-fin-data.pcap") {
+        let d = classify.find(&flow);
+        decoders.decode(d, &flow, &mut customs);
+        res_status = value(HTTP_STATUS, &customs).or_else(|| res_status);
+        customs.clear();
+    }
+
+    assert_eq!(Some(Value::from(200)), res_status);
+}
+
+#[test]
 fn decode_dns() {
     let mut customs  = Customs::new(&CUSTOMS);
     let mut classify = Classify::new();
