@@ -20,8 +20,6 @@ fn test_decode() {
         assert_eq!(200, r.status);
         assert_eq!(Some(cstr("/")), r.url);
     }
-
-    assert_eq!(true, c.is_idle(Timestamp::zero(), Duration::seconds(1)));
 }
 
 #[test]
@@ -33,8 +31,6 @@ fn test_decode_invalid_req() {
         let r = c.parse_req(ts(), b);
         assert!(r.is_none());
     }
-
-    assert_eq!(true, c.is_idle(Timestamp::zero(), Duration::seconds(1)));
 }
 
 #[test]
@@ -52,8 +48,6 @@ fn test_decode_invalid_res() {
         let r = c.parse_res(ts(), b);
         assert!(r.is_none());
     }
-
-    assert_eq!(true, c.is_idle(Timestamp::zero(), Duration::seconds(1)));
 }
 
 #[test]
@@ -64,6 +58,19 @@ fn test_header_case_insensitive() {
         let r = c.parse_req(ts(), &b.into_bytes()).unwrap();
         assert_eq!(Some(cstr("foo")), r.ua);
     }
+}
+
+#[test]
+fn test_is_idle() {
+    let timeout = Duration::seconds(15);
+    let now     = Timestamp::now();
+
+    let mut c = Connection::new(80);
+    let b = b"GET / HTTP/1.1\r\n\r\n";
+    c.parse_req(now, b);
+
+    assert_eq!(false, c.is_idle(now + Duration::seconds(10), timeout));
+    assert_eq!(true,  c.is_idle(now + Duration::seconds(16), timeout));
 }
 
 fn ts() -> Timestamp {

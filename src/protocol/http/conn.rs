@@ -122,8 +122,7 @@ impl Connection {
     }
 
     pub fn is_idle(&self, ts: Timestamp, timeout: Duration) -> bool {
-        let idle = self.req_state.is_idle() && self.res_state.is_idle();
-        (idle && self.pending.is_empty()) || (ts - self.last) > timeout
+        (ts - self.last) > timeout
     }
 }
 
@@ -168,10 +167,6 @@ impl ReqState {
 
         Ok(req)
     }
-
-    fn is_idle(&self) -> bool {
-        self.buffer.is_empty()
-    }
 }
 
 impl ResState {
@@ -203,10 +198,6 @@ impl ResState {
         //println!("res buffer {:p} currently {:?} bytes", &buf, buf.len());
 
         Ok(res)
-    }
-
-    fn is_idle(&self) -> bool {
-        self.buffer.is_empty()
     }
 }
 
