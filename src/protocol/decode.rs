@@ -64,7 +64,7 @@ impl Decoders {
     }
 
     pub fn clear(&mut self, ts: Timestamp) {
-        let timeout = Duration::seconds(15);
+        let timeout = Duration::seconds(60);
         self.dns.as_mut().map(|d| d.clear(ts, timeout));
         self.http.as_mut().map(|d| d.clear(ts, timeout));
         self.tls.as_mut().map(|d| d.clear(ts, timeout));
