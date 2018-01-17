@@ -15,7 +15,6 @@ pub struct Tracker {
     retx_out:     Option<u64>,
     retx_repeats: Option<u64>,
     ooorder_in:   Option<u64>,
-    ooorder_out:  Option<u64>,
     rwindow:      Option<u64>,
     zwindows:     Option<u64>,
     generator:    Generator,
@@ -62,7 +61,6 @@ impl Tracker {
             retx_out:     cs.get(RETRANSMITTED_OUT).ok(),
             retx_repeats: cs.get(REPEATED_RETRANSMITS).ok(),
             ooorder_in:   cs.get(OOORDER_IN).ok(),
-            ooorder_out:  cs.get(OOORDER_OUT).ok(),
             rwindow:      cs.get(RECEIVE_WINDOW).ok(),
             zwindows:     cs.get(ZERO_WINDOWS).ok(),
             generator:    Generator::new(),
@@ -152,7 +150,7 @@ impl Tracker {
         }
     }
 
-    pub fn append(&mut self, key: &Key, dir: Direction, cs: &mut Customs) {
+    pub fn append(&mut self, key: &Key, _dir: Direction, cs: &mut Customs) {
         if let Some(ref mut this) = self.states.get_mut(key) {
             if this.id != 0 {
                 self.conn_id.map(|id| cs.add_u32(id, this.id));
@@ -180,10 +178,7 @@ impl Tracker {
             }
 
             if this.ooorder > 0 {
-                match dir {
-                    Direction::In => &self.ooorder_in,
-                    _             => &self.ooorder_out,
-                }.map(|id| cs.add_u32(id, this.ooorder));
+                self.ooorder_in.map(|id| cs.add_u32(id, this.ooorder));
                 this.ooorder = 0;
             }
 
