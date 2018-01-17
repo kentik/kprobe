@@ -2,7 +2,7 @@ pub mod id;
 
 use std::collections::HashMap;
 use time::Duration;
-use flow::{Direction, Flow, Key, Timestamp, Transport, Window};
+use flow::{Flow, Key, Timestamp, Transport, Window};
 use flow::{FIN, SYN, RST, ACK};
 use custom::*;
 use track::id::Generator;
@@ -150,7 +150,7 @@ impl Tracker {
         }
     }
 
-    pub fn append(&mut self, key: &Key, _dir: Direction, cs: &mut Customs) {
+    pub fn append(&mut self, key: &Key, cs: &mut Customs) {
         if let Some(ref mut this) = self.states.get_mut(key) {
             if this.id != 0 {
                 self.conn_id.map(|id| cs.add_u32(id, this.id));

@@ -129,7 +129,7 @@ impl FlowQueue {
 
     fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &mut Counter, sr: u32) {
         customs.append(ctr);
-        tracker.append(key, ctr.direction, customs);
+        tracker.append(key, customs);
         libkflow::send(key, ctr, sr, match &customs {
             cs if !cs.is_empty() => Some(cs),
             _                    => None,

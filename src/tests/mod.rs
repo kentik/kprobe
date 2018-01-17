@@ -102,7 +102,7 @@ fn test_udp_application_latency() {
     assert_eq!(Some(44), trk.latency(&key).map(|d| d.num_milliseconds()));
 
     let mut customs = Customs::new(&CUSTOMS);
-    trk.append(&key, Direction::Out, &mut customs);
+    trk.append(&key, &mut customs);
 
     assert_eq!(Some(Value::from(44)), value(APP_LATENCY, &customs));
 }
@@ -125,7 +125,7 @@ fn test_tcp_application_latency() {
     assert_eq!(Some(7), trk.latency(&key).map(|d| d.num_milliseconds()));
 
     let mut customs = Customs::new(&CUSTOMS);
-    trk.append(&key, Direction::Out, &mut customs);
+    trk.append(&key, &mut customs);
 
     assert_eq!(Some(Value::from(7)), value(APP_LATENCY, &customs));
 }
@@ -147,13 +147,13 @@ fn test_tcp_retransmits() {
     assert_eq!(Some((6, 1)), trk.retransmits(&key1));
 
     let mut customs = Customs::new(&CUSTOMS);
-    trk.append(&key0, Direction::Out, &mut customs);
+    trk.append(&key0, &mut customs);
 
     assert_eq!(Some(Value::from(8)), value(RETRANSMITTED_OUT, &customs));
     assert_eq!(Some(Value::from(1)), value(REPEATED_RETRANSMITS, &customs));
 
     customs.clear();
-    trk.append(&key1, Direction::In, &mut customs);
+    trk.append(&key1, &mut customs);
 
     assert_eq!(Some(Value::from(6)), value(RETRANSMITTED_OUT, &customs));
     assert_eq!(Some(Value::from(1)), value(REPEATED_RETRANSMITS, &customs));
@@ -169,7 +169,7 @@ fn test_tcp_receive_window() {
         let window = Value::from(*window);
 
         trk.add(&flow);
-        trk.append(&flow.key(), Direction::In, &mut customs);
+        trk.append(&flow.key(), &mut customs);
 
         assert_eq!(Some(window), value(RECEIVE_WINDOW, &customs));
     }
@@ -180,7 +180,7 @@ fn test_tcp_receive_window() {
         let mut customs = Customs::new(&CUSTOMS);
 
         trk.add(&flow);
-        trk.append(&flow.key(), Direction::In, &mut customs);
+        trk.append(&flow.key(), &mut customs);
 
         assert_eq!(None, value(RECEIVE_WINDOW, &customs));
     }
@@ -201,7 +201,7 @@ fn test_tcp_zero_windows() {
     assert_eq!(Some(10), trk.zwindows(&key));
 
     let mut customs = Customs::new(&CUSTOMS);
-    trk.append(&key, Direction::In, &mut customs);
+    trk.append(&key, &mut customs);
 
     assert_eq!(Some(Value::from(10)), value(ZERO_WINDOWS, &customs));
 }
@@ -239,13 +239,13 @@ fn test_connection_id() {
 
     let mut customs = Customs::new(&CUSTOMS);
 
-    trk.append(&a.key(), a.direction, &mut customs);
+    trk.append(&a.key(), &mut customs);
     let ida = value(CONNECTION_ID, &customs);
     assert!(ida.is_some());
 
     customs.clear();
 
-    trk.append(&b.key(), b.direction, &mut customs);
+    trk.append(&b.key(), &mut customs);
     let idb = value(CONNECTION_ID, &customs);
     assert!(idb.is_some());
 
