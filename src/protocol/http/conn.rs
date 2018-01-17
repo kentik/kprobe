@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use std::collections::VecDeque;
 use std::ffi::CString;
 use std::slice;
