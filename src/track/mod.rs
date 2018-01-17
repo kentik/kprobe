@@ -12,7 +12,6 @@ pub struct Tracker {
     cli_latency:  Option<u64>,
     srv_latency:  Option<u64>,
     app_latency:  Option<u64>,
-    retx_in:      Option<u64>,
     retx_out:     Option<u64>,
     retx_repeats: Option<u64>,
     ooorder_in:   Option<u64>,
@@ -60,7 +59,6 @@ impl Tracker {
             cli_latency:  cs.get(CLIENT_NW_LATENCY).ok(),
             srv_latency:  cs.get(SERVER_NW_LATENCY).ok(),
             app_latency:  cs.get(APP_LATENCY).ok(),
-            retx_in:      cs.get(RETRANSMITTED_IN).ok(),
             retx_out:     cs.get(RETRANSMITTED_OUT).ok(),
             retx_repeats: cs.get(REPEATED_RETRANSMITS).ok(),
             ooorder_in:   cs.get(OOORDER_IN).ok(),
@@ -174,10 +172,7 @@ impl Tracker {
             this.retransmits.reset();
 
             if retransmits > 0 {
-                match dir {
-                    Direction::In => &self.retx_in,
-                    _             => &self.retx_out,
-                }.map(|id| cs.add_u32(id, retransmits));
+                self.retx_out.map(|id| cs.add_u32(id, retransmits));
             }
 
             if repeats > 0 {

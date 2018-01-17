@@ -155,7 +155,7 @@ fn test_tcp_retransmits() {
     customs.clear();
     trk.append(&key1, Direction::In, &mut customs);
 
-    assert_eq!(Some(Value::from(6)), value(RETRANSMITTED_IN, &customs));
+    assert_eq!(Some(Value::from(6)), value(RETRANSMITTED_OUT, &customs));
     assert_eq!(Some(Value::from(1)), value(REPEATED_RETRANSMITS, &customs));
 }
 
