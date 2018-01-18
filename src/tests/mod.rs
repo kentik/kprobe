@@ -87,6 +87,7 @@ fn test_reassemble_fragmented() {
     assert!(done);
 }
 
+/*
 #[test]
 fn test_udp_application_latency() {
     let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
@@ -129,6 +130,7 @@ fn test_tcp_application_latency() {
 
     assert_eq!(Some(Value::from(7)), value(APP_LATENCY, &customs));
 }
+*/
 
 #[test]
 fn test_tcp_retransmits() {

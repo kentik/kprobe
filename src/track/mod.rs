@@ -74,9 +74,9 @@ impl Tracker {
         if this.payload.is_none() && !flow.payload.is_empty() {
             this.payload = Some(flow.timestamp);
 
-            if let Some(peer @ &mut State{latency: None, ..}) = self.peer(flow) {
-                peer.latency = peer.payload.map(|ts| flow.timestamp - ts);
-            }
+            // if let Some(peer @ &mut State{latency: None, ..}) = self.peer(flow) {
+            //     peer.latency = peer.payload.map(|ts| flow.timestamp - ts);
+            // }
         }
 
         if let Transport::TCP{ seq, flags, window, .. } = flow.transport {
