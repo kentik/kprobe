@@ -87,9 +87,8 @@ fn test_reassemble_fragmented() {
     assert!(done);
 }
 
-/*
 #[test]
-fn test_udp_application_latency() {
+fn test_udp_first_exchange_latency() {
     let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/dns/google.com-any.pcap") {
@@ -98,18 +97,18 @@ fn test_udp_application_latency() {
 
     let src = Addr{addr: "10.0.0.52".parse().unwrap(), port: 52407};
     let dst = Addr{addr: "8.8.4.4".parse().unwrap(),   port: 53   };
-    let key = Key(Protocol::UDP, src, dst);
+    let key = Key(Protocol::UDP, dst, src);
 
     assert_eq!(Some(44), trk.latency(&key).map(|d| d.num_milliseconds()));
 
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key, &mut customs);
 
-    assert_eq!(Some(Value::from(44)), value(APP_LATENCY, &customs));
+    assert_eq!(Some(Value::from(44)), value(FPX_LATENCY, &customs));
 }
 
 #[test]
-fn test_tcp_application_latency() {
+fn test_tcp_first_exchange_latency() {
     let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/http/google.com.pcap") {
@@ -121,16 +120,15 @@ fn test_tcp_application_latency() {
 
     let src = Addr{addr: "10.211.55.16".parse().unwrap(),   port: 42370};
     let dst = Addr{addr: "172.217.25.110".parse().unwrap(), port: 80   };
-    let key = Key(Protocol::TCP, src, dst);
+    let key = Key(Protocol::TCP, dst, src);
 
     assert_eq!(Some(7), trk.latency(&key).map(|d| d.num_milliseconds()));
 
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key, &mut customs);
 
-    assert_eq!(Some(Value::from(7)), value(APP_LATENCY, &customs));
+    assert_eq!(Some(Value::from(7)), value(FPX_LATENCY, &customs));
 }
-*/
 
 #[test]
 fn test_tcp_retransmits() {
@@ -288,25 +286,26 @@ fn test_min_max_latency() {
 pub const CUSTOMS: &[kflowCustom] = &[
     custom(b"FRAGMENTS\0",              01, KFLOW_CUSTOM_U32),
     custom(b"APPL_LATENCY_MS\0",        02, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_QUERY\0",        03, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_DNS_QUERY_TYPE\0",   04, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_RET_CODE\0",     05, KFLOW_CUSTOM_U32),
-    custom(b"KFLOW_DNS_RESPONSE\0",     06, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_URL\0",         07, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_HOST\0",        08, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_REFERER\0",     09, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_UA\0",          10, KFLOW_CUSTOM_STR),
-    custom(b"KFLOW_HTTP_STATUS\0",      11, KFLOW_CUSTOM_U32),
-    custom(b"CLIENT_NW_LATENCY_MS\0",   12, KFLOW_CUSTOM_U32),
-    custom(b"SERVER_NW_LATENCY_MS\0",   13, KFLOW_CUSTOM_U32),
-    custom(b"RETRANSMITTED_IN_PKTS\0",  14, KFLOW_CUSTOM_U32),
-    custom(b"RETRANSMITTED_OUT_PKTS\0", 15, KFLOW_CUSTOM_U32),
-    custom(b"REPEATED_RETRANSMITS\0",   16, KFLOW_CUSTOM_U32),
-    custom(b"OOORDER_IN_PKTS\0",        17, KFLOW_CUSTOM_U32),
-    custom(b"OOORDER_OUT_PKTS\0",       18, KFLOW_CUSTOM_U32),
-    custom(b"RECEIVE_WINDOW\0",         19, KFLOW_CUSTOM_U32),
-    custom(b"ZERO_WINDOWS\0",           20, KFLOW_CUSTOM_U32),
-    custom(b"CONNECTION_ID\0",          21, KFLOW_CUSTOM_U32),
+    custom(b"FPEX_LATENCY_MS\0",        03, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_QUERY\0",        04, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_DNS_QUERY_TYPE\0",   05, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RET_CODE\0",     06, KFLOW_CUSTOM_U32),
+    custom(b"KFLOW_DNS_RESPONSE\0",     07, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_URL\0",         08, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_HOST\0",        09, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_REFERER\0",     10, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_UA\0",          11, KFLOW_CUSTOM_STR),
+    custom(b"KFLOW_HTTP_STATUS\0",      12, KFLOW_CUSTOM_U32),
+    custom(b"CLIENT_NW_LATENCY_MS\0",   13, KFLOW_CUSTOM_U32),
+    custom(b"SERVER_NW_LATENCY_MS\0",   14, KFLOW_CUSTOM_U32),
+    custom(b"RETRANSMITTED_IN_PKTS\0",  15, KFLOW_CUSTOM_U32),
+    custom(b"RETRANSMITTED_OUT_PKTS\0", 16, KFLOW_CUSTOM_U32),
+    custom(b"REPEATED_RETRANSMITS\0",   17, KFLOW_CUSTOM_U32),
+    custom(b"OOORDER_IN_PKTS\0",        18, KFLOW_CUSTOM_U32),
+    custom(b"OOORDER_OUT_PKTS\0",       19, KFLOW_CUSTOM_U32),
+    custom(b"RECEIVE_WINDOW\0",         20, KFLOW_CUSTOM_U32),
+    custom(b"ZERO_WINDOWS\0",           21, KFLOW_CUSTOM_U32),
+    custom(b"CONNECTION_ID\0",          22, KFLOW_CUSTOM_U32),
 ];
 
 const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {

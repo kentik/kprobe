@@ -10,6 +10,7 @@ use queue::Counter;
 
 pub const FRAGMENTS:            &str = "FRAGMENTS";
 pub const APP_LATENCY:          &str = "APPL_LATENCY_MS";
+pub const FPX_LATENCY:          &str = "FPEX_LATENCY_MS";
 pub const CLIENT_NW_LATENCY:    &str = "CLIENT_NW_LATENCY_MS";
 pub const SERVER_NW_LATENCY:    &str = "SERVER_NW_LATENCY_MS";
 pub const RETRANSMITTED_IN:     &str = "RETRANSMITTED_IN_PKTS";

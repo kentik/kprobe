@@ -11,7 +11,7 @@ pub struct Tracker {
     conn_id:      Option<u64>,
     cli_latency:  Option<u64>,
     srv_latency:  Option<u64>,
-    app_latency:  Option<u64>,
+    fpx_latency:  Option<u64>,
     retx_out:     Option<u64>,
     retx_repeats: Option<u64>,
     ooorder_in:   Option<u64>,
@@ -57,7 +57,7 @@ impl Tracker {
             conn_id:      cs.get(CONNECTION_ID).ok(),
             cli_latency:  cs.get(CLIENT_NW_LATENCY).ok(),
             srv_latency:  cs.get(SERVER_NW_LATENCY).ok(),
-            app_latency:  cs.get(APP_LATENCY).ok(),
+            fpx_latency:  cs.get(FPX_LATENCY).ok(),
             retx_out:     cs.get(RETRANSMITTED_OUT).ok(),
             retx_repeats: cs.get(REPEATED_RETRANSMITS).ok(),
             ooorder_in:   cs.get(OOORDER_IN).ok(),
@@ -74,9 +74,9 @@ impl Tracker {
         if this.payload.is_none() && !flow.payload.is_empty() {
             this.payload = Some(flow.timestamp);
 
-            // if let Some(peer @ &mut State{latency: None, ..}) = self.peer(flow) {
-            //     peer.latency = peer.payload.map(|ts| flow.timestamp - ts);
-            // }
+            if let Some(&mut State{payload: Some(ts), ..}) = self.peer(flow) {
+                this.latency = Some(flow.timestamp - ts);
+            }
         }
 
         if let Transport::TCP{ seq, flags, window, .. } = flow.transport {
@@ -163,7 +163,7 @@ impl Tracker {
             };
 
             if let Some(d) = this.latency {
-                self.app_latency.map(|id| cs.add_latency(id, d));
+                self.fpx_latency.map(|id| cs.add_latency(id, d));
             }
 
             let (retransmits, repeats) = this.retransmits.get();
