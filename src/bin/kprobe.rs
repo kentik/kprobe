@@ -31,6 +31,7 @@ fn main() {
     cfg.device_if   = args.opt("device_if").unwrap_or(cfg.device_if);
     cfg.device_ip   = args.opt("device_ip").unwrap_or(cfg.device_ip);
     cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
+    cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
 
     if verbose > 0 {
@@ -52,6 +53,11 @@ fn main() {
 
         exit(1);
     });
+
+    let sample = match sample.unwrap_or(dev.sample) {
+        0 | 1 => None,
+        n     => Some(n),
+    };
 
     let mut classify = Classify::new();
 
