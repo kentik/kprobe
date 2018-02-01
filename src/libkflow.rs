@@ -22,6 +22,7 @@ pub struct Config {
     pub device_id: u32,
     pub device_if: Option<CString>,
     pub device_ip: Option<CString>,
+    pub sample:    u32,
     pub timeout:   Duration,
     pub verbose:   u32,
     pub program:   CString,
@@ -46,6 +47,14 @@ pub struct Capture {
 pub struct Metrics {
     pub interval: Duration,
     pub url:      CString,
+}
+
+#[derive(Debug)]
+pub struct Device {
+    pub id:      u64,
+    pub name:    CString,
+    pub sample:  u64,
+    pub customs: Vec<kflowCustom>,
 }
 
 #[derive(Debug)]
@@ -80,6 +89,7 @@ impl Config {
             device_id: 0,
             device_if: None,
             device_ip: None,
+            sample:    0,
             timeout:   Duration::seconds(30),
             verbose:   0,
             program:   CString::new(program).unwrap(),
@@ -88,7 +98,7 @@ impl Config {
     }
 }
 
-pub fn configure(cfg: &Config) -> Result<Vec<kflowCustom>, Error> {
+pub fn configure(cfg: &Config) -> Result<Device, Error> {
     let c_cfg = kflowConfig {
         URL: cfg.url.as_ptr(),
         API: kflowConfigAPI {
@@ -112,26 +122,35 @@ pub fn configure(cfg: &Config) -> Result<Vec<kflowCustom>, Error> {
         device_id: cfg.device_id as libc::c_int,
         device_if: cfg.device_if.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
         device_ip: cfg.device_ip.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
+        sample:    cfg.sample as libc::c_int,
         timeout:   cfg.timeout.num_milliseconds() as libc::c_int,
         verbose:   cfg.verbose as libc::c_int,
         program:   cfg.program.as_ptr(),
         version:   cfg.version.as_ptr(),
     };
 
-    let mut c_customs: *mut kflowCustom = ptr::null_mut();
-    let mut n_customs: u32 = 0;
+    let mut dev = kflowDevice {
+        id:          0,
+        name:        ptr::null(),
+        sample_rate: 0,
+        c_customs:   ptr::null(),
+        n_customs:   0,
+    };
 
-    unsafe fn customs(ptr: *mut kflowCustom, n: usize) -> Vec<kflowCustom> {
-        let mut vec = Vec::with_capacity(n);
-        ptr::copy(ptr, vec.as_mut_ptr(), n);
-        libc::free(ptr as *mut libc::c_void);
-        vec.set_len(n);
-        vec
-    }
+    unsafe fn device(dev: &kflowDevice) -> Device {
+        let ptr = dev.c_customs;
+        let len = dev.n_customs as usize;
+        Device {
+            id:      dev.id,
+            name:    CStr::from_ptr(dev.name).to_owned(),
+            sample:  dev.sample_rate,
+            customs: slice::from_raw_parts(ptr, len).to_vec(),
+        }
+    };
 
     unsafe {
-        match kflowInit(&c_cfg, &mut c_customs, &mut n_customs) {
-            0 => Ok(customs(c_customs, n_customs as usize)),
+        match kflowInit(&c_cfg, &mut dev) {
+            0 => Ok(device(&dev)),
             1 => Err(Error::InvalidConfig),
             n => Err(Error::Failed(n as u32))
         }
@@ -240,7 +259,7 @@ pub fn version() -> String {
 
 #[link(name = "kflow")]
 extern {
-    fn kflowInit(cfg: *const kflowConfig, customs: *mut *mut kflowCustom, numCustoms: *mut u32) -> libc::c_int;
+    fn kflowInit(cfg: *const kflowConfig, dev: *mut kflowDevice) -> libc::c_int;
     fn kflowSend(flow: *const kflow) -> libc::c_int;
     fn kflowStop(timeout: libc::c_int) -> libc::c_int;
     fn kflowError() -> *const libc::c_char;
@@ -261,6 +280,7 @@ struct kflowConfig {
     device_id: libc::c_int,
     device_if: *const libc::c_char,
     device_ip: *const libc::c_char,
+    sample:    libc::c_int,
     timeout:   libc::c_int,
     verbose:   libc::c_int,
     program:   *const libc::c_char,
@@ -307,6 +327,15 @@ pub union kflowCustomValue {
     pub str: *const libc::c_char,
     pub u32: u32,
     pub f32: f32,
+}
+
+#[repr(C)]
+pub struct kflowDevice {
+    pub id:          u64,
+    pub name:        *const libc::c_char,
+    pub sample_rate: u64,
+    pub c_customs:   *const kflowCustom,
+    pub n_customs:   u32,
 }
 
 #[repr(C)]

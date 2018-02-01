@@ -105,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "kprobe"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.26.2 (registry+https://github.com/rust-lang/crates.io-index)",

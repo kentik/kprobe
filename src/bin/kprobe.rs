@@ -39,7 +39,7 @@ fn main() {
         println!("{:#?}", cfg);
     }
 
-    let customs = libkflow::configure(&cfg).unwrap_or_else(|e| {
+    let dev = libkflow::configure(&cfg).unwrap_or_else(|e| {
         println!("error: {}", match e {
             Failed(7) => format!("authentication failed"),
             Failed(8) => format!("device not found"),
@@ -73,7 +73,7 @@ fn main() {
 
     let mut kprobe = Kprobe::new(interface, Config{
         classify: classify,
-        customs:  customs,
+        customs:  dev.customs,
         decode:   decode,
         sample:   sample,
     });
