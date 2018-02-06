@@ -19,7 +19,7 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg flow_url:     --("flow-url")    [URL]       "Flow URL")
       (@arg metrics_url:  --("metrics-url") [URL]       "Metrics URL")
       (@arg proxy_url:    --("proxy-url")   [URL]       "Proxy URL")
-      (@arg http_port:    --("http-port")   [port]      "Decode HTTP on port")
+      (@arg http_port:    --("http-port")   [port] ...  "Decode HTTP on port")
       (@arg no_decode:    --("no-decode")               "No protocol decoding")
       (@arg promisc:      --promisc                     "Promiscuous mode")
       (@arg snaplen:      --snaplen         [N]         "Capture snaplen")
