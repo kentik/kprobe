@@ -5,6 +5,7 @@ use std::ffi::{CStr, CString};
 use std::ptr;
 use std::slice;
 use std::net::IpAddr;
+use pnet::datalink::NetworkInterface;
 use pnet::util::MacAddr;
 use pnet::packet::PrimitiveValues;
 use time::Duration;
@@ -14,19 +15,21 @@ use super::queue::Counter;
 
 #[derive(Debug)]
 pub struct Config {
-    pub url:       CString,
-    pub api:       API,
-    pub capture:   Capture,
-    pub metrics:   Metrics,
-    pub proxy:     Option<CString>,
-    pub device_id: u32,
-    pub device_if: Option<CString>,
-    pub device_ip: Option<CString>,
-    pub sample:    u32,
-    pub timeout:   Duration,
-    pub verbose:   u32,
-    pub program:   CString,
-    pub version:   CString,
+    pub url:         CString,
+    pub api:         API,
+    pub capture:     Capture,
+    pub metrics:     Metrics,
+    pub proxy:       Option<CString>,
+    pub device_id:   u32,
+    pub device_if:   Option<CString>,
+    pub device_ip:   Option<CString>,
+    pub device_name: CString,
+    pub device_plan: Option<u32>,
+    pub sample:      u32,
+    pub timeout:     Duration,
+    pub verbose:     u32,
+    pub program:     CString,
+    pub version:     CString,
 }
 
 #[derive(Debug)]
@@ -41,6 +44,7 @@ pub struct Capture {
     pub device:  CString,
     pub snaplen: i32,
     pub promisc: bool,
+    pub ip:      Option<CString>,
 }
 
 #[derive(Debug)]
@@ -66,9 +70,15 @@ pub enum Error {
 }
 
 impl Config {
-    pub fn new(device: &str, snaplen: i32, promisc: bool) -> Self {
+    pub fn new(dev: &NetworkInterface, snaplen: i32, promisc: bool) -> Self {
         let program = env!("CARGO_PKG_NAME");
         let version = env!("CARGO_PKG_VERSION");
+
+        let device  = dev.name.clone();
+        let ip      = dev.ips.iter().filter(|net| net.ip().is_ipv4()).map(|net| {
+            CString::new(net.ip().to_string()).unwrap()
+        }).next();
+
         Config {
             url: CString::new("https://flow.kentik.com/chf").unwrap(),
             api: API{
@@ -80,25 +90,32 @@ impl Config {
                 device:  CString::new(device).unwrap(),
                 snaplen: snaplen,
                 promisc: promisc,
+                ip:      ip,
             },
             metrics: Metrics{
                 interval: Duration::minutes(1),
                 url:      CString::new("https://flow.kentik.com/tsdb").unwrap(),
             },
-            proxy:     None,
-            device_id: 0,
-            device_if: None,
-            device_ip: None,
-            sample:    0,
-            timeout:   Duration::seconds(30),
-            verbose:   0,
-            program:   CString::new(program).unwrap(),
-            version:   CString::new(version).unwrap(),
+            proxy:       None,
+            device_id:   0,
+            device_if:   None,
+            device_ip:   None,
+            device_name: hostname(),
+            device_plan: None,
+            sample:      0,
+            timeout:     Duration::seconds(30),
+            verbose:     0,
+            program:     CString::new(program).unwrap(),
+            version:     CString::new(version).unwrap(),
         }
     }
 }
 
 pub fn configure(cfg: &Config) -> Result<Device, Error> {
+    fn opt(cstr: &Option<CString>) -> *const libc::c_char {
+        cstr.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
+    }
+
     let c_cfg = kflowConfig {
         URL: cfg.url.as_ptr(),
         API: kflowConfigAPI {
@@ -111,22 +128,25 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
             device:  cfg.capture.device.as_ptr(),
             snaplen: cfg.capture.snaplen,
             promisc: cfg.capture.promisc as libc::c_int,
+            ip:      opt(&cfg.capture.ip),
         },
         metrics: kflowConfigMetrics {
             interval: cfg.metrics.interval.num_minutes() as libc::c_int,
             URL:      cfg.metrics.url.as_ptr(),
         },
         proxy: kflowConfigProxy {
-            URL: cfg.proxy.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
+            URL: opt(&cfg.proxy),
         },
-        device_id: cfg.device_id as libc::c_int,
-        device_if: cfg.device_if.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
-        device_ip: cfg.device_ip.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()),
-        sample:    cfg.sample as libc::c_int,
-        timeout:   cfg.timeout.num_milliseconds() as libc::c_int,
-        verbose:   cfg.verbose as libc::c_int,
-        program:   cfg.program.as_ptr(),
-        version:   cfg.version.as_ptr(),
+        device_id:   cfg.device_id as libc::c_int,
+        device_if:   opt(&cfg.device_if),
+        device_ip:   opt(&cfg.device_ip),
+        device_name: cfg.device_name.as_ptr(),
+        device_plan: cfg.device_plan.unwrap_or(0) as libc::c_int,
+        sample:      cfg.sample as libc::c_int,
+        timeout:     cfg.timeout.num_milliseconds() as libc::c_int,
+        verbose:     cfg.verbose as libc::c_int,
+        program:     cfg.program.as_ptr(),
+        version:     cfg.version.as_ptr(),
     };
 
     let mut dev = kflowDevice {
@@ -257,6 +277,26 @@ pub fn version() -> String {
     }
 }
 
+pub fn hostname() -> CString {
+    unsafe {
+        let mut bytes = [0u8; 64];
+
+        let ptr = bytes.as_mut_ptr() as *mut libc::c_char;
+        let len = bytes.len();
+        libc::gethostname(ptr, len);
+
+        for b in &mut bytes[..] {
+            *b = match *b {
+                0     => break,
+                b'.'  => b'_',
+                b     => b,
+            }
+        }
+
+        CStr::from_ptr(ptr).to_owned()
+    }
+}
+
 #[link(name = "kflow")]
 extern {
     fn kflowInit(cfg: *const kflowConfig, dev: *mut kflowDevice) -> libc::c_int;
@@ -272,19 +312,21 @@ pub const KFLOW_CUSTOM_F32: libc::c_int = 3;
 
 #[repr(C)]
 struct kflowConfig {
-    URL:       *const libc::c_char,
-    API:       kflowConfigAPI,
-    capture:   kflowConfigCapture,
-    metrics:   kflowConfigMetrics,
-    proxy:     kflowConfigProxy,
-    device_id: libc::c_int,
-    device_if: *const libc::c_char,
-    device_ip: *const libc::c_char,
-    sample:    libc::c_int,
-    timeout:   libc::c_int,
-    verbose:   libc::c_int,
-    program:   *const libc::c_char,
-    version:   *const libc::c_char,
+    URL:         *const libc::c_char,
+    API:         kflowConfigAPI,
+    capture:     kflowConfigCapture,
+    metrics:     kflowConfigMetrics,
+    proxy:       kflowConfigProxy,
+    device_id:   libc::c_int,
+    device_if:   *const libc::c_char,
+    device_ip:   *const libc::c_char,
+    device_name: *const libc::c_char,
+    device_plan: libc::c_int,
+    sample:      libc::c_int,
+    timeout:     libc::c_int,
+    verbose:     libc::c_int,
+    program:     *const libc::c_char,
+    version:     *const libc::c_char,
 }
 
 #[repr(C)]
@@ -299,6 +341,7 @@ struct kflowConfigCapture {
     device:  *const libc::c_char,
     snaplen: libc::c_int,
     promisc: libc::c_int,
+    ip:      *const libc::c_char,
 }
 
 #[repr(C)]

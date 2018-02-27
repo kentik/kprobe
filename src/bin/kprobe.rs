@@ -21,7 +21,7 @@ fn main() {
 
     let (interface, device) = args.arg("interface").unwrap_or_else(abort);
 
-    let mut cfg = libkflow::Config::new(&interface.name, snaplen, promisc);
+    let mut cfg = libkflow::Config::new(&interface, snaplen, promisc);
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
     cfg.api.email   = args.arg("email").unwrap_or_else(abort);
     cfg.api.token   = args.arg("token").unwrap_or_else(abort);
@@ -30,6 +30,8 @@ fn main() {
     cfg.device_id   = args.arg("device_id").unwrap_or(cfg.device_id);
     cfg.device_if   = args.opt("device_if").unwrap_or(cfg.device_if);
     cfg.device_ip   = args.opt("device_ip").unwrap_or(cfg.device_ip);
+    cfg.device_name = args.arg("device_name").unwrap_or(cfg.device_name);
+    cfg.device_plan = args.opt("device_plan").unwrap_or(cfg.device_plan);
     cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
     cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;

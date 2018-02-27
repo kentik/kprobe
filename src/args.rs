@@ -15,6 +15,8 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg device_id:    --("device-id")   [ID]        "Device ID")
       (@arg device_if:    --("device-if")   [interface] "Device interface")
       (@arg device_ip:    --("device-ip")   [IP]        "Device IP")
+      (@arg device_name:  --("device-name") [name]      "Device name")
+      (@arg device_plan:  --("device-plan") [ID]        "Device plan")
       (@arg api_url:      --("api-url")     [URL]       "API URL")
       (@arg flow_url:     --("flow-url")    [URL]       "Flow URL")
       (@arg metrics_url:  --("metrics-url") [URL]       "Metrics URL")
