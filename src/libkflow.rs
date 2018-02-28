@@ -285,14 +285,6 @@ pub fn hostname() -> CString {
         let len = bytes.len();
         libc::gethostname(ptr, len);
 
-        for b in &mut bytes[..] {
-            *b = match *b {
-                0     => break,
-                b'.'  => b'_',
-                b     => b,
-            }
-        }
-
         CStr::from_ptr(ptr).to_owned()
     }
 }
