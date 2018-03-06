@@ -13,20 +13,23 @@ use flow::*;
 use reasm::Reassembler;
 use sample::Sampler;
 use sample::Accept::*;
+use translate::Translate;
 use queue::FlowQueue;
 
 pub struct Kprobe {
-    interface: NetworkInterface,
-    sampler:   Option<Sampler>,
-    asm:       Reassembler,
-    queue:     FlowQueue,
+    interface:  NetworkInterface,
+    sampler:    Option<Sampler>,
+    translate:  Option<Translate>,
+    asm:        Reassembler,
+    queue:      FlowQueue,
 }
 
 impl Kprobe {
-    pub fn new(interface: NetworkInterface, cfg: Config) -> Kprobe {
+    pub fn new(interface: NetworkInterface, mut cfg: Config) -> Kprobe {
         Kprobe {
             interface: interface,
             sampler:   cfg.sampler(),
+            translate: cfg.translate(),
             asm:       Reassembler::new(),
             queue:     cfg.queue(),
         }
@@ -86,6 +89,10 @@ impl Kprobe {
                             Decode => flow.export = false,
                             Ignore => return,
                         }
+                    }
+
+                    if let Some(ref t) = self.translate {
+                        t.translate(&mut flow);
                     }
 
                     self.queue.add(flow);

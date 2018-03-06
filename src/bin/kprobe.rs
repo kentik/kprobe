@@ -67,6 +67,8 @@ fn main() {
         classify.add(TCP, port, Decoder::HTTP);
     }
 
+    let translate = args.opts("translate").unwrap_or_else(abort);
+
     let cap = Capture::from_device(device).unwrap()
         .buffer_size(100_000_000)
         .timeout(15*1000) // FIXME: should be same as flush timeout
@@ -80,10 +82,11 @@ fn main() {
     // }
 
     let mut kprobe = Kprobe::new(interface, Config{
-        classify: classify,
-        customs:  dev.customs,
-        decode:   decode,
-        sample:   sample,
+        classify:  classify,
+        customs:   dev.customs,
+        decode:    decode,
+        sample:    sample,
+        translate: translate,
     });
     kprobe.run(cap).expect("capture succeeded");
 }

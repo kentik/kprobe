@@ -1,9 +1,12 @@
-use clap::{ArgMatches, Values};
-use pcap::Device;
-use pnet::datalink::{self, NetworkInterface};
 use std::borrow::Cow;
 use std::fmt;
 use std::ffi::{CString, NulError};
+use std::net::AddrParseError;
+use std::num::ParseIntError;
+use clap::{ArgMatches, Values};
+use pcap::Device;
+use pnet::datalink::{self, NetworkInterface};
+use flow::Addr;
 
 pub fn parse<'a>() -> Args<'a> {
     let matches = clap_app!(kprobe =>
@@ -23,6 +26,7 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg proxy_url:    --("proxy-url")   [URL]       "Proxy URL")
       (@arg http_port:    --("http-port")   [port] ...  "Decode HTTP on port")
       (@arg no_decode:    --("no-decode")               "No protocol decoding")
+      (@arg translate:    --translate       [spec] ...  "Translate address")
       (@arg promisc:      --promisc                     "Promiscuous mode")
       (@arg snaplen:      --snaplen         [N]         "Capture snaplen")
       (@arg verbose: -v                     ...         "Verbose output")
@@ -53,6 +57,13 @@ impl<'a> Args<'a> {
         match self.matches.values_of(name) {
             Some(values) => self.multiple(values),
             None         => Err(Error::Missing(name)),
+        }
+    }
+
+    pub fn opts<T: FromArg>(&self, name: &'a str) -> Result<Option<Vec<T>>, Error> {
+        match self.matches.values_of(name) {
+            Some(values) => Ok(Some(self.multiple(values)?)),
+            None         => Ok(None),
         }
     }
 
@@ -139,6 +150,23 @@ impl<'a> FromArg for Cow<'a, str> {
     }
 }
 
+impl FromArg for (Addr, Addr) {
+    fn from_arg(value: &str) -> Result<(Addr, Addr), Error> {
+        let mut parts = value.split(',');
+
+        let mut parse = |what| {
+            match (parts.next(), parts.next()) {
+                (Some(a), Some(b)) => Ok(Addr{addr: a.parse()?, port: b.parse()?}),
+                (None,    Some(_)) => Err(Error::Invalid(format!("missing {} addr", what))),
+                (Some(_), None   ) => Err(Error::Invalid(format!("missing {} port", what))),
+                (None,    None   ) => Err(Error::Invalid(format!("missing {} spec", what))),
+            }
+        };
+
+        Ok((parse("src")?, parse("dst")?))
+    }
+}
+
 #[derive(Debug)]
 pub enum Error<'a> {
     Missing(&'a str),
@@ -146,8 +174,20 @@ pub enum Error<'a> {
 }
 
 impl<'a> From<NulError> for Error<'a> {
-    fn from(err: NulError) -> Error<'a> {
-        Error::Invalid(format!("invalid string '{}'", err))
+    fn from(err: NulError) -> Self {
+        Error::Invalid(format!("invalid string, {}", err))
+    }
+}
+
+impl<'a> From<ParseIntError> for Error<'a> {
+    fn from(err: ParseIntError) -> Self {
+        Error::Invalid(format!("invalid number, {}", err))
+    }
+}
+
+impl<'a> From<AddrParseError> for Error<'a> {
+    fn from(err: AddrParseError) -> Self {
+        Error::Invalid(format!("invalid address, {}", err))
     }
 }
 

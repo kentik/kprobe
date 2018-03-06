@@ -26,6 +26,7 @@ pub mod reasm;
 pub mod sample;
 pub mod timer;
 pub mod track;
+pub mod translate;
 
 pub use kprobe::Kprobe;
 pub use config::Config;
