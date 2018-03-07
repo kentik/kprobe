@@ -11,6 +11,7 @@ use flow::Addr;
 pub fn parse<'a>() -> Args<'a> {
     let matches = clap_app!(kprobe =>
       (version: env!("CARGO_PKG_VERSION"))
+      (about:   crate_description!())
       (@arg interface: -i --interface       <interface> "Network interface")
       (@arg email:        --email           <email>     "API user email")
       (@arg token:        --token           <token>     "API access token")

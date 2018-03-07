@@ -5,6 +5,12 @@ authors = ["Will <will@kentik.com>"]
 links   = "kflow"
 build   = "build.rs"
 
+description = """
+
+Kentik host agent - please see https://kb.kentik.com/Bd03.htm for detailed
+documentation of flags, options, and recommended configuration.
+"""
+
 [dependencies]
 clap      = "2.26.2"
 libc      = "0.2.31"
