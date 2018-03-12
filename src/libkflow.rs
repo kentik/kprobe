@@ -20,11 +20,13 @@ pub struct Config {
     pub capture:     Capture,
     pub metrics:     Metrics,
     pub proxy:       Option<CString>,
+    pub status:      Status,
     pub device_id:   u32,
     pub device_if:   Option<CString>,
     pub device_ip:   Option<CString>,
     pub device_name: CString,
     pub device_plan: Option<u32>,
+    pub device_site: Option<u32>,
     pub sample:      u32,
     pub timeout:     Duration,
     pub verbose:     u32,
@@ -51,6 +53,12 @@ pub struct Capture {
 pub struct Metrics {
     pub interval: Duration,
     pub url:      CString,
+}
+
+#[derive(Debug)]
+pub struct Status {
+    pub host: CString,
+    pub port: u16,
 }
 
 #[derive(Debug)]
@@ -96,12 +104,17 @@ impl Config {
                 interval: Duration::minutes(1),
                 url:      CString::new("https://flow.kentik.com/tsdb").unwrap(),
             },
-            proxy:       None,
+            proxy:   None,
+            status:  Status{
+                host: CString::new("127.0.0.1").unwrap(),
+                port: 0,
+            },
             device_id:   0,
             device_if:   None,
             device_ip:   None,
             device_name: hostname(),
             device_plan: None,
+            device_site: None,
             sample:      0,
             timeout:     Duration::seconds(30),
             verbose:     0,
@@ -137,11 +150,16 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         proxy: kflowConfigProxy {
             URL: opt(&cfg.proxy),
         },
+        status: kflowConfigStatus {
+            host: cfg.status.host.as_ptr(),
+            port: cfg.status.port as libc::c_int,
+        },
         device_id:   cfg.device_id as libc::c_int,
         device_if:   opt(&cfg.device_if),
         device_ip:   opt(&cfg.device_ip),
         device_name: cfg.device_name.as_ptr(),
         device_plan: cfg.device_plan.unwrap_or(0) as libc::c_int,
+        device_site: cfg.device_site.unwrap_or(0) as libc::c_int,
         sample:      cfg.sample as libc::c_int,
         timeout:     cfg.timeout.num_milliseconds() as libc::c_int,
         verbose:     cfg.verbose as libc::c_int,
@@ -309,11 +327,13 @@ struct kflowConfig {
     capture:     kflowConfigCapture,
     metrics:     kflowConfigMetrics,
     proxy:       kflowConfigProxy,
+    status:      kflowConfigStatus,
     device_id:   libc::c_int,
     device_if:   *const libc::c_char,
     device_ip:   *const libc::c_char,
     device_name: *const libc::c_char,
     device_plan: libc::c_int,
+    device_site: libc::c_int,
     sample:      libc::c_int,
     timeout:     libc::c_int,
     verbose:     libc::c_int,
@@ -345,6 +365,12 @@ struct kflowConfigMetrics {
 #[repr(C)]
 struct kflowConfigProxy {
     URL: *const libc::c_char,
+}
+
+#[repr(C)]
+struct kflowConfigStatus {
+    host: *const libc::c_char,
+    port: libc::c_int,
 }
 
 #[repr(C)]

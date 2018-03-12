@@ -27,11 +27,14 @@ fn main() {
     cfg.api.token   = args.arg("token").unwrap_or_else(abort);
     cfg.api.url     = args.arg("api_url").unwrap_or(cfg.api.url);
     cfg.metrics.url = args.arg("metrics_url").unwrap_or(cfg.metrics.url);
+    cfg.status.host = args.arg("status_host").unwrap_or(cfg.status.host);
+    cfg.status.port = args.arg("status_port").unwrap_or(cfg.status.port);
     cfg.device_id   = args.arg("device_id").unwrap_or(cfg.device_id);
     cfg.device_if   = args.opt("device_if").unwrap_or(cfg.device_if);
     cfg.device_ip   = args.opt("device_ip").unwrap_or(cfg.device_ip);
     cfg.device_name = args.arg("device_name").unwrap_or(cfg.device_name);
     cfg.device_plan = args.opt("device_plan").unwrap_or(cfg.device_plan);
+    cfg.device_site = args.opt("device_site").unwrap_or(cfg.device_site);
     cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
     cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
