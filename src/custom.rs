@@ -70,8 +70,8 @@ impl Customs {
             let int03 = fields["INT03"];
             let int04 = fields["INT04"];
             let int05 = fields["INT05"];
-            let ooo   = fields["OOORDER_PKTS"];
-            let retx  = fields["RETRANSMITTED_PKTS"];
+            let ooo   = fields["OOORDER_IN_PKTS"];
+            let retx  = fields["RETRANSMITTED_OUT_PKTS"];
 
             fields.insert(DNS_QUERY_NAME.to_owned(),     str00);
             fields.insert(DNS_QUERY_TYPE.to_owned(),     int00);
