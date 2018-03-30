@@ -83,7 +83,7 @@ impl Kprobe {
                     flow.direction = dir;
                     flow.export    = true;
 
-                    if let Some(ref s) = self.sampler {
+                    if let Some(ref mut s) = self.sampler {
                         match s.accept(&flow) {
                             Export => flow.export = true,
                             Decode => flow.export = false,

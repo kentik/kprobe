@@ -5,7 +5,6 @@ use custom::Customs;
 use libkflow;
 use protocol::{Classify, Decoder, Decoders};
 use timer::{Timeout, Timer};
-use track::Tracker;
 
 #[derive(Debug)]
 pub struct Counter {
@@ -23,7 +22,6 @@ pub struct Counter {
 pub struct FlowQueue {
     flows:    HashMap<Key, Counter>,
     decoders: Decoders,
-    tracker:  Tracker,
     classify: Classify,
     customs:  Customs,
     sample:   u32,
@@ -37,7 +35,6 @@ impl FlowQueue {
         FlowQueue {
             flows:    HashMap::new(),
             decoders: Decoders::new(&customs, &mut classify, decode),
-            tracker:  Tracker::new(&customs),
             classify: classify,
             customs:  customs,
             sample:   sample.unwrap_or(1) as u32,
@@ -55,8 +52,7 @@ impl FlowQueue {
             if flow.export {
                 if let Some(ctr) = self.flows.get_mut(&key) {
                     let customs = &mut self.customs;
-                    let tracker = &mut self.tracker;
-                    Self::send(customs, tracker, &key, ctr, self.sample);
+                    Self::send(customs, &key, ctr, self.sample);
                 }
             }
             self.customs.clear();
@@ -66,8 +62,6 @@ impl FlowQueue {
     fn record(&mut self, key: Key, flow: &Flow) -> Decoder {
         let classify = &mut self.classify;
         let timeout  = &mut self.timeout;
-
-        self.tracker.add(flow);
 
         let ctr = self.flows.entry(key).or_insert_with(|| {
             let export = timeout.first(flow.timestamp);
@@ -105,12 +99,11 @@ impl FlowQueue {
 
         let customs  = &mut self.customs;
         let decoders = &mut self.decoders;
-        let tracker  = &mut self.tracker;
 
         for (key, ctr) in &mut self.flows {
             if ctr.export <= ts && ctr.packets > 0 {
                 decoders.append(ctr.decoder, key, customs);
-                Self::send(customs, tracker, key, ctr, self.sample);
+                Self::send(customs, key, ctr, self.sample);
                 ctr.export = self.timeout.next(ctr.export);
                 customs.clear();
             }
@@ -119,7 +112,6 @@ impl FlowQueue {
         if self.compact.ready(ts) {
             self.flows.retain(|_, c| c.export > ts);
             decoders.clear(ts);
-            tracker.clear(ts);
         }
 
         while let Some(msg) = libkflow::error() {
@@ -127,9 +119,8 @@ impl FlowQueue {
         }
     }
 
-    fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &mut Counter, sr: u32) {
+    fn send(customs: &mut Customs, key: &Key, ctr: &mut Counter, sr: u32) {
         customs.append(ctr);
-        tracker.append(key, customs);
         libkflow::send(key, ctr, sr, match &customs {
             cs if !cs.is_empty() => Some(cs),
             _                    => None,

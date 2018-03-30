@@ -5,7 +5,7 @@ use sample::Accept::*;
 
 #[test]
 fn sample_tcp() {
-    let s = Sampler::new(2);
+    let mut s = Sampler::new(2);
 
     for n in 1..100 {
         let (this, peer) = flows(Protocol::TCP, n);
@@ -21,7 +21,7 @@ fn sample_tcp() {
 
 #[test]
 fn sample_icmp() {
-    let s = Sampler::new(2);
+    let mut s = Sampler::new(2);
 
     for n in 1..100 {
         let (this, peer) = flows(Protocol::ICMP, n);

@@ -87,7 +87,7 @@ fn main() {
     let mut kprobe = Kprobe::new(interface, Config{
         classify:  classify,
         customs:   dev.customs,
-        decode:    decode,
+        decode:    false,
         sample:    sample,
         translate: translate,
     });
