@@ -1,9 +1,11 @@
 mod ipv4;
+mod none;
 
 use std::borrow::Cow;
 use time::Duration;
 use crate::flow::Timestamp;
 use crate::packet::Packet;
+use Packet::*;
 
 #[derive(Debug)]
 pub struct Output<'p> {
@@ -13,28 +15,20 @@ pub struct Output<'p> {
     pub data:    Cow<'p, [u8]>,
 }
 
-impl<'p> Output<'p> {
-    fn single(p: &'p Packet<'p>) -> Self {
-        let data = Cow::from(p.payload());
-        Self {
-            packets: 1,
-            frags:   0,
-            bytes:   p.len(),
-            data:    data,
-        }
-    }
-}
-
 pub struct Reassembler {
+    active:  bool,
     ipv4:    ipv4::Reassembler,
+    none:    none::Reassembler,
     flushed: Timestamp,
     timeout: Duration,
 }
 
 impl Reassembler {
-    pub fn new() -> Self {
-        Reassembler{
+    pub fn new(active: bool) -> Self {
+        Reassembler {
+            active:  active,
             ipv4:    ipv4::Reassembler::new(),
+            none:    none::Reassembler::new(),
             flushed: Timestamp::zero(),
             timeout: Duration::seconds(60),
         }
@@ -42,8 +36,8 @@ impl Reassembler {
 
     pub fn reassemble<'p>(&mut self, ts: Timestamp, p: &'p Packet<'p>) -> Option<Output<'p>> {
         match *p {
-            Packet::IPv4(ref p) => self.ipv4.reassemble(ts, p),
-            _                   => Some(Output::single(p)),
+            IPv4(ref p) if self.active => self.ipv4.reassemble(ts, p),
+            _                          => self.none.reassemble(p),
         }
     }
 

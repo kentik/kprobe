@@ -5,6 +5,7 @@ use crate::libkflow::kflowCustom;
 use crate::protocol::Classify;
 use crate::queue::FlowQueue;
 use crate::sample::Sampler;
+use crate:reasm::Reassembler;
 use crate::translate::Translate;
 
 pub struct Config {
@@ -19,6 +20,10 @@ impl Config {
     pub fn queue(self) -> FlowQueue {
         let customs = Customs::new(&self.customs);
         FlowQueue::new(self.sample, customs, self.classify, self.decode)
+    }
+
+    pub fn reassembler(&self) -> Reassembler {
+        Reassembler::new(true)
     }
 
     pub fn sampler(&self) -> Option<Sampler> {

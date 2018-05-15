@@ -30,7 +30,7 @@ impl Kprobe {
             interface: interface,
             sampler:   cfg.sampler(),
             translate: cfg.translate(),
-            asm:       Reassembler::new(),
+            asm:       cfg.reassembler(),
             queue:     cfg.queue(),
         }
     }

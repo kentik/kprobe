@@ -21,7 +21,7 @@ pub fn flows<'a>(path: &str) -> FlowIterator<'a> {
     static EMPTY: [u8; 0] = [];
     FlowIterator{
         capture: Capture::from_file(path).unwrap(),
-        asm:     Reassembler::new(),
+        asm:     Reassembler::new(true),
         payload: Cow::from(&EMPTY[..]),
     }
 }

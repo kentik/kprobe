@@ -76,7 +76,7 @@ fn test_decode_wrong_ipv4_length() {
 #[test]
 fn test_reassemble_single() {
     let mut cap = Capture::from_file("pcaps/dns/sns-pb.isc.org.pcap").unwrap();
-    let mut asm = Reassembler::new();
+    let mut asm = Reassembler::new(true);
 
     while let Ok(pkt) = cap.next() {
         let ts  = Timestamp(pkt.header.ts);
@@ -95,7 +95,7 @@ fn test_reassemble_single() {
 #[test]
 fn test_reassemble_fragmented() {
     let mut cap = Capture::from_file("pcaps/dns/sns-pb.isc.org-dnssec.pcap").unwrap();
-    let mut asm = Reassembler::new();
+    let mut asm = Reassembler::new(true);
 
     cap.next().unwrap();
 
@@ -124,6 +124,34 @@ fn test_reassemble_fragmented() {
     }
 
     assert!(done);
+}
+
+#[test]
+fn test_inactive_reassembler() {
+    let mut cap = Capture::from_file("pcaps/dns/sns-pb.isc.org-dnssec.pcap").unwrap();
+    let mut asm = Reassembler::new(false);
+
+    cap.next().unwrap();
+
+    let mut packets = 0;
+    let mut frags   = 0;
+    let mut bytes   = 0;
+
+    while let Ok(pkt) = cap.next() {
+        let ts  = Timestamp(pkt.header.ts);
+        let eth = EthernetPacket::new(pkt.data).unwrap();
+
+        let pkt = packet::decode(&eth).1.unwrap();
+        let out = asm.reassemble(ts, &pkt).unwrap();
+
+        packets += out.packets;
+        frags   += out.frags;
+        bytes   += out.bytes;
+    }
+
+    assert_eq!(packets, 3);
+    assert_eq!(frags,   2);
+    assert_eq!(bytes,   1687);
 }
 
 #[test]
