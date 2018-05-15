@@ -4,6 +4,7 @@ use crate::flow::*;
 use crate::custom::Customs;
 use crate::libkflow;
 use crate::protocol::{Classify, Decoder, Decoders};
+use crate::sample::Sample;
 use crate::timer::{Timeout, Timer};
 use crate::track::Tracker;
 
@@ -33,14 +34,20 @@ pub struct FlowQueue {
 }
 
 impl FlowQueue {
-    pub fn new(sample: Option<u64>, customs: Customs, mut classify: Classify, decode: bool) -> FlowQueue {
+    pub fn new(sample: Sample, customs: Customs, mut classify: Classify, decode: bool) -> FlowQueue {
+        let (sample, track, decode) = match sample {
+            Sample::Internal(n) => (n, true,  decode),
+            Sample::External(n) => (n, false, false),
+            Sample::None        => (1, true,  decode),
+        };
+
         FlowQueue {
             flows:    HashMap::new(),
             decoders: Decoders::new(&customs, &mut classify, decode),
-            tracker:  Tracker::new(&customs),
+            tracker:  Tracker::new(&customs, track),
             classify: classify,
             customs:  customs,
-            sample:   sample.unwrap_or(1) as u32,
+            sample:   sample as u32,
             compact:  Timer::new(Duration::seconds(30)),
             export:   Timer::new(Duration::seconds(2)),
             timeout:  Timeout::new(Duration::seconds(15)),
@@ -130,6 +137,7 @@ impl FlowQueue {
     fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &mut Counter, sr: u32) {
         customs.append(ctr);
         tracker.append(key, customs);
+        let _ = tracker;
         libkflow::send(key, ctr, sr, match &customs {
             cs if !cs.is_empty() => Some(cs),
             _                    => None,

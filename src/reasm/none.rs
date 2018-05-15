@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::ipv6::Ipv6Packet;
-use packet::Packet;
+use crate::packet::Packet;
 use super::Output;
 
 pub struct Reassembler {

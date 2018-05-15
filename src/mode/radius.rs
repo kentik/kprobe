@@ -48,7 +48,7 @@ pub fn run(mut cap: Capture<Active>, client: Client) -> Result<(), Error<'static
 impl Radius {
     pub fn new(client: Client) -> Self {
         Self {
-            asm:     Reassembler::new(),
+            asm:     Reassembler::new(true),
             client:  client,
             upserts: Vec::new(),
             deletes: Vec::new(),

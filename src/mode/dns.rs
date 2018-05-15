@@ -41,7 +41,7 @@ pub fn run(mut cap: Capture<Active>, client: Client) -> Result<(), Error<'static
 impl Dns {
     pub fn new(client: Client) -> Self {
         Dns {
-            asm:    Reassembler::new(),
+            asm:    Reassembler::new(true),
             buffer: Vec::with_capacity(1024),
             client: client,
             last:   Timestamp::zero(),

@@ -10,6 +10,13 @@ pub enum Accept {
     Ignore,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Sample {
+    External(u64),
+    Internal(u64),
+    None,
+}
+
 pub struct Sampler {
     n: u64,
     s: RandomState,

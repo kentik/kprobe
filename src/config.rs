@@ -4,15 +4,15 @@ use crate::flow::Addr;
 use crate::libkflow::kflowCustom;
 use crate::protocol::Classify;
 use crate::queue::FlowQueue;
-use crate::sample::Sampler;
-use crate:reasm::Reassembler;
+use crate::sample::{Sample, Sampler};
+use crate::reasm::Reassembler;
 use crate::translate::Translate;
 
 pub struct Config {
     pub classify:  Classify,
     pub customs:   Vec<kflowCustom>,
     pub decode:    bool,
-    pub sample:    Option<u64>,
+    pub sample:    Sample,
     pub translate: Option<Vec<(Addr, Addr)>>,
 }
 
@@ -23,11 +23,17 @@ impl Config {
     }
 
     pub fn reassembler(&self) -> Reassembler {
-        Reassembler::new(true)
+        match self.sample {
+            Sample::External(..) => Reassembler::new(false),
+            _                    => Reassembler::new(true),
+        }
     }
 
     pub fn sampler(&self) -> Option<Sampler> {
-        self.sample.map(Sampler::new)
+        match self.sample {
+            Sample::Internal(n) => Some(Sampler::new(n)),
+            _                   => None,
+        }
     }
 
     pub fn translate(&mut self) -> Option<Translate> {

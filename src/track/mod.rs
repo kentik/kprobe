@@ -8,6 +8,7 @@ use crate::custom::*;
 use crate::track::id::Generator;
 
 pub struct Tracker {
+    active:       bool,
     conn_id:      Option<u64>,
     cli_latency:  Option<u64>,
     srv_latency:  Option<u64>,
@@ -52,8 +53,9 @@ pub enum RTT {
 }
 
 impl Tracker {
-    pub fn new(cs: &Customs) -> Self {
-        Tracker{
+    pub fn new(cs: &Customs, active: bool) -> Self {
+        Tracker {
+            active:       active,
             conn_id:      cs.get(CONNECTION_ID).ok(),
             cli_latency:  cs.get(CLIENT_NW_LATENCY).ok(),
             srv_latency:  cs.get(SERVER_NW_LATENCY).ok(),
@@ -69,6 +71,10 @@ impl Tracker {
     }
 
     pub fn add(&mut self, flow: &Flow) {
+        if !self.active {
+            return;
+        }
+
         let this = self.this(flow);
 
         if this.payload.is_none() && !flow.payload.is_empty() {
@@ -151,6 +157,10 @@ impl Tracker {
     }
 
     pub fn append(&mut self, key: &Key, cs: &mut Customs) {
+        if !self.active {
+            return;
+        }
+
         if let Some(ref mut this) = self.states.get_mut(key) {
             if this.id != 0 {
                 self.conn_id.map(|id| cs.add_u32(id, this.id));

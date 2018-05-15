@@ -1,5 +1,6 @@
 use std::panic;
 use crate::queue::FlowQueue;
+use crate::sample::Sample;
 use crate::flow::*;
 use crate::protocol::Classify;
 use super::*;
@@ -7,7 +8,7 @@ use super::*;
 #[test]
 fn new_flow_export_timeout_correct() {
     let customs   = Customs::new(&[]);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
 
     let flow = flow(23, 31, true);
     let key  = flow.key();
@@ -24,7 +25,7 @@ fn new_flow_export_timeout_correct() {
 #[test]
 fn exported_counter_updated_on_add() {
     let customs   = Customs::new(&[]);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
 
     let mut flow_a = flow(23, 31, true);
     let mut flow_b = flow_a.clone();
@@ -51,7 +52,7 @@ fn exported_counter_updated_on_add() {
 #[test]
 fn unexported_counter_not_updated_on_add() {
     let customs   = Customs::new(&[]);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
 
     let flow = flow(23, 31, false);
     let key  = flow.key();
@@ -70,7 +71,7 @@ fn unexported_counter_not_updated_on_add() {
 #[should_panic(expected = "failed to send flow: Failed(2)")]
 fn exported_flow_sent_on_decode() {
     let customs   = Customs::new(&CUSTOMS);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
         flow.direction = Direction::In;
         flow.export    = true;
@@ -82,7 +83,7 @@ fn exported_flow_sent_on_decode() {
 #[should_panic(expected = "failed to send flow: Failed(2)")]
 fn exported_flow_sent_on_export() {
     let customs   = Customs::new(&[]);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
         flow.direction = Direction::In;
         flow.export    = true;
@@ -94,7 +95,7 @@ fn exported_flow_sent_on_export() {
 #[test]
 fn unexported_flow_not_sent_on_decode() {
     let customs   = Customs::new(&CUSTOMS);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
         flow.direction = Direction::In;
         flow.export    = false;
@@ -105,7 +106,7 @@ fn unexported_flow_not_sent_on_decode() {
 #[test]
 fn unexported_flow_not_sent_on_export() {
     let customs   = Customs::new(&[]);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
     for mut flow in iter::flows("pcaps/http/google.com.pcap") {
         flow.direction = Direction::In;
         flow.export    = false;
@@ -117,7 +118,7 @@ fn unexported_flow_not_sent_on_export() {
 #[test]
 fn customs_appended_on_decode() {
     let customs   = Customs::new(&CUSTOMS);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
     for mut flow in iter::flows("pcaps/dns/google.com-any.pcap") {
         let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
             flow.fragments = 2;
@@ -135,7 +136,7 @@ fn customs_appended_on_decode() {
 #[test]
 fn customs_appended_on_export() {
     let customs   = Customs::new(CUSTOMS);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
 
     let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
         let flow = flow(32, 31, true);
@@ -150,7 +151,7 @@ fn customs_appended_on_export() {
 #[test]
 fn active_flows_retained_on_compact() {
     let customs   = Customs::new(CUSTOMS);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
 
     let export = Timestamp::zero() + Duration::seconds(30);
 
@@ -169,7 +170,7 @@ fn active_flows_retained_on_compact() {
 #[test]
 fn expired_flows_removed_on_compact() {
     let customs   = Customs::new(CUSTOMS);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(Sample::None, customs, Classify::new(), true);
 
     let export = Timestamp::zero() + Duration::seconds(30);
 

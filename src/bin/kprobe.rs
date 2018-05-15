@@ -1,12 +1,21 @@
 use std::env;
 use std::ffi::CStr;
+
+extern crate kprobe;
+extern crate pcap;
+extern crate pnet;
+extern crate libc;
+
+use std::os::unix::io::AsRawFd;
 use std::process::exit;
 use kprobe::args::{self, Args};
 use kprobe::{Config, Kprobe};
 use kprobe::libkflow;
 use kprobe::protocol::Classify;
+use kprobe::sample::Sample;
 use kprobe::flow::Protocol::TCP;
 use kprobe::fanout;
+use kprobe::filter;
 use kprobe::protocol::Decoder;
 use kprobe::mode;
 use kentik_api::{dns, tag, AsyncClient, Client};
@@ -76,9 +85,10 @@ fn main() {
         exit(1);
     });
 
+    // FIXME: need flag for internal vs external
     let sample = match sample.unwrap_or(dev.sample) {
-        0 | 1 => None,
-        n     => Some(n),
+        0 | 1 => Sample::None,
+        n     => Sample::External(n),
     };
 
     let mut classify = Classify::new();
@@ -123,6 +133,12 @@ fn main() {
             Ok(()) => (),
             Err(e) => abort(e.into())
         }
+    }
+
+    if let Sample::External(n) = sample {
+        // FIXME: need to get tcp_info
+        filter::random(cap.as_raw_fd(), n as u32).unwrap();
+
     }
 
     let mut kprobe = Kprobe::new(interface, Config{
