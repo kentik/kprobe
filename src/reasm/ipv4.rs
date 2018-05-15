@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::u16;
-use pnet::packet::{Packet as PacketExt, PacketSize};
+use pnet::packet::{Packet as PacketExt};
 use pnet::packet::ipv4::Ipv4Packet;
 use time::Duration;
 use flow::Timestamp;
@@ -48,7 +48,7 @@ impl Reassembler {
 
         if !more && offset == 0 {
             let payload = p.payload();
-            let bytes   = p.packet_size() + payload.len();
+            let bytes   = p.get_total_length() as usize;
             let data    = Cow::from(payload);
             return Some(Output{
                 packets: 1,
@@ -146,7 +146,7 @@ impl Buffer {
 
             self.packets += 1;
             self.frags   += 1;
-            self.bytes   += p.packet_size() + payload.len();
+            self.bytes   += p.get_total_length() as usize;
             self.len     += payload.len();
 
             break;

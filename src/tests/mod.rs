@@ -11,7 +11,7 @@ use libc::c_char;
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::EthernetPacket;
-use pnet::packet::ipv4::Ipv4Packet;
+use pnet::packet::ipv4::{Ipv4Packet, MutableIpv4Packet};
 use time::Duration;
 use libkflow::*;
 use flow::*;
@@ -32,6 +32,30 @@ fn timer_ready() {
     assert_eq!(true,  timer.ready(ts + Duration::seconds(2)));
     assert_eq!(false, timer.ready(ts + Duration::seconds(3)));
     assert_eq!(true,  timer.ready(ts + Duration::seconds(4)));
+}
+
+#[test]
+fn test_decode_wrong_ipv4_length() {
+    let mut cap = Capture::from_file("pcaps/dns/sns-pb.isc.org.pcap").unwrap();
+    let pkt = cap.next().unwrap();
+    let eth = EthernetPacket::new(&pkt.data).unwrap();
+
+    let udp_payload_len = |add: i16| -> usize {
+        let mut pkt = MutableIpv4Packet::owned(eth.payload().to_vec()).unwrap();
+        let len = pkt.get_total_length() as i16 + add;
+        pkt.set_total_length(len as u16);
+
+        let pkt = packet::Packet::IPv4(pkt.to_immutable());
+
+        match pkt.transport(pkt.payload()) {
+            Some(packet::Transport::UDP(udp)) => udp.payload().len(),
+            _                                 => unreachable!(),
+        }
+    };
+
+    assert_eq!(32, udp_payload_len(  0));
+    assert_eq!(32, udp_payload_len( 20));
+    assert_eq!(12, udp_payload_len(-20));
 }
 
 #[test]

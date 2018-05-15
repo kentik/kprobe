@@ -128,8 +128,9 @@ trait PayloadSlice {
 
 impl<'p> PayloadSlice for Ipv4Packet<'p> {
     fn payload_slice<'b>(&self, p: &'b [u8]) -> &'b [u8] {
-        let n = self.get_total_length() as usize - self.packet_size();
-        &p[..min(p.len(), n)]
+        let n = self.get_header_length() * 4;
+        let m = (self.get_total_length() as usize).saturating_sub(n as usize);
+        &p[..min(p.len(), m)]
     }
 }
 
