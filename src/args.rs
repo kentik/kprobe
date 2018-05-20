@@ -98,13 +98,27 @@ impl FromArg for (NetworkInterface, Device) {
             Error::Invalid(format!("pcap error '{}'", e))
         })?.into_iter();
 
-        let interface = interfaces.find(|i| i.name == value).ok_or_else(|| {
-            Error::Invalid(format!("unknown interface '{}'", value))
-        })?;
+        let (_queue, base) = match value.find('@') {
+            Some(n) => value.split_at(n + 1),
+            None    => ("", value),
+        };
 
-        let device = devices.find(|d| d.name == value).ok_or_else(|| {
-            Error::Invalid(format!("unsupported interface '{}'", value))
-        })?;
+        let interface = interfaces.find(|i| i.name == base).unwrap_or_else(|| {
+            NetworkInterface {
+                name:  "".to_owned(),
+                index: 0,
+                mac:   None,
+                ips:   Vec::new(),
+                flags: 0,
+            }
+        });
+
+        let device = devices.find(|d| d.name == value).unwrap_or_else(|| {
+            Device {
+                name: value.to_owned(),
+                desc: None,
+            }
+        });
 
         Ok((interface, device))
     }

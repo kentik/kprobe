@@ -22,7 +22,7 @@ impl Config {
     }
 
     pub fn sampler(&self) -> Option<Sampler> {
-        self.sample.map(Sampler::new)
+        None
     }
 
     pub fn translate(&mut self) -> Option<Translate> {

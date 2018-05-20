@@ -17,6 +17,5 @@ fn main() {
         panic!("unsupported platform");
     };
 
-    println!("cargo:rustc-link-lib=static=pcap");
     println!("cargo:rustc-link-search=native={}", path.display());
 }
