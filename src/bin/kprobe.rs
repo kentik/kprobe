@@ -136,9 +136,7 @@ fn main() {
     }
 
     if let Sample::External(n) = sample {
-        // FIXME: need to get tcp_info
         filter::random(cap.as_raw_fd(), n as u32).unwrap();
-
     }
 
     let mut kprobe = Kprobe::new(interface, Config{

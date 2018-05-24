@@ -22,6 +22,8 @@ pub use crate::config::Config;
 
 #[cfg(target_os = "linux")]
 extern crate bpf;
+#[cfg(feature = "netlink")]
+extern crate nell;
 
 #[cfg(test)]
 mod tests;

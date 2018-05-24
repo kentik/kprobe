@@ -35,16 +35,16 @@ pub struct FlowQueue {
 
 impl FlowQueue {
     pub fn new(sample: Sample, customs: Customs, mut classify: Classify, decode: bool) -> FlowQueue {
-        let (sample, track, decode) = match sample {
-            Sample::Internal(n) => (n, true,  decode),
-            Sample::External(n) => (n, false, false),
-            Sample::None        => (1, true,  decode),
+        let (sample, decode) = match sample {
+            Sample::Internal(n) => (n, decode),
+            Sample::External(n) => (n, false),
+            Sample::None        => (1, decode),
         };
 
         FlowQueue {
             flows:    HashMap::new(),
             decoders: Decoders::new(&customs, &mut classify, decode),
-            tracker:  Tracker::new(&customs, track),
+            tracker:  Tracker::new(&customs),
             classify: classify,
             customs:  customs,
             sample:   sample as u32,

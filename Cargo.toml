@@ -12,6 +12,9 @@ Kentik host agent - please see https://kb.kentik.com/Bd03.htm for detailed
 documentation of flags, options, and recommended configuration.
 """
 
+[features]
+netlink = ["nell"]
+
 [dependencies]
 byteorder    = "1.3.1"
 clap         = "2.33.0"
@@ -34,6 +37,10 @@ tag = "0.0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 bpf       = "0.1.1"
+
+[dependencies.nell]
+version   = "0.0.2"
+optional  = true
 
 [profile.release]
 lto   = true

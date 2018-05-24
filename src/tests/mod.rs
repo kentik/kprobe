@@ -156,7 +156,7 @@ fn test_inactive_reassembler() {
 
 #[test]
 fn test_udp_first_exchange_latency() {
-    let mut trk = Tracker::new(&Customs::new(&CUSTOMS), true);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/dns/google.com-any.pcap") {
         trk.add(&flow);
@@ -176,7 +176,7 @@ fn test_udp_first_exchange_latency() {
 
 #[test]
 fn test_tcp_first_exchange_latency() {
-    let mut trk = Tracker::new(&Customs::new(&CUSTOMS), true);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/http/google.com.pcap") {
         if flow.tcp_flags() & FIN == FIN {
@@ -199,7 +199,7 @@ fn test_tcp_first_exchange_latency() {
 
 #[test]
 fn test_tcp_retransmits() {
-    let mut trk = Tracker::new(&Customs::new(&CUSTOMS), true);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/tcp/retransmits.pcap") {
         trk.add(&flow);
@@ -228,7 +228,7 @@ fn test_tcp_retransmits() {
 
 #[test]
 fn test_tcp_receive_window() {
-    let mut trk = Tracker::new(&Customs::new(&CUSTOMS), true);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
     let windows = [65535, 1024, 131744, 131744, 0, 1024];
 
     for (flow, window) in iter::flows("pcaps/tcp/zero_windows.pcap").zip(windows.iter()) {
@@ -241,7 +241,7 @@ fn test_tcp_receive_window() {
         assert_eq!(Some(window), value(RECEIVE_WINDOW, &customs));
     }
 
-    let mut trk = Tracker::new(&Customs::new(&CUSTOMS), true);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/tcp/zero_windows.pcap").skip(2) {
         let mut customs = Customs::new(&CUSTOMS);
@@ -255,7 +255,7 @@ fn test_tcp_receive_window() {
 
 #[test]
 fn test_tcp_zero_windows() {
-    let mut trk = Tracker::new(&Customs::new(&CUSTOMS), true);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     for flow in iter::flows("pcaps/tcp/zero_windows.pcap") {
         trk.add(&flow);
@@ -292,7 +292,7 @@ fn test_id_generator() {
 
 #[test]
 fn test_connection_id() {
-    let mut trk = Tracker::new(&Customs::new(&CUSTOMS), true);
+    let mut trk = Tracker::new(&Customs::new(&CUSTOMS));
 
     let mut a = flow(23, 31, false);
     let mut b = flow(31, 23, false);
