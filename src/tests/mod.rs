@@ -8,6 +8,7 @@ use std::ffi::CStr;
 use std::mem::swap;
 use std::net::{IpAddr, Ipv4Addr};
 use libc::c_char;
+use test::Bencher;
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::EthernetPacket;
@@ -435,4 +436,36 @@ fn flow<'a>(src: u32, dst: u32, export: bool) -> Flow<'a> {
         export:    export,
         ..Default::default()
     }
+}
+
+#[bench]
+fn bench_flow_hashmap_default(b: &mut Bencher) {
+    use std::collections::HashMap;
+
+    b.iter(|| {
+        let mut flows = HashMap::new();
+        for n in 0..16 {
+            let src = Addr{addr: IpAddr::V4(Ipv4Addr::from(n+0)), port: n as u16};
+            let dst = Addr{addr: IpAddr::V4(Ipv4Addr::from(n+1)), port: n as u16};
+            let key = Key(Protocol::TCP, src, dst);
+            flows.insert(key, n);
+        }
+        flows
+    })
+}
+
+#[bench]
+fn bench_flow_hashmap_fnv(b: &mut Bencher) {
+    use fnv::FnvHashMap;
+
+    b.iter(|| {
+        let mut flows = FnvHashMap::default();
+        for n in 0..16 {
+            let src = Addr{addr: IpAddr::V4(Ipv4Addr::from(n+0)), port: n as u16};
+            let dst = Addr{addr: IpAddr::V4(Ipv4Addr::from(n+1)), port: n as u16};
+            let key = Key(Protocol::TCP, src, dst);
+            flows.insert(key, n);
+        }
+        flows
+    })
 }

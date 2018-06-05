@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use time::Duration;
+use fnv::FnvHashMap;
 use flow::*;
 use custom::Customs;
 use libkflow;
@@ -21,7 +21,7 @@ pub struct Counter {
 }
 
 pub struct FlowQueue {
-    flows:    HashMap<Key, Counter>,
+    flows:    FnvHashMap<Key, Counter>,
     decoders: Decoders,
     tracker:  Tracker,
     classify: Classify,
@@ -35,7 +35,7 @@ pub struct FlowQueue {
 impl FlowQueue {
     pub fn new(sample: Option<u64>, customs: Customs, mut classify: Classify, decode: bool) -> FlowQueue {
         FlowQueue {
-            flows:    HashMap::new(),
+            flows:    FnvHashMap::default(),
             decoders: Decoders::new(&customs, &mut classify, decode),
             tracker:  Tracker::new(&customs),
             classify: classify,
@@ -157,7 +157,7 @@ impl FlowQueue {
 
 #[cfg(test)]
 impl ::std::ops::Deref for FlowQueue {
-    type Target = HashMap<Key, Counter>;
+    type Target = FnvHashMap<Key, Counter>;
     fn deref(&self) -> &Self::Target {
         &self.flows
     }

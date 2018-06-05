@@ -1,6 +1,6 @@
 pub mod id;
 
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use time::Duration;
 use flow::{Flow, Key, Timestamp, Transport, Window};
 use flow::{FIN, SYN, RST, ACK};
@@ -18,7 +18,7 @@ pub struct Tracker {
     rwindow:      Option<u64>,
     zwindows:     Option<u64>,
     generator:    Generator,
-    states:       HashMap<Key, State>,
+    states:       FnvHashMap<Key, State>,
 }
 
 #[derive(Debug)]
@@ -64,7 +64,7 @@ impl Tracker {
             rwindow:      cs.get(RECEIVE_WINDOW).ok(),
             zwindows:     cs.get(ZERO_WINDOWS).ok(),
             generator:    Generator::new(),
-            states:       HashMap::new(),
+            states:       FnvHashMap::default(),
         }
     }
 

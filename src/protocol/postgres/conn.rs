@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::collections::VecDeque;
+use fnv::FnvHashMap;
 use time::Duration;
 use nom::IResult::Done;
 use protocol::buf::Buffer;
@@ -14,8 +14,8 @@ pub struct Connection {
 }
 
 struct State {
-    statements: HashMap<String, String>,
-    portals:    HashMap<String, String>,
+    statements: FnvHashMap<String, String>,
+    portals:    FnvHashMap<String, String>,
     executing:  VecDeque<Command>,
 }
 
@@ -25,8 +25,8 @@ impl Connection {
             buffer_fe: Buffer::new(),
             buffer_be: Buffer::new(),
             state:  State {
-                statements: HashMap::new(),
-                portals:    HashMap::new(),
+                statements: FnvHashMap::default(),
+                portals:    FnvHashMap::default(),
                 executing:  VecDeque::new(),
             },
         }

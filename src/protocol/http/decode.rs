@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
 use std::collections::hash_map::VacantEntry;
 use std::ffi::CString;
+use fnv::FnvHashMap;
 use time::Duration;
 use flow::{Addr, Flow, Timestamp, SYN, ACK, FIN};
 use custom::*;
@@ -15,7 +16,7 @@ pub struct Decoder {
     res_status:  u64,
     latency:     u64,
     empty:       CString,
-    conns:       HashMap<(Addr, Addr), Connection>,
+    conns:       FnvHashMap<(Addr, Addr), Connection>,
 }
 
 impl Decoder {
@@ -28,7 +29,7 @@ impl Decoder {
             res_status:  cs.get(HTTP_STATUS)?,
             latency:     cs.get(APP_LATENCY)?,
             empty:       Default::default(),
-            conns:       HashMap::new(),
+            conns:       FnvHashMap::default(),
         })
     }
 
@@ -69,8 +70,8 @@ impl Decoder {
         };
 
         // safe because self.conns will not be accessed in parse_req or parse_res
-        let conns: &'a mut HashMap<_, _> = unsafe {
-            &mut *(&mut self.conns as *mut HashMap<_, _>)
+        let conns: &'a mut HashMap<_, _, _> = unsafe {
+            &mut *(&mut self.conns as *mut HashMap<_, _, _>)
         };
 
         match conns.entry(key) {

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
 use std::collections::hash_map::VacantEntry;
+use fnv::FnvHashMap;
 use time::Duration;
 use flow::{Addr, Flow, Key, Timestamp, SYN, FIN};
 use custom::*;
@@ -10,7 +10,7 @@ pub struct Decoder {
     server_name:  u64,
     server_ver:   Option<u64>,
     cipher_suite: Option<u64>,
-    conns:        HashMap<(Addr, Addr), Connection>,
+    conns:        FnvHashMap<(Addr, Addr), Connection>,
 }
 
 impl Decoder {
@@ -19,7 +19,7 @@ impl Decoder {
             server_name:  cs.get(TLS_SERVER_NAME)?,
             server_ver:   cs.get(TLS_SERVER_VERSION).ok(),
             cipher_suite: cs.get(TLS_CIPHER_SUITE).ok(),
-            conns:        HashMap::new(),
+            conns:        FnvHashMap::default(),
         })
     }
 

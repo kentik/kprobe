@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_variables)]
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::u16;
+use fnv::FnvHashMap;
 use pnet::packet::{Packet as PacketExt};
 use pnet::packet::ipv4::Ipv4Packet;
 use time::Duration;
@@ -15,7 +15,7 @@ struct Key(Ipv4Addr, Ipv4Addr, u16, u8);
 
 #[derive(Debug)]
 pub struct Reassembler {
-    buffers: HashMap<Key, Buffer>
+    buffers: FnvHashMap<Key, Buffer>
 }
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ struct Hole {
 impl Reassembler {
     pub fn new() -> Self {
         Reassembler{
-            buffers: HashMap::new(),
+            buffers: FnvHashMap::default(),
         }
     }
 

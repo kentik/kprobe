@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::fmt::Write;
+use fnv::FnvHashMap;
 use time::Duration;
 use nom::IResult::Done;
 use super::parser::{self, QQ, Rdata};
@@ -13,7 +13,7 @@ pub struct Connection {
 }
 
 struct State {
-    pending: HashMap<u16, Timestamp>,
+    pending: FnvHashMap<u16, Timestamp>,
 }
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ impl Connection {
             buffer: Buffer::new(),
             last:   Timestamp::zero(),
             state:  State {
-                pending: HashMap::new(),
+                pending: FnvHashMap::default(),
             },
         }
     }

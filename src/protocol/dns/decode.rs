@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::ffi::CString;
+use fnv::FnvHashMap;
 use time::Duration;
 use flow::{Addr, Flow, Timestamp};
 use custom::*;
@@ -14,7 +14,7 @@ pub struct Decoder {
     name_str:   Option<CString>,
     data_str:   Option<CString>,
     empty:      CString,
-    conns:      HashMap<(Addr, Addr), Connection>,
+    conns:      FnvHashMap<(Addr, Addr), Connection>,
 }
 
 impl Decoder {
@@ -28,7 +28,7 @@ impl Decoder {
             name_str:   None,
             data_str:   None,
             empty:      Default::default(),
-            conns:      HashMap::new(),
+            conns:      FnvHashMap::default(),
         })
     }
 

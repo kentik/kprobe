@@ -1,5 +1,7 @@
 #![feature(untagged_unions, const_fn, slice_patterns)]
 
+#![cfg_attr(test, feature(test))]
+
 #[macro_use]
 extern crate clap;
 extern crate pcap;
@@ -8,6 +10,7 @@ extern crate pnet;
 extern crate nom;
 extern crate libc;
 extern crate time;
+extern crate fnv;
 extern crate http_muncher;
 extern crate byteorder;
 extern crate rand;
@@ -30,6 +33,9 @@ pub mod translate;
 
 pub use kprobe::Kprobe;
 pub use config::Config;
+
+#[cfg(test)]
+extern crate test;
 
 #[cfg(test)]
 mod tests;
