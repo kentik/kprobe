@@ -1,12 +1,14 @@
 extern crate kprobe;
 extern crate pcap;
 extern crate pnet;
+extern crate libc;
 
 use std::process::exit;
 use kprobe::{args, Config, Kprobe};
 use kprobe::libkflow;
 use kprobe::protocol::Classify;
 use kprobe::flow::Protocol::TCP;
+use kprobe::fanout;
 use kprobe::protocol::Decoder;
 use pcap::Capture;
 use libkflow::Error::*;
@@ -15,6 +17,7 @@ fn main() {
     let args    = args::parse();
     let verbose = args.count("verbose");
     let decode  = args.count("no_decode") == 0;
+    let fanout  = args.opt("fanout").unwrap_or_else(abort);
     let promisc = args.count("promisc") > 0;
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
@@ -83,6 +86,10 @@ fn main() {
     // if let Some(ref filter) = filter {
     //     cap.filter(filter).unwrap();
     // }
+
+    if let Some(group) = fanout {
+        fanout::join(&cap, group).unwrap_or_else(abort);
+    }
 
     let mut kprobe = Kprobe::new(interface, Config{
         classify:  classify,
