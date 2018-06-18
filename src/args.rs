@@ -4,6 +4,7 @@ use std::ffi::{CString, NulError};
 use std::net::AddrParseError;
 use std::num::ParseIntError;
 use clap::{ArgMatches, Values};
+use errno::Errno;
 use pcap::Device;
 use pnet::datalink::{self, NetworkInterface};
 use flow::Addr;
@@ -30,6 +31,7 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg status_port:  --("status-port") [port]      "Status port")
       (@arg http_port:    --("http-port")   [port] ...  "Decode HTTP on port")
       (@arg no_decode:    --("no-decode")               "No protocol decoding")
+      (@arg fanout:       --fanout          [group]     "Join fanout group")
       (@arg translate:    --translate       [spec] ...  "Translate address")
       (@arg promisc:      --promisc                     "Promiscuous mode")
       (@arg snaplen:      --snaplen         [N]         "Capture snaplen")
@@ -175,6 +177,7 @@ impl FromArg for (Addr, Addr) {
 pub enum Error<'a> {
     Missing(&'a str),
     Invalid(String),
+    Syscall(Errno),
 }
 
 impl<'a> From<NulError> for Error<'a> {
@@ -195,11 +198,18 @@ impl<'a> From<AddrParseError> for Error<'a> {
     }
 }
 
+impl<'a> From<Errno> for Error<'a> {
+    fn from(err: Errno) -> Self {
+        Error::Syscall(err)
+    }
+}
+
 impl<'a> fmt::Display for Error<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Missing(name)    => write!(f, "missing argument '{}'", name),
             Error::Invalid(ref str) => write!(f, "invalid argument: {}", str),
+            Error::Syscall(ref err) => write!(f, "syscall failed: {}", err),
         }
     }
 }

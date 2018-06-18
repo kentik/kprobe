@@ -2,6 +2,7 @@
 
 #[macro_use]
 extern crate clap;
+extern crate errno;
 extern crate pcap;
 extern crate pnet;
 #[macro_use]
@@ -20,6 +21,7 @@ pub mod flow;
 pub mod libkflow;
 pub mod custom;
 
+pub mod fanout;
 pub mod queue;
 pub mod protocol;
 pub mod reasm;
