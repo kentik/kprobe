@@ -7,7 +7,7 @@
 // must be updated alongside any nom upgrades that change the original definition.
 
 #[macro_export]
-macro_rules! named_args {
+macro_rules! knamed_args {
     (pub $func_name:ident ( $( $arg:ident : $typ:ty ),* ) < $return_type:ty > , $submac:ident!( $($args:tt)* ) ) => {
         pub fn $func_name(input: &[u8], $( $arg : $typ ),*) -> ::nom::IResult<&[u8], $return_type> {
             $submac!(input, $($args)*)

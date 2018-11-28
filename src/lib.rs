@@ -4,7 +4,6 @@
 extern crate clap;
 extern crate pcap;
 extern crate pnet;
-#[macro_use]
 extern crate nom;
 extern crate libc;
 extern crate time;

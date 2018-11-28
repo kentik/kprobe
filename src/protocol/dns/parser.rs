@@ -74,7 +74,7 @@ pub fn parse_message(buf: &[u8]) -> IResult<&[u8], Message> {
 
 const MAX_POINTER_DEPTH: u16 = 32;
 
-named_args!(message<'a>(msg: &'a [u8]) <Message<'a>>, do_parse!(
+knamed_args!(message<'a>(msg: &'a [u8]) <Message<'a>>, do_parse!(
     header:     header
  >> query:      count!(call!(qq, msg), header.qdcount as usize)
  >> answer:     count!(call!(rr, msg), header.ancount as usize)
@@ -120,7 +120,7 @@ named!(header<&[u8], Header>, do_parse!(
   })
 ));
 
-named_args!(qq<'a>(msg: &'a [u8]) <QQ>, do_parse!(
+knamed_args!(qq<'a>(msg: &'a [u8]) <QQ>, do_parse!(
     qname:  call!(name, msg)
  >> qtype:  be_u16
  >> qclass: be_u16
@@ -131,7 +131,7 @@ named_args!(qq<'a>(msg: &'a [u8]) <QQ>, do_parse!(
  })
 ));
 
-named_args!(rr<'a>(msg: &'a [u8]) <RR<'a>>, do_parse!(
+knamed_args!(rr<'a>(msg: &'a [u8]) <RR<'a>>, do_parse!(
     name:     call!(name, msg)
  >> rtype:    be_u16
  >> class:    be_u16
@@ -160,44 +160,44 @@ fn rdata<'a>(buf: &'a [u8], msg: &'a [u8], rtype: u16) -> IResult<&'a [u8], Rdat
     }
 }
 
-named_args!(rdata_a<'a>() <Rdata<'a>>, do_parse!(
+knamed_args!(rdata_a<'a>() <Rdata<'a>>, do_parse!(
     verify!(be_u16, |n: u16| n == 4)
  >> ip: map!(be_u32, Ipv4Addr::from)
  >> (Rdata::A(ip))
 ));
 
-named_args!(rdata_aaaa<'a>() <Rdata<'a>>, do_parse!(
+knamed_args!(rdata_aaaa<'a>() <Rdata<'a>>, do_parse!(
     verify!(be_u16, |n: u16| n == 16)
  >> ip: map!(take!(16), parse_ipv6)
  >> (Rdata::Aaaa(ip))
 ));
 
-named_args!(rdata_ns<'a>(msg: &'a [u8]) <Rdata<'a>>,
+knamed_args!(rdata_ns<'a>(msg: &'a [u8]) <Rdata<'a>>,
     map!(call!(rdata_name, msg), Rdata::Ns)
 );
 
-named_args!(rdata_cname<'a>(msg: &'a [u8]) <Rdata<'a>>,
+knamed_args!(rdata_cname<'a>(msg: &'a [u8]) <Rdata<'a>>,
     map!(call!(rdata_name, msg), Rdata::Cname)
 );
 
-named_args!(rdata_ptr<'a>(msg: &'a [u8]) <Rdata<'a>>,
+knamed_args!(rdata_ptr<'a>(msg: &'a [u8]) <Rdata<'a>>,
     map!(call!(rdata_name, msg), Rdata::Ptr)
 );
 
-named_args!(rdata_txt<'a>() <Rdata<'a>>, do_parse!(
+knamed_args!(rdata_txt<'a>() <Rdata<'a>>, do_parse!(
     len: be_u16
  >> txt: flat_map!(take!(len), many1!(char_str))
  >> (Rdata::Txt(txt))
 ));
 
-named_args!(rdata_mx<'a>(msg: &'a [u8]) <Rdata<'a>>, do_parse!(
+knamed_args!(rdata_mx<'a>(msg: &'a [u8]) <Rdata<'a>>, do_parse!(
     be_u16
  >> pref: be_u16
  >> ex:   call!(name, msg)
  >> (Rdata::Mx(pref, ex))
 ));
 
-named_args!(rdata_soa<'a>(msg: &'a [u8]) <Rdata<'a>>, do_parse!(
+knamed_args!(rdata_soa<'a>(msg: &'a [u8]) <Rdata<'a>>, do_parse!(
     be_u16
  >> mname:   call!(name, msg)
  >> rname:   call!(name, msg)
@@ -217,13 +217,13 @@ named_args!(rdata_soa<'a>(msg: &'a [u8]) <Rdata<'a>>, do_parse!(
  })
 ));
 
-named_args!(rdata_other<'a>() <Rdata<'a>>, do_parse!(
+knamed_args!(rdata_other<'a>() <Rdata<'a>>, do_parse!(
     len: be_u16
  >> buf: take!(len)
  >> (Rdata::Other(buf))
 ));
 
-named_args!(rdata_name<'a>(msg: &'a [u8]) <String>, do_parse!(
+knamed_args!(rdata_name<'a>(msg: &'a [u8]) <String>, do_parse!(
     len: be_u16
  >> str: flat_map!(take!(len), call!(name, msg))
  >> (str)
@@ -231,25 +231,25 @@ named_args!(rdata_name<'a>(msg: &'a [u8]) <String>, do_parse!(
 
 named!(char_str<&[u8], &str>, map_res!(length_bytes!(be_u8), str::from_utf8));
 
-named_args!(name<'a>(msg: &'a [u8]) <String>, map_res!(alt!(
+knamed_args!(name<'a>(msg: &'a [u8]) <String>, map_res!(alt!(
     do_parse!(peek!(bits!(len_tag)) >> vec: call!(string,  msg, Vec::with_capacity(64), 0) >> (vec)) |
     do_parse!(peek!(bits!(ptr_tag)) >> vec: call!(pointer, msg, Vec::with_capacity(64), 0) >> (vec))
     ), String::from_utf8)
 );
 
-named_args!(string<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>, do_parse!(
+knamed_args!(string<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>, do_parse!(
     tup: call!(labels, vec)
  >> vec: call!(endofs, msg, tup.1, depth)
  >> (vec)
 ));
 
-named_args!(pointer<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>, do_parse!(
+knamed_args!(pointer<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>, do_parse!(
     off: bits!(ptr_offset)
  >> vec: call!(resolve_ptr, msg, off, vec, depth)
  >> (vec)
 ));
 
-named_args!(labels<'a>(vec: Vec<u8>) <(bool, Vec<u8>)>,
+knamed_args!(labels<'a>(vec: Vec<u8>) <(bool, Vec<u8>)>,
     fold_many0!(label, (vec.is_empty(), vec), |mut args: (bool, Vec<u8>), name| {
         if !args.0 {
             args.1.push(b'.');
@@ -280,7 +280,7 @@ named!(ptr_offset<(&[u8], usize), usize>, do_parse!(
 named!(len_tag<(&[u8], usize), u8>, tag_bits!(u8, 2, 0b00));
 named!(ptr_tag<(&[u8], usize), u8>, tag_bits!(u8, 2, 0b11));
 
-named_args!(endofs<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>,
+knamed_args!(endofs<'a>(msg: &'a [u8], vec: Vec<u8>, depth: u16) <Vec<u8>>,
     switch!(peek!(be_u8),
         0 => do_parse!(take!(1) >> (vec)) |
         _ => call!(pointer, msg, vec, depth)
