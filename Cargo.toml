@@ -5,6 +5,7 @@ authors = ["Will <will@kentik.com>"]
 links   = "kflow"
 build   = "build.rs"
 
+license     = "PROPRIETARY"
 description = """
 
 Kentik host agent - please see https://kb.kentik.com/Bd03.htm for detailed
@@ -26,3 +27,14 @@ http-muncher = "0.3.1"
 [profile.release]
 lto   = true
 debug = true
+
+[package.metadata.deb]
+assets = [
+  ["target/x86_64-unknown-linux-musl/release/kprobe", "usr/bin/", "755"],
+]
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release", "--target", "x86_64-unknown-linux-musl", "--bin", "kprobe"]
+
+[package.metadata.rpm.targets]
+"../x86_64-unknown-linux-musl/release/kprobe" = { path = "/usr/bin/kprobe" }
