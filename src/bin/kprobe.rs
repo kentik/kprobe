@@ -18,6 +18,7 @@ fn main() {
     let verbose = args.count("verbose");
     let decode  = args.count("no_decode") == 0;
     let fanout  = args.opt("fanout").unwrap_or_else(abort);
+    let filter  = args.opt::<String>("filter").unwrap_or_else(abort);
     let promisc = args.count("promisc") > 0;
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
@@ -75,7 +76,7 @@ fn main() {
 
     let translate = args.opts("translate").unwrap_or_else(abort);
 
-    let cap = Capture::from_device(device).unwrap()
+    let mut cap = Capture::from_device(device).unwrap()
         .buffer_size(100_000_000)
         .timeout(15*1000) // FIXME: should be same as flush timeout
         .snaplen(snaplen)
@@ -83,9 +84,12 @@ fn main() {
         .open()
         .unwrap();
 
-    // if let Some(ref filter) = filter {
-    //     cap.filter(filter).unwrap();
-    // }
+    if let Some(ref filter) = filter {
+        match cap.filter(filter) {
+            Ok(()) => (),
+            Err(e) => abort(e.into())
+        }
+    }
 
     if let Some(group) = fanout {
         fanout::join(&cap, group).unwrap_or_else(abort);

@@ -5,7 +5,7 @@ use std::net::AddrParseError;
 use std::num::ParseIntError;
 use clap::{ArgMatches, Values};
 use errno::Errno;
-use pcap::Device;
+use pcap::{self, Device};
 use pnet::datalink::{self, NetworkInterface};
 use flow::Addr;
 
@@ -32,6 +32,7 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg http_port:    --("http-port")   [port] ...  "Decode HTTP on port")
       (@arg no_decode:    --("no-decode")               "No protocol decoding")
       (@arg fanout:       --fanout          [group]     "Join fanout group")
+      (@arg filter:       --filter          [filter]    "Filter traffic")
       (@arg translate:    --translate       [spec] ...  "Translate address")
       (@arg promisc:      --promisc                     "Promiscuous mode")
       (@arg snaplen:      --snaplen         [N]         "Capture snaplen")
@@ -156,6 +157,12 @@ impl<'a> FromArg for Cow<'a, str> {
     }
 }
 
+impl<'a> FromArg for String {
+    fn from_arg(value: &str) -> Result<Self, Error> {
+        Ok(value.to_owned())
+    }
+}
+
 impl FromArg for (Addr, Addr) {
     fn from_arg(value: &str) -> Result<(Addr, Addr), Error> {
         let mut parts = value.split(',');
@@ -178,6 +185,7 @@ pub enum Error<'a> {
     Missing(&'a str),
     Invalid(String),
     Syscall(Errno),
+    Pcap(pcap::Error)
 }
 
 impl<'a> From<NulError> for Error<'a> {
@@ -204,12 +212,19 @@ impl<'a> From<Errno> for Error<'a> {
     }
 }
 
+impl<'a> From<pcap::Error> for Error<'a> {
+    fn from(err: pcap::Error) -> Self {
+        Error::Pcap(err)
+    }
+}
+
 impl<'a> fmt::Display for Error<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Missing(name)    => write!(f, "missing argument '{}'", name),
             Error::Invalid(ref str) => write!(f, "invalid argument: {}", str),
             Error::Syscall(ref err) => write!(f, "syscall failed: {}", err),
+            Error::Pcap(ref err)    => write!(f, "pcap error: {}", err),
         }
     }
 }
