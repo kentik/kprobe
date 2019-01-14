@@ -10,6 +10,7 @@ use kprobe::protocol::Classify;
 use kprobe::flow::Protocol::TCP;
 use kprobe::fanout;
 use kprobe::protocol::Decoder;
+use kprobe::dns;
 use pcap::Capture;
 use libkflow::Error::*;
 
@@ -20,6 +21,7 @@ fn main() {
     let fanout  = args.opt("fanout").unwrap_or_else(abort);
     let filter  = args.opt::<String>("filter").unwrap_or_else(abort);
     let promisc = args.count("promisc") > 0;
+    let dns     = args.count("dns") > 0;
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
 
@@ -40,6 +42,7 @@ fn main() {
     cfg.device_plan = args.opt("device_plan").unwrap_or(cfg.device_plan);
     cfg.device_site = args.opt("device_site").unwrap_or(cfg.device_site);
     cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
+    cfg.dns.url     = args.opt("dns_url").unwrap_or(cfg.dns.url);
     cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
 
@@ -84,15 +87,20 @@ fn main() {
         .open()
         .unwrap();
 
+    if let Some(group) = fanout {
+        fanout::join(&cap, group).unwrap_or_else(abort);
+    }
+
+    if dns {
+        dns::run(cap).unwrap_or_else(abort);
+        exit(0);
+    }
+
     if let Some(ref filter) = filter {
         match cap.filter(filter) {
             Ok(()) => (),
             Err(e) => abort(e.into())
         }
-    }
-
-    if let Some(group) = fanout {
-        fanout::join(&cap, group).unwrap_or_else(abort);
     }
 
     let mut kprobe = Kprobe::new(interface, Config{

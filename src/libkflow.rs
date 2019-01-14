@@ -2,6 +2,7 @@
 
 use std::default::Default;
 use std::ffi::{CStr, CString};
+use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
 use std::net::IpAddr;
@@ -21,6 +22,7 @@ pub struct Config {
     pub metrics:     Metrics,
     pub proxy:       Option<CString>,
     pub status:      Status,
+    pub dns:         DNS,
     pub device_id:   u32,
     pub device_if:   Option<CString>,
     pub device_ip:   Option<CString>,
@@ -59,6 +61,12 @@ pub struct Metrics {
 pub struct Status {
     pub host: CString,
     pub port: u16,
+}
+
+#[derive(Debug)]
+pub struct DNS {
+    pub interval: Duration,
+    pub url:      Option<CString>,
 }
 
 #[derive(Debug)]
@@ -109,6 +117,10 @@ impl Config {
                 host: CString::new("127.0.0.1").unwrap(),
                 port: 0,
             },
+            dns: DNS{
+                interval: Duration::seconds(1),
+                url:      None,
+            },
             device_id:   0,
             device_if:   None,
             device_ip:   None,
@@ -153,6 +165,10 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         status: kflowConfigStatus {
             host: cfg.status.host.as_ptr(),
             port: cfg.status.port as libc::c_int,
+        },
+        dns: kflowConfigDNS {
+            interval: cfg.dns.interval.num_seconds() as libc::c_int,
+            URL:      opt(&cfg.dns.url),
         },
         device_id:   cfg.device_id as libc::c_int,
         device_if:   opt(&cfg.device_if),
@@ -307,6 +323,12 @@ pub fn hostname() -> CString {
     }
 }
 
+pub fn sendDNS(q: kflowDomainQuery, a: &[kflowDomainAnswer]) {
+    unsafe {
+        kflowSendDNS(q, a.as_ptr(), a.len());
+    }
+}
+
 #[link(name = "kflow")]
 extern {
     fn kflowInit(cfg: *const kflowConfig, dev: *mut kflowDevice) -> libc::c_int;
@@ -314,6 +336,7 @@ extern {
     fn kflowStop(timeout: libc::c_int) -> libc::c_int;
     fn kflowError() -> *const libc::c_char;
     fn kflowVersion() -> *const libc::c_char;
+    fn kflowSendDNS(q: kflowDomainQuery, a: *const kflowDomainAnswer, n: usize) -> libc::c_int;
 }
 
 pub const KFLOW_CUSTOM_STR: libc::c_int = 1;
@@ -328,6 +351,7 @@ struct kflowConfig {
     metrics:     kflowConfigMetrics,
     proxy:       kflowConfigProxy,
     status:      kflowConfigStatus,
+    dns:         kflowConfigDNS,
     device_id:   libc::c_int,
     device_if:   *const libc::c_char,
     device_ip:   *const libc::c_char,
@@ -371,6 +395,12 @@ struct kflowConfigProxy {
 struct kflowConfigStatus {
     host: *const libc::c_char,
     port: libc::c_int,
+}
+
+#[repr(C)]
+struct kflowConfigDNS {
+    interval: libc::c_int,
+    URL:      *const libc::c_char,
 }
 
 #[repr(C)]
@@ -470,6 +500,25 @@ pub struct kflow {
     pub numCustoms: u32,
 }
 
+#[repr(C)]
+pub struct kflowByteSlice<'a> {
+    pub ptr: *const u8,
+    pub len: usize,
+    pub ptd: PhantomData<&'a ()>,
+}
+
+#[repr(C)]
+pub struct kflowDomainQuery<'a> {
+    pub name: kflowByteSlice<'a>,
+    pub host: kflowByteSlice<'a>,
+}
+
+#[repr(C)]
+pub struct kflowDomainAnswer<'a> {
+    pub ip:  kflowByteSlice<'a>,
+    pub ttl: u32,
+}
+
 impl kflowCustom {
     pub fn name(&self) -> &str {
         unsafe {
@@ -529,5 +578,15 @@ impl ::std::fmt::Debug for kflowCustom {
         });
 
         s.finish()
+    }
+}
+
+impl<'a> From<&'a str> for kflowByteSlice<'a> {
+    fn from(str: &'a str) -> Self {
+        Self {
+            ptr: str.as_ptr(),
+            len: str.len(),
+            ptd: PhantomData,
+        }
     }
 }

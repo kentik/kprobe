@@ -29,6 +29,8 @@ pub mod timer;
 pub mod track;
 pub mod translate;
 
+pub mod dns;
+
 pub use kprobe::Kprobe;
 pub use config::Config;
 
