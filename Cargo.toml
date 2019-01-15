@@ -13,17 +13,20 @@ documentation of flags, options, and recommended configuration.
 """
 
 [dependencies]
-clap      = "2.31.2"
-errno     = "0.2.3"
-libc      = "0.2.40"
-time      = "0.1.40"
-byteorder = "1.1.0"
-nom       = "3.2.1"
-pnet      = "0.21.0"
-pcap      = "0.7.0"
-rand      = "0.4.2"
-
+clap         = "2.31.2"
+errno        = "0.2.3"
+libc         = "0.2.40"
+time         = "0.1.40"
+byteorder    = "1.1.0"
+nom          = "3.2.1"
+pnet         = "0.21.0"
+pcap         = "0.7.0"
+rand         = "0.4.2"
 http-muncher = "0.3.1"
+serde        = "1.0.84"
+serde_derive = "1.0.84"
+serde_bytes  = "0.10.4"
+rmp-serde    = "0.13.7"
 
 [profile.release]
 lto   = true

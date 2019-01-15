@@ -1,5 +1,4 @@
-use std::marker::PhantomData;
-use std::net::{self, Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 use nom::IResult::Done;
 use pcap::{Capture, Active};
 use pcap::Error::*;
@@ -7,6 +6,8 @@ use pnet::packet::{Packet as PacketExt};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
+use serde::Serialize;
+use rmp_serde::Serializer;
 use args::Error;
 use packet::{self, Packet, Transport::*};
 use protocol::dns::parser::{self, Rdata};
@@ -14,27 +15,37 @@ use reasm::Reassembler;
 use flow::{Addr, Timestamp};
 use libkflow::*;
 
-#[derive(Debug)]
-pub struct Query {
-    client: IpAddr,
-    query:  String,
-    answer: Vec<Answer>,
+#[derive(Debug, Serialize)]
+pub struct Response {
+    #[serde(rename = "Question")]
+    pub question: Question,
+    #[serde(rename = "Answers")]
+    pub answers:  Vec<Answer>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+pub struct Question {
+    #[serde(rename = "Name")]
+    pub name: String,
+    #[serde(rename = "Host", with = "serde_bytes")]
+    pub host: Vec<u8>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct Answer {
-    addr: IpAddr,
-    ttl:  u32,
-}
-
-#[derive(Debug)]
-pub enum IpAddr {
-    V4([u8;  4]),
-    V6([u8; 16]),
+    #[serde(rename = "Name")]
+    pub name:  String,
+    #[serde(rename = "CNAME")]
+    pub cname: String,
+    #[serde(rename = "IP", with = "serde_bytes")]
+    pub ip:    Vec<u8>,
+    #[serde(rename = "TTL")]
+    pub ttl:   u32,
 }
 
 struct Dns {
     asm: Reassembler,
+    vec: Vec<u8>,
 }
 
 pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
@@ -45,7 +56,7 @@ pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
     loop {
         match cap.next() {
             Ok(packet)          => dns.record(packet),
-            Err(TimeoutExpired) => (),
+            Err(TimeoutExpired) => dns.flush(true),
             Err(NoMorePackets)  => return Ok(()),
             Err(e)              => return Err(e.into()),
         }
@@ -56,6 +67,7 @@ impl Dns {
     fn new() -> Self {
         Dns {
             asm: Reassembler::new(),
+            vec: Vec::with_capacity(1024),
         }
     }
 
@@ -76,20 +88,18 @@ impl Dns {
                         _              => return,
                     };
 
-                    if let Some(query) = self.parse(src, dst, payload) {
-                        let kq: kflowDomainQuery = (&query).into();
-                        let ka = query.answer.iter().map(|a| {
-                            a.into()
-                        }).collect::<Vec<_>>();
-
-                        sendDNS(kq, &ka);
+                    if let Some(res) = self.parse(src, dst, payload) {
+                        let mut s = Serializer::new_named(&mut self.vec);
+                        res.serialize(&mut s).unwrap();
                     }
+
+                    self.flush(false);
                 }
             }
         }
     }
 
-    pub fn parse(&mut self, _src: Addr, dst: Addr, payload: &[u8]) -> Option<Query> {
+    pub fn parse(&mut self, _src: Addr, dst: Addr, payload: &[u8]) -> Option<Response> {
         let mut msg = match parser::parse_message(payload) {
             Done(_, mut msg) => msg,
             _                => return None,
@@ -100,20 +110,32 @@ impl Dns {
         }
 
         msg.query.pop().map(|qq| {
-            let answer = msg.answer.iter().flat_map(|rr| {
+            let answers = msg.answer.iter().flat_map(|rr| {
+                let name  = String::new();
+                let cname = String::new();
+                let ttl   = rr.ttl;
                 match rr.rdata {
-                    Rdata::A(ip)    => Some(Answer{addr: ip.into(), ttl: rr.ttl}),
-                    Rdata::Aaaa(ip) => Some(Answer{addr: ip.into(), ttl: rr.ttl}),
+                    Rdata::A(ip)    => Some(Answer{name, cname, ip: addr(IpAddr::V4(ip)), ttl}),
+                    Rdata::Aaaa(ip) => Some(Answer{name, cname, ip: addr(IpAddr::V6(ip)), ttl}),
                     _               => None,
                 }
             }).collect();
 
-            Query {
-                client: dst.addr.into(),
-                query:  qq.qname,
-                answer: answer
+            Response {
+                question: Question{
+                    name: qq.qname,
+                    host: addr(dst.addr),
+                },
+                answers:  answers,
             }
         })
+    }
+
+    fn flush(&mut self, force: bool) {
+        if force || self.vec.len() >= 1_000_000 {
+            sendEncodedDNS(&mut self.vec);
+            self.vec.truncate(0);
+        }
     }
 
     fn tcp<'a>(&self, p: &Packet, tcp: &'a TcpPacket) -> (Addr, Addr, &'a [u8]) {
@@ -129,56 +151,9 @@ impl Dns {
     }
 }
 
-impl From<net::IpAddr> for IpAddr {
-    fn from(ip: net::IpAddr) -> Self {
-        match ip {
-            net::IpAddr::V4(ip) => IpAddr::V4(ip.octets()),
-            net::IpAddr::V6(ip) => IpAddr::V6(ip.octets()),
-        }
-    }
-}
-
-impl From<Ipv4Addr> for IpAddr {
-    fn from(ip: Ipv4Addr) -> Self {
-        IpAddr::V4(ip.octets())
-    }
-}
-
-impl From<Ipv6Addr> for IpAddr {
-    fn from(ip: Ipv6Addr) -> Self {
-        IpAddr::V6(ip.octets())
-    }
-}
-
-impl<'a> From<&'a IpAddr> for kflowByteSlice<'a> {
-    fn from(ip: &'a IpAddr) -> Self {
-        let (ptr, len) = match ip {
-            IpAddr::V4(ip) => (ip.as_ptr(), ip.len()),
-            IpAddr::V6(ip) => (ip.as_ptr(), ip.len()),
-        };
-
-        Self {
-            ptr: ptr,
-            len: len,
-            ptd: PhantomData,
-        }
-    }
-}
-
-impl<'a> From<&'a Query> for kflowDomainQuery<'a> {
-    fn from(q: &'a Query) -> Self {
-        Self {
-            name: q.query.as_str().into(),
-            host: (&q.client).into(),
-        }
-    }
-}
-
-impl<'a> From<&'a Answer> for kflowDomainAnswer<'a> {
-    fn from(a: &'a Answer) -> Self {
-        Self {
-            ip:  (&a.addr).into(),
-            ttl: a.ttl,
-        }
+fn addr(ip: IpAddr) -> Vec<u8> {
+    match ip {
+        IpAddr::V4(ip) => ip.octets().to_vec(),
+        IpAddr::V6(ip) => ip.octets().to_vec(),
     }
 }

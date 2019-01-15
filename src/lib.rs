@@ -11,6 +11,10 @@ extern crate time;
 extern crate http_muncher;
 extern crate byteorder;
 extern crate rand;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate rmp_serde;
 
 pub mod args;
 pub mod config;

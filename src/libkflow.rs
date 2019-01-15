@@ -323,9 +323,9 @@ pub fn hostname() -> CString {
     }
 }
 
-pub fn sendDNS(q: kflowDomainQuery, a: &[kflowDomainAnswer]) {
+pub fn sendEncodedDNS(data: &[u8]) {
     unsafe {
-        kflowSendDNS(q, a.as_ptr(), a.len());
+        kflowSendEncodedDNS(data.as_ptr(), data.len());
     }
 }
 
@@ -337,6 +337,7 @@ extern {
     fn kflowError() -> *const libc::c_char;
     fn kflowVersion() -> *const libc::c_char;
     fn kflowSendDNS(q: kflowDomainQuery, a: *const kflowDomainAnswer, n: usize) -> libc::c_int;
+    fn kflowSendEncodedDNS(ptr: *const u8, len: usize) -> libc::c_int;
 }
 
 pub const KFLOW_CUSTOM_STR: libc::c_int = 1;

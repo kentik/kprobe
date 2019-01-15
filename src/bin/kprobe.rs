@@ -79,9 +79,14 @@ fn main() {
 
     let translate = args.opts("translate").unwrap_or_else(abort);
 
+    let timeout = match dns {
+        false => 15_000,
+        true  =>  1_000,
+    };
+
     let mut cap = Capture::from_device(device).unwrap()
         .buffer_size(100_000_000)
-        .timeout(15*1000) // FIXME: should be same as flush timeout
+        .timeout(timeout)
         .snaplen(snaplen)
         .promisc(promisc)
         .open()
