@@ -10,7 +10,7 @@ use pnet::datalink::NetworkInterface;
 use pnet::util::MacAddr;
 use pnet::packet::PrimitiveValues;
 use time::Duration;
-use libc;
+use libc::{self, c_char, c_int};
 use super::flow::{Direction, Key, Protocol};
 use super::queue::Counter;
 
@@ -65,8 +65,9 @@ pub struct Status {
 
 #[derive(Debug)]
 pub struct DNS {
+    pub enable:   bool,
     pub interval: Duration,
-    pub url:      Option<CString>,
+    pub url:      CString,
 }
 
 #[derive(Debug)]
@@ -118,8 +119,9 @@ impl Config {
                 port: 0,
             },
             dns: DNS{
+                enable:   false,
                 interval: Duration::seconds(1),
-                url:      None,
+                url:      CString::new("https://flow.kentik.com/dns").unwrap(),
             },
             device_id:   0,
             device_if:   None,
@@ -137,7 +139,7 @@ impl Config {
 }
 
 pub fn configure(cfg: &Config) -> Result<Device, Error> {
-    fn opt(cstr: &Option<CString>) -> *const libc::c_char {
+    fn opt(cstr: &Option<CString>) -> *const c_char {
         cstr.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
     }
 
@@ -152,11 +154,11 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         capture: kflowConfigCapture {
             device:  cfg.capture.device.as_ptr(),
             snaplen: cfg.capture.snaplen,
-            promisc: cfg.capture.promisc as libc::c_int,
+            promisc: cfg.capture.promisc as c_int,
             ip:      opt(&cfg.capture.ip),
         },
         metrics: kflowConfigMetrics {
-            interval: cfg.metrics.interval.num_minutes() as libc::c_int,
+            interval: cfg.metrics.interval.num_minutes() as c_int,
             URL:      cfg.metrics.url.as_ptr(),
         },
         proxy: kflowConfigProxy {
@@ -164,21 +166,22 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         },
         status: kflowConfigStatus {
             host: cfg.status.host.as_ptr(),
-            port: cfg.status.port as libc::c_int,
+            port: cfg.status.port as c_int,
         },
         dns: kflowConfigDNS {
-            interval: cfg.dns.interval.num_seconds() as libc::c_int,
-            URL:      opt(&cfg.dns.url),
+            enable:   cfg.dns.enable as c_int,
+            interval: cfg.dns.interval.num_seconds() as c_int,
+            URL:      cfg.dns.url.as_ptr(),
         },
-        device_id:   cfg.device_id as libc::c_int,
+        device_id:   cfg.device_id as c_int,
         device_if:   opt(&cfg.device_if),
         device_ip:   opt(&cfg.device_ip),
         device_name: cfg.device_name.as_ptr(),
-        device_plan: cfg.device_plan.unwrap_or(0) as libc::c_int,
-        device_site: cfg.device_site.unwrap_or(0) as libc::c_int,
-        sample:      cfg.sample as libc::c_int,
-        timeout:     cfg.timeout.num_milliseconds() as libc::c_int,
-        verbose:     cfg.verbose as libc::c_int,
+        device_plan: cfg.device_plan.unwrap_or(0) as c_int,
+        device_site: cfg.device_site.unwrap_or(0) as c_int,
+        sample:      cfg.sample as c_int,
+        timeout:     cfg.timeout.num_milliseconds() as c_int,
+        verbose:     cfg.verbose as c_int,
         program:     cfg.program.as_ptr(),
         version:     cfg.version.as_ptr(),
     };
@@ -282,7 +285,7 @@ pub fn send(key: &Key, ctr: &Counter, sr: u32, cs: Option<&[kflowCustom]>) -> Re
 
 pub fn stop(timeout: Duration) -> Result<(), Error> {
     unsafe {
-        match kflowStop(timeout.num_milliseconds() as libc::c_int) {
+        match kflowStop(timeout.num_milliseconds() as c_int) {
             0 => Ok(()),
             _ => Err(Error::Timeout),
         }
@@ -315,7 +318,7 @@ pub fn hostname() -> CString {
     unsafe {
         let mut bytes = [0u8; 64];
 
-        let ptr = bytes.as_mut_ptr() as *mut libc::c_char;
+        let ptr = bytes.as_mut_ptr() as *mut c_char;
         let len = bytes.len();
         libc::gethostname(ptr, len);
 
@@ -331,92 +334,93 @@ pub fn sendEncodedDNS(data: &[u8]) {
 
 #[link(name = "kflow")]
 extern {
-    fn kflowInit(cfg: *const kflowConfig, dev: *mut kflowDevice) -> libc::c_int;
-    fn kflowSend(flow: *const kflow) -> libc::c_int;
-    fn kflowStop(timeout: libc::c_int) -> libc::c_int;
-    fn kflowError() -> *const libc::c_char;
-    fn kflowVersion() -> *const libc::c_char;
-    fn kflowSendDNS(q: kflowDomainQuery, a: *const kflowDomainAnswer, n: usize) -> libc::c_int;
-    fn kflowSendEncodedDNS(ptr: *const u8, len: usize) -> libc::c_int;
+    fn kflowInit(cfg: *const kflowConfig, dev: *mut kflowDevice) -> c_int;
+    fn kflowSend(flow: *const kflow) -> c_int;
+    fn kflowStop(timeout: c_int) -> c_int;
+    fn kflowError() -> *const c_char;
+    fn kflowVersion() -> *const c_char;
+    fn kflowSendDNS(q: kflowDomainQuery, a: *const kflowDomainAnswer, n: usize) -> c_int;
+    fn kflowSendEncodedDNS(ptr: *const u8, len: usize) -> c_int;
 }
 
-pub const KFLOW_CUSTOM_STR: libc::c_int = 1;
-pub const KFLOW_CUSTOM_U32: libc::c_int = 2;
-pub const KFLOW_CUSTOM_F32: libc::c_int = 3;
+pub const KFLOW_CUSTOM_STR: c_int = 1;
+pub const KFLOW_CUSTOM_U32: c_int = 2;
+pub const KFLOW_CUSTOM_F32: c_int = 3;
 
 #[repr(C)]
 struct kflowConfig {
-    URL:         *const libc::c_char,
+    URL:         *const c_char,
     API:         kflowConfigAPI,
     capture:     kflowConfigCapture,
     metrics:     kflowConfigMetrics,
     proxy:       kflowConfigProxy,
     status:      kflowConfigStatus,
     dns:         kflowConfigDNS,
-    device_id:   libc::c_int,
-    device_if:   *const libc::c_char,
-    device_ip:   *const libc::c_char,
-    device_name: *const libc::c_char,
-    device_plan: libc::c_int,
-    device_site: libc::c_int,
-    sample:      libc::c_int,
-    timeout:     libc::c_int,
-    verbose:     libc::c_int,
-    program:     *const libc::c_char,
-    version:     *const libc::c_char,
+    device_id:   c_int,
+    device_if:   *const c_char,
+    device_ip:   *const c_char,
+    device_name: *const c_char,
+    device_plan: c_int,
+    device_site: c_int,
+    sample:      c_int,
+    timeout:     c_int,
+    verbose:     c_int,
+    program:     *const c_char,
+    version:     *const c_char,
 }
 
 #[repr(C)]
 struct kflowConfigAPI {
-    email: *const libc::c_char,
-    token: *const libc::c_char,
-    URL:   *const libc::c_char,
+    email: *const c_char,
+    token: *const c_char,
+    URL:   *const c_char,
 }
 
 #[repr(C)]
 struct kflowConfigCapture {
-    device:  *const libc::c_char,
-    snaplen: libc::c_int,
-    promisc: libc::c_int,
-    ip:      *const libc::c_char,
+    device:  *const c_char,
+    snaplen: c_int,
+    promisc: c_int,
+    ip:      *const c_char,
 }
 
 #[repr(C)]
 struct kflowConfigMetrics {
-    interval: libc::c_int,
-    URL:      *const libc::c_char,
+    interval: c_int,
+    URL:      *const c_char,
 }
 
 #[repr(C)]
 struct kflowConfigProxy {
-    URL: *const libc::c_char,
+    URL: *const c_char,
 }
 
 #[repr(C)]
 struct kflowConfigStatus {
-    host: *const libc::c_char,
-    port: libc::c_int,
+    host: *const c_char,
+    port: c_int,
 }
 
 #[repr(C)]
 struct kflowConfigDNS {
-    interval: libc::c_int,
-    URL:      *const libc::c_char,
+    enable:   c_int,
+    interval: c_int,
+    URL:      *const c_char,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct kflowCustom {
-    pub name:  *const libc::c_char,
+    pub name:  *const c_char,
     pub id:    u64,
-    pub vtype: libc::c_int,
+    pub vtype: c_int,
     pub value: kflowCustomValue,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union kflowCustomValue {
-    pub str: *const libc::c_char,
+    pub str: *const c_char,
     pub u32: u32,
     pub f32: f32,
 }
@@ -424,7 +428,7 @@ pub union kflowCustomValue {
 #[repr(C)]
 pub struct kflowDevice {
     pub id:          u64,
-    pub name:        *const libc::c_char,
+    pub name:        *const c_char,
     pub sample_rate: u64,
     pub c_customs:   *const kflowCustom,
     pub n_customs:   u32,

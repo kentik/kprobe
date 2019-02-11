@@ -21,7 +21,6 @@ fn main() {
     let fanout  = args.opt("fanout").unwrap_or_else(abort);
     let filter  = args.opt::<String>("filter").unwrap_or_else(abort);
     let promisc = args.count("promisc") > 0;
-    let dns     = args.count("dns") > 0;
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
 
@@ -42,7 +41,8 @@ fn main() {
     cfg.device_plan = args.opt("device_plan").unwrap_or(cfg.device_plan);
     cfg.device_site = args.opt("device_site").unwrap_or(cfg.device_site);
     cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
-    cfg.dns.url     = args.opt("dns_url").unwrap_or(cfg.dns.url);
+    cfg.dns.enable  = args.count("dns") > 0;
+    cfg.dns.url     = args.arg("dns_url").unwrap_or(cfg.dns.url);
     cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
 
@@ -79,7 +79,7 @@ fn main() {
 
     let translate = args.opts("translate").unwrap_or_else(abort);
 
-    let timeout = match dns {
+    let timeout = match cfg.dns.enable {
         false => 15_000,
         true  =>  1_000,
     };
@@ -96,7 +96,7 @@ fn main() {
         fanout::join(&cap, group).unwrap_or_else(abort);
     }
 
-    if dns {
+    if cfg.dns.enable {
         dns::run(cap).unwrap_or_else(abort);
         exit(0);
     }
