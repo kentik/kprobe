@@ -7,6 +7,7 @@ use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
 use serde::Serialize;
+use time::Duration;
 use rmp_serde::Serializer;
 use args::Error;
 use packet::{self, Packet, Transport::*};
@@ -44,8 +45,9 @@ pub struct Answer {
 }
 
 struct Dns {
-    asm: Reassembler,
-    vec: Vec<u8>,
+    asm:  Reassembler,
+    vec:  Vec<u8>,
+    last: Timestamp,
 }
 
 pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
@@ -56,7 +58,7 @@ pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
     loop {
         match cap.next() {
             Ok(packet)          => dns.record(packet),
-            Err(TimeoutExpired) => dns.flush(true),
+            Err(TimeoutExpired) => dns.flush(Timestamp::now()),
             Err(NoMorePackets)  => return Ok(()),
             Err(e)              => return Err(e.into()),
         }
@@ -66,8 +68,9 @@ pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
 impl Dns {
     fn new() -> Self {
         Dns {
-            asm: Reassembler::new(),
-            vec: Vec::with_capacity(1024),
+            asm:  Reassembler::new(),
+            vec:  Vec::with_capacity(1024),
+            last: Timestamp::zero(),
         }
     }
 
@@ -93,7 +96,7 @@ impl Dns {
                         res.serialize(&mut s).unwrap();
                     }
 
-                    self.flush(false);
+                    self.flush(ts);
                 }
             }
         }
@@ -131,10 +134,11 @@ impl Dns {
         })
     }
 
-    fn flush(&mut self, force: bool) {
-        if force || self.vec.len() >= 1_000_000 {
+    fn flush(&mut self, ts: Timestamp) {
+        if (ts - self.last) >= Duration::seconds(1) {
             sendEncodedDNS(&mut self.vec);
             self.vec.truncate(0);
+            self.last = ts;
         }
     }
 
