@@ -45,6 +45,7 @@ fn main() {
     cfg.dns.url     = args.arg("dns_url").unwrap_or(cfg.dns.url);
     cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
+    cfg.region      = args.opt("region").unwrap_or(cfg.region);
 
     if verbose > 0 {
         println!("libkflow-{}", libkflow::version());

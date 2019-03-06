@@ -34,6 +34,7 @@ pub struct Config {
     pub verbose:     u32,
     pub program:     CString,
     pub version:     CString,
+    pub region:      Option<String>,
 }
 
 #[derive(Debug)]
@@ -134,6 +135,7 @@ impl Config {
             verbose:     0,
             program:     CString::new(program).unwrap(),
             version:     CString::new(version).unwrap(),
+            region:      None,
         }
     }
 }
@@ -143,7 +145,7 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         cstr.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
     }
 
-    let c_cfg = kflowConfig {
+    let mut c_cfg = kflowConfig {
         URL: cfg.url.as_ptr(),
         API: kflowConfigAPI {
             email: cfg.api.email.as_ptr(),
@@ -192,6 +194,28 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         sample_rate: 0,
         c_customs:   ptr::null(),
         n_customs:   0,
+    };
+
+    // Put in region overrides here. XXX How to be case insensitive? Can I make enum?
+    if cfg.region != None {
+        let us = "US".to_string();
+        let eu = "EU".to_string();
+        match cfg.region {
+            Some(ref us) => {
+                c_cfg.metrics.URL = CString::new("https://flow.kentik.com/tsdb").unwrap().as_ptr();
+                c_cfg.dns.URL     = CString::new("https://flow.kentik.com/dns").unwrap().as_ptr();
+                c_cfg.URL         = CString::new("https://flow.kentik.com/chf").unwrap().as_ptr();
+                c_cfg.API.URL     = CString::new("https://api.kentik.com/api/internal").unwrap().as_ptr();
+            }
+            Some(ref eu) => {
+                c_cfg.metrics.URL = CString::new("https://flow.kentik.eu/tsdb").unwrap().as_ptr();
+                c_cfg.dns.URL     = CString::new("https://flow.kentik.eu/dns").unwrap().as_ptr();
+                c_cfg.URL         = CString::new("https://flow.kentik.eu/chf").unwrap().as_ptr();
+                c_cfg.API.URL     = CString::new("https://api.kentik.eu/api/internal").unwrap().as_ptr();
+            }
+            _        => {} // XXX How to check other values, return error?
+            None     => {} // Noop
+        }
     };
 
     unsafe fn device(dev: &kflowDevice) -> Device {

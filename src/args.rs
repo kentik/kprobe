@@ -32,6 +32,7 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg dns_url:      --("dns-url")     [URL]       "DNS URL")
       (@arg http_port:    --("http-port")   [port] ...  "Decode HTTP on port")
       (@arg no_decode:    --("no-decode")               "No protocol decoding")
+      (@arg region:       --("region")      [region]    "Way to set common flags for a given region. Valid regions: [US, EU]")
       (@arg dns:          --dns                         "DNS output only")
       (@arg fanout:       --fanout          [group]     "Join fanout group")
       (@arg filter:       --filter          [filter]    "Filter traffic")
