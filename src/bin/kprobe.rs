@@ -21,12 +21,13 @@ fn main() {
     let fanout  = args.opt("fanout").unwrap_or_else(abort);
     let filter  = args.opt::<String>("filter").unwrap_or_else(abort);
     let promisc = args.count("promisc") > 0;
+    let region  = args.opt("region").unwrap_or(None);
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
 
     let (interface, device) = args.arg("interface").unwrap_or_else(abort);
 
-    let mut cfg = libkflow::Config::new(&interface, snaplen, promisc);
+    let mut cfg = libkflow::Config::new(&interface, region, snaplen, promisc);
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
     cfg.api.email   = args.arg("email").unwrap_or_else(abort);
     cfg.api.token   = args.arg("token").unwrap_or_else(abort);

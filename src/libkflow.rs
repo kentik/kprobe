@@ -87,7 +87,7 @@ pub enum Error {
 }
 
 impl Config {
-    pub fn new(dev: &NetworkInterface, snaplen: i32, promisc: bool) -> Self {
+    pub fn new(dev: &NetworkInterface, region: Option<String>, snaplen: i32, promisc: bool) -> Self {
         let program = env!("CARGO_PKG_NAME");
         let version = env!("CARGO_PKG_VERSION");
 
@@ -96,12 +96,24 @@ impl Config {
             CString::new(net.ip().to_string()).unwrap()
         }).next();
 
+        let region = region.as_ref().map(String::as_str).unwrap_or("US");
+        let domain = match region.to_ascii_uppercase().as_ref() {
+            "US" => "kentik.com".to_owned(),
+            "EU" => "kentik.eu".to_owned(),
+            name => format!("{}.kentik.com", name.to_ascii_lowercase()),
+        };
+
+        let api  = CString::new(format!("https://api.{}/api/internal", domain)).unwrap();
+        let flow = CString::new(format!("https://flow.{}/chf", domain)).unwrap();
+        let tsdb = CString::new(format!("https://flow.{}/tsdb", domain)).unwrap();
+        let dns  = CString::new(format!("https://flow.{}/dns", domain)).unwrap();
+
         Config {
-            url: CString::new("https://flow.kentik.com/chf").unwrap(),
+            url: flow,
             api: API{
                 email: CString::new("test@example.com").unwrap(),
                 token: CString::new("token").unwrap(),
-                url:   CString::new("https://api.kentik.com/api/internal").unwrap(),
+                url:   api,
             },
             capture: Capture{
                 device:  CString::new(device).unwrap(),
@@ -111,7 +123,7 @@ impl Config {
             },
             metrics: Metrics{
                 interval: Duration::minutes(1),
-                url:      CString::new("https://flow.kentik.com/tsdb").unwrap(),
+                url:      tsdb,
             },
             proxy:   None,
             status:  Status{
@@ -121,7 +133,7 @@ impl Config {
             dns: DNS{
                 enable:   false,
                 interval: Duration::seconds(1),
-                url:      CString::new("https://flow.kentik.com/dns").unwrap(),
+                url:      dns,
             },
             device_id:   0,
             device_if:   None,
