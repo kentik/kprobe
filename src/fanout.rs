@@ -1,11 +1,11 @@
 use pcap::{Capture, Active};
-use args::Error;
+use crate::args::Error;
 
 #[cfg(target_os = "linux")]
 pub fn join(cap: &Capture<Active>, group: u16) -> Result<(), Error> {
     use std::mem;
     use std::os::unix::io::AsRawFd;
-    use libc::{self, c_int, c_void};
+    use libc::{c_int, c_void};
     use errno::errno;
 
     const SOL_PACKET:         c_int = 263;

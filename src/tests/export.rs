@@ -1,7 +1,7 @@
 use std::panic;
-use queue::FlowQueue;
-use flow::*;
-use protocol::Classify;
+use crate::queue::FlowQueue;
+use crate::flow::*;
+use crate::protocol::Classify;
 use super::*;
 
 #[test]

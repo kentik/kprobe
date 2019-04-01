@@ -1,6 +1,6 @@
 use time::Duration;
-use flow::{Flow, Timestamp};
-use custom::*;
+use crate::flow::{Flow, Timestamp};
+use crate::custom::*;
 use super::conn::{Connection, Message};
 
 pub struct Decoder {

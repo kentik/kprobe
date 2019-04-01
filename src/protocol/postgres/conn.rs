@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use time::Duration;
 use nom::IResult::Done;
-use protocol::buf::Buffer;
-use flow::Timestamp;
+use crate::protocol::buf::Buffer;
+use crate::flow::Timestamp;
 use super::parser::{self, Message};
 use self::Message::*;
 

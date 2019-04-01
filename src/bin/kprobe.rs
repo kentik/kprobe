@@ -12,7 +12,7 @@ use kprobe::fanout;
 use kprobe::protocol::Decoder;
 use kprobe::dns;
 use pcap::Capture;
-use libkflow::Error::*;
+use crate::libkflow::Error::*;
 
 fn main() {
     let args    = args::parse();

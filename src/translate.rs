@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use flow::{Addr, Flow};
+use crate::flow::{Addr, Flow};
 
 #[derive(Debug)]
 pub struct Translate {

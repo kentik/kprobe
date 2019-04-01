@@ -9,12 +9,12 @@ use pnet::packet::udp::UdpPacket;
 use serde::Serialize;
 use time::Duration;
 use rmp_serde::Serializer;
-use args::Error;
-use packet::{self, Packet, Transport::*};
-use protocol::dns::parser::{self, Rdata};
-use reasm::Reassembler;
-use flow::{Addr, Timestamp};
-use libkflow::*;
+use crate::args::Error;
+use crate::packet::{self, Packet, Transport::*};
+use crate::protocol::dns::parser::{self, Rdata};
+use crate::reasm::Reassembler;
+use crate::flow::{Addr, Timestamp};
+use crate::libkflow::*;
 
 #[derive(Debug, Serialize)]
 pub struct Response {
@@ -104,8 +104,8 @@ impl Dns {
 
     pub fn parse(&mut self, _src: Addr, dst: Addr, payload: &[u8]) -> Option<Response> {
         let mut msg = match parser::parse_message(payload) {
-            Done(_, mut msg) => msg,
-            _                => return None,
+            Done(_, msg) => msg,
+            _            => return None,
         };
 
         if msg.header.qr != 1 || msg.header.opcode != 0 || msg.answer.is_empty() {

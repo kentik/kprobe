@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use flow::{Addr, Flow};
-use custom::Customs;
+use crate::flow::{Addr, Flow};
+use crate::custom::Customs;
 use super::conn::{Connection, CompletedQuery};
 
 pub struct Decoder {

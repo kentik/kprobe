@@ -14,14 +14,14 @@ use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::ipv4::{Ipv4Packet, MutableIpv4Packet};
 use time::Duration;
-use libkflow::*;
-use flow::*;
-use packet;
-use custom::*;
-use reasm::Reassembler;
-use timer::Timer;
-use track::Tracker;
-use track::id::Generator;
+use crate::libkflow::*;
+use crate::flow::*;
+use crate::packet;
+use crate::custom::*;
+use crate::reasm::Reassembler;
+use crate::timer::Timer;
+use crate::track::Tracker;
+use crate::track::id::Generator;
 
 #[test]
 fn timer_ready() {

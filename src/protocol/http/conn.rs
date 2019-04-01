@@ -1,9 +1,9 @@
 use std::collections::VecDeque;
 use std::ffi::CString;
 use std::slice;
-use flow::{Flow, Timestamp};
+use crate::flow::{Flow, Timestamp};
 use time::Duration;
-use protocol::buf::Buffer;
+use crate::protocol::buf::Buffer;
 use http_muncher::{Parser, ParserHandler};
 
 pub struct Connection {

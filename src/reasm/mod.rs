@@ -2,8 +2,8 @@ mod ipv4;
 
 use std::borrow::Cow;
 use time::Duration;
-use flow::Timestamp;
-use packet::Packet;
+use crate::flow::Timestamp;
+use crate::packet::Packet;
 
 #[derive(Debug)]
 pub struct Output<'p> {

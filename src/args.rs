@@ -3,11 +3,11 @@ use std::fmt;
 use std::ffi::{CString, NulError};
 use std::net::AddrParseError;
 use std::num::ParseIntError;
-use clap::{ArgMatches, Values};
+use clap::{clap_app, crate_description, ArgMatches, Values};
 use errno::Errno;
 use pcap::{self, Device};
 use pnet::datalink::{self, NetworkInterface};
-use flow::Addr;
+use crate::flow::Addr;
 
 pub fn parse<'a>() -> Args<'a> {
     let matches = clap_app!(kprobe =>
@@ -94,7 +94,7 @@ impl<'a> Args<'a> {
 }
 
 pub trait FromArg: Sized {
-    fn from_arg(&str) -> Result<Self, Error>;
+    fn from_arg(_: &str) -> Result<Self, Error>;
 }
 
 impl FromArg for (NetworkInterface, Device) {

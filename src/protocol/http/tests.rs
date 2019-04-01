@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use super::conn::*;
-use flow::Timestamp;
+use crate::flow::Timestamp;
 use libc::timeval;
 use time::Duration;
 

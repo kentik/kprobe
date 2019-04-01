@@ -1,7 +1,7 @@
 use std::net::IpAddr;
-use flow::*;
-use sample::*;
-use sample::Accept::*;
+use crate::flow::*;
+use crate::sample::*;
+use crate::sample::Accept::*;
 
 #[test]
 fn sample_tcp() {

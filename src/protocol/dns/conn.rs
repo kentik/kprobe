@@ -3,8 +3,8 @@ use std::fmt::Write;
 use time::Duration;
 use nom::IResult::Done;
 use super::parser::{self, QQ, Rdata};
-use protocol::buf::Buffer;
-use flow::Timestamp;
+use crate::protocol::buf::Buffer;
+use crate::flow::Timestamp;
 
 pub struct Connection {
     buffer: Buffer,

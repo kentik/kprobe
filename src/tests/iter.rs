@@ -6,10 +6,10 @@ use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
-use reasm::Reassembler;
-use flow::*;
-use packet::{self, Packet, Opaque};
-use packet::Transport::*;
+use crate::reasm::Reassembler;
+use crate::flow::*;
+use crate::packet::{self, Packet, Opaque};
+use crate::packet::Transport::*;
 
 pub struct FlowIterator<'a>  {
     capture: Capture<Offline>,

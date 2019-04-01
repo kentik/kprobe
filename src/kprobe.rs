@@ -6,15 +6,15 @@ use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
-use config::Config;
-use packet::{self, Packet, Opaque};
-use packet::Transport::*;
-use flow::*;
-use reasm::Reassembler;
-use sample::Sampler;
-use sample::Accept::*;
-use translate::Translate;
-use queue::FlowQueue;
+use crate::config::Config;
+use crate::packet::{self, Packet, Opaque};
+use crate::packet::Transport::*;
+use crate::flow::*;
+use crate::reasm::Reassembler;
+use crate::sample::Sampler;
+use crate::sample::Accept::*;
+use crate::translate::Translate;
+use crate::queue::FlowQueue;
 
 pub struct Kprobe {
     interface:  NetworkInterface,

@@ -1,8 +1,8 @@
 use time::Duration;
 use std::net::Ipv4Addr;
-use custom::Customs;
-use protocol::{Classify, Decoder, Decoders};
-use queue::Counter;
+use crate::custom::Customs;
+use crate::protocol::{Classify, Decoder, Decoders};
+use crate::queue::Counter;
 use super::*;
 
 #[test]

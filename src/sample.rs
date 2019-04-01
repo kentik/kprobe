@@ -1,7 +1,7 @@
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hash, Hasher};
-use flow::{Addr, Flow, Protocol};
-use flow::Protocol::*;
+use crate::flow::{Addr, Flow, Protocol};
+use crate::flow::Protocol::*;
 
 #[derive(Debug)]
 pub enum Accept {

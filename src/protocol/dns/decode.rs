@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::ffi::CString;
 use time::Duration;
-use flow::{Addr, Flow, Timestamp};
-use custom::*;
+use crate::flow::{Addr, Flow, Timestamp};
+use crate::custom::*;
 use super::conn::{Connection, Message};
 
 pub struct Decoder {

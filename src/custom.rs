@@ -5,9 +5,9 @@ use std::ffi::CStr;
 use std::ops::Deref;
 use std::ptr;
 use time::Duration;
-use libkflow::*;
-use protocol::Decoder;
-use queue::Counter;
+use crate::libkflow::*;
+use crate::protocol::Decoder;
+use crate::queue::Counter;
 
 pub const FRAGMENTS:            &str = "FRAGMENTS";
 pub const APP_LATENCY:          &str = "APPL_LATENCY_MS";

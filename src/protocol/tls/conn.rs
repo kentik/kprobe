@@ -2,8 +2,8 @@ use std::ffi::CString;
 use time::Duration;
 use nom::IResult::*;
 use super::parser::*;
-use protocol::buf::Buffer;
-use flow::Timestamp;
+use crate::protocol::buf::Buffer;
+use crate::flow::Timestamp;
 
 pub struct Connection {
     buffer: Buffer,

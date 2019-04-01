@@ -1,7 +1,7 @@
 use std::cmp::max;
 use std::cmp::Ordering::*;
-use flow::{Flow, Protocol};
-use flow::Protocol::{TCP, UDP};
+use crate::flow::{Flow, Protocol};
+use crate::flow::Protocol::{TCP, UDP};
 use super::Decoder;
 
 #[derive(Debug)]

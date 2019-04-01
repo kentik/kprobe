@@ -1,11 +1,11 @@
 use std::mem;
-use custom::Customs;
-use flow::Addr;
-use libkflow::kflowCustom;
-use protocol::Classify;
-use queue::FlowQueue;
-use sample::Sampler;
-use translate::Translate;
+use crate::custom::Customs;
+use crate::flow::Addr;
+use crate::libkflow::kflowCustom;
+use crate::protocol::Classify;
+use crate::queue::FlowQueue;
+use crate::sample::Sampler;
+use crate::translate::Translate;
 
 pub struct Config {
     pub classify:  Classify,

@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use pnet::datalink::NetworkInterface;
-use libkflow::*;
+use crate::libkflow::*;
 
 #[test]
 fn test_default_urls() {
