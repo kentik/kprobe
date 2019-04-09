@@ -53,7 +53,7 @@ struct Dns {
 pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
     let mut dns = Dns::new();
 
-    cap.filter("udp src port 53")?;
+    cap.filter("udp src port 53 or ip[6:2] & 0x1fff != 0x0000")?;
 
     loop {
         match cap.next() {
