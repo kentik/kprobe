@@ -95,10 +95,10 @@ impl Dns {
                         let mut s = Serializer::new_named(&mut self.vec);
                         res.serialize(&mut s).unwrap();
                     }
-
-                    self.flush(ts);
                 }
             }
+
+            self.flush(ts);
         }
     }
 
@@ -138,6 +138,7 @@ impl Dns {
         if (ts - self.last) >= Duration::seconds(1) {
             sendEncodedDNS(&mut self.vec);
             self.vec.truncate(0);
+            self.asm.flush(ts);
             self.last = ts;
         }
     }
