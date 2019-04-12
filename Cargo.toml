@@ -25,6 +25,7 @@ rand         = "0.4.2"
 http-muncher = "0.3.1"
 serde_bytes  = "0.10.4"
 rmp-serde    = "0.13.7"
+jemallocator = "0.3.0"
 
 [dependencies.serde]
 version  = "1.0.84"

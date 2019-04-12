@@ -12,7 +12,11 @@ use kprobe::fanout;
 use kprobe::protocol::Decoder;
 use kprobe::dns;
 use pcap::Capture;
+use jemallocator::Jemalloc;
 use crate::libkflow::Error::*;
+
+#[global_allocator]
+static ALLOC: Jemalloc = Jemalloc;
 
 fn main() {
     let args    = args::parse();
