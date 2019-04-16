@@ -338,12 +338,6 @@ pub fn hostname() -> CString {
     }
 }
 
-pub fn sendEncodedDNS(data: &[u8]) {
-    unsafe {
-        kflowSendEncodedDNS(data.as_ptr(), data.len());
-    }
-}
-
 #[link(name = "kflow")]
 extern {
     fn kflowInit(cfg: *const kflowConfig, dev: *mut kflowDevice) -> c_int;

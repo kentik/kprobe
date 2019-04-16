@@ -1,8 +1,4 @@
-extern crate kprobe;
-extern crate pcap;
-extern crate pnet;
-extern crate libc;
-
+use std::env;
 use std::process::exit;
 use kprobe::{args, Config, Kprobe};
 use kprobe::libkflow;
@@ -10,7 +6,10 @@ use kprobe::protocol::Classify;
 use kprobe::flow::Protocol::TCP;
 use kprobe::fanout;
 use kprobe::protocol::Decoder;
-use kprobe::dns;
+use kprobe::mode;
+use kentik_api::AsyncClient;
+use kentik_api::dns::Client;
+use env_logger::Builder;
 use pcap::Capture;
 use jemallocator::Jemalloc;
 use crate::libkflow::Error::*;
@@ -19,7 +18,10 @@ use crate::libkflow::Error::*;
 static ALLOC: Jemalloc = Jemalloc;
 
 fn main() {
-    let args    = args::parse();
+    Builder::from_default_env().init();
+
+    let args    = env::args_os().collect::<Vec<_>>();
+    let args    = args::parse(&args);
     let verbose = args.count("verbose");
     let decode  = args.count("no_decode") == 0;
     let fanout  = args.opt("fanout").unwrap_or_else(abort);
@@ -102,7 +104,20 @@ fn main() {
     }
 
     if cfg.dns.enable {
-        dns::run(cap).unwrap_or_else(abort);
+        let client = || {
+            let url = cfg.dns.url.into_string()?;
+            let (email, token, endpoint, proxy) = args.http_config(&url)?;
+            let proxy = proxy.as_ref().map(String::as_str);
+            Ok(AsyncClient::new(&email, &token, &endpoint, proxy).map_err(|e| {
+                args::Error::Invalid(format!("client setup error {}", e))
+            })?)
+        };
+
+        let client = client().unwrap_or_else(abort);
+        let client = Client::new(client);
+
+        mode::dns::run(cap, client).unwrap_or_else(abort);
+
         exit(0);
     }
 

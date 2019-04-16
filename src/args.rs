@@ -1,15 +1,16 @@
 use std::borrow::Cow;
 use std::fmt;
-use std::ffi::{CString, NulError};
+use std::ffi::{CString, OsString, NulError, IntoStringError};
 use std::net::AddrParseError;
 use std::num::ParseIntError;
 use clap::{clap_app, crate_description, ArgMatches, Values};
 use errno::Errno;
 use pcap::{self, Device};
 use pnet::datalink::{self, NetworkInterface};
+use url::Url;
 use crate::flow::Addr;
 
-pub fn parse<'a>() -> Args<'a> {
+pub fn parse<'a>(args: &[OsString]) -> Args<'a> {
     let matches = clap_app!(kprobe =>
       (version: env!("CARGO_PKG_VERSION"))
       (about:   crate_description!())
@@ -40,7 +41,7 @@ pub fn parse<'a>() -> Args<'a> {
       (@arg promisc:      --promisc                     "Promiscuous mode")
       (@arg snaplen:      --snaplen         [N]         "Capture snaplen")
       (@arg verbose: -v                     ...         "Verbose output")
-    ).get_matches();
+    ).get_matches_from(args);
     Args{matches: matches}
 }
 
@@ -90,6 +91,18 @@ impl<'a> Args<'a> {
             }
         }
         Ok(vec)
+    }
+
+    pub fn http_config(&self, url: &str) -> Result<(String, String, String, Option<String>), Error> {
+        let email   = self.arg::<String>("email")?;
+        let token   = self.arg::<String>("token")?;
+        let proxy   = self.opt::<String>("proxy_url")?;
+
+        let mut url = Url::parse(url)?;
+        url.set_path("/");
+        let url = url.as_str().trim_end_matches('/');
+
+        Ok((email, token, url.to_string(), proxy))
     }
 }
 
@@ -197,6 +210,12 @@ impl<'a> From<NulError> for Error<'a> {
     }
 }
 
+impl<'a> From<IntoStringError> for Error<'a> {
+    fn from(err: IntoStringError) -> Self {
+        Error::Invalid(format!("invalid string, {}", err))
+    }
+}
+
 impl<'a> From<ParseIntError> for Error<'a> {
     fn from(err: ParseIntError) -> Self {
         Error::Invalid(format!("invalid number, {}", err))
@@ -206,6 +225,12 @@ impl<'a> From<ParseIntError> for Error<'a> {
 impl<'a> From<AddrParseError> for Error<'a> {
     fn from(err: AddrParseError) -> Self {
         Error::Invalid(format!("invalid address, {}", err))
+    }
+}
+
+impl<'a> From<url::ParseError> for Error<'a> {
+    fn from(err: url::ParseError) -> Self {
+        Error::Invalid(format!("invalid url, {}", err))
     }
 }
 

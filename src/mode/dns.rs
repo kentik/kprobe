@@ -1,4 +1,6 @@
+use std::mem::swap;
 use std::net::IpAddr;
+use log::warn;
 use nom::IResult::Done;
 use pcap::{Capture, Active};
 use pcap::Error::*;
@@ -6,52 +8,23 @@ use pnet::packet::{Packet as PacketExt};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
-use serde::Serialize;
 use time::Duration;
-use rmp_serde::Serializer;
+use kentik_api::dns::*;
 use crate::args::Error;
 use crate::packet::{self, Packet, Transport::*};
 use crate::protocol::dns::parser::{self, Rdata};
 use crate::reasm::Reassembler;
 use crate::flow::{Addr, Timestamp};
-use crate::libkflow::*;
-
-#[derive(Debug, Serialize)]
-pub struct Response {
-    #[serde(rename = "Question")]
-    pub question: Question,
-    #[serde(rename = "Answers")]
-    pub answers:  Vec<Answer>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Question {
-    #[serde(rename = "Name")]
-    pub name: String,
-    #[serde(rename = "Host", with = "serde_bytes")]
-    pub host: Vec<u8>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Answer {
-    #[serde(rename = "Name")]
-    pub name:  String,
-    #[serde(rename = "CNAME")]
-    pub cname: String,
-    #[serde(rename = "IP", with = "serde_bytes")]
-    pub ip:    Vec<u8>,
-    #[serde(rename = "TTL")]
-    pub ttl:   u32,
-}
 
 struct Dns {
-    asm:  Reassembler,
-    vec:  Vec<u8>,
-    last: Timestamp,
+    asm:    Reassembler,
+    buffer: Vec<Response>,
+    client: Client,
+    last:   Timestamp,
 }
 
-pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
-    let mut dns = Dns::new();
+pub fn run(mut cap: Capture<Active>, client: Client) -> Result<(), Error<'static>> {
+    let mut dns = Dns::new(client);
 
     cap.filter("udp src port 53 or ip[6:2] & 0x1fff != 0x0000")?;
 
@@ -66,11 +39,12 @@ pub fn run(mut cap: Capture<Active>) -> Result<(), Error<'static>> {
 }
 
 impl Dns {
-    fn new() -> Self {
+    fn new(client: Client) -> Self {
         Dns {
-            asm:  Reassembler::new(),
-            vec:  Vec::with_capacity(1024),
-            last: Timestamp::zero(),
+            asm:    Reassembler::new(),
+            buffer: Vec::with_capacity(1024),
+            client: client,
+            last:   Timestamp::zero(),
         }
     }
 
@@ -91,10 +65,9 @@ impl Dns {
                         _              => return,
                     };
 
-                    if let Some(res) = self.parse(src, dst, payload) {
-                        let mut s = Serializer::new_named(&mut self.vec);
-                        res.serialize(&mut s).unwrap();
-                    }
+                    self.parse(src, dst, payload).map(|r| {
+                        self.buffer.push(r);
+                    });
                 }
             }
 
@@ -136,8 +109,15 @@ impl Dns {
 
     fn flush(&mut self, ts: Timestamp) {
         if (ts - self.last) >= Duration::seconds(1) {
-            sendEncodedDNS(&mut self.vec);
-            self.vec.truncate(0);
+            let mut rs = Vec::with_capacity(self.buffer.len());
+            swap(&mut self.buffer, &mut rs);
+
+            let timeout = Duration::milliseconds(10).to_std().unwrap();
+            match self.client.send(rs, timeout) {
+                Ok(..) => (),
+                Err(e) => warn!("DNS queue full: {:?}", e),
+            };
+
             self.asm.flush(ts);
             self.last = ts;
         }
