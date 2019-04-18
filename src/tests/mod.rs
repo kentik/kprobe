@@ -19,7 +19,7 @@ use crate::flow::*;
 use crate::packet;
 use crate::custom::*;
 use crate::reasm::Reassembler;
-use crate::timer::Timer;
+use crate::timer::{Timer, Timeout};
 use crate::track::Tracker;
 use crate::track::id::Generator;
 
@@ -33,6 +33,19 @@ fn timer_ready() {
     assert_eq!(true,  timer.ready(ts + Duration::seconds(2)));
     assert_eq!(false, timer.ready(ts + Duration::seconds(3)));
     assert_eq!(true,  timer.ready(ts + Duration::seconds(4)));
+}
+
+#[test]
+fn timeout_range() {
+    let max = Duration::seconds(2);
+    let mut timeout = Timeout::new(max);
+    let zero = Timestamp::zero();
+
+    for i in 0..10 {
+        let start = zero + Duration::seconds(i);
+        let first = timeout.first(start);
+        assert!(first >= start && first <= start + max);
+    }
 }
 
 #[test]

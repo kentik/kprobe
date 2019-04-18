@@ -1,5 +1,5 @@
 use rand;
-use rand::distributions::{Range, Sample};
+use rand::distributions::{Distribution, Uniform};
 use time::Duration;
 use crate::flow::Timestamp;
 
@@ -30,12 +30,12 @@ impl Timer {
 
 pub struct Timeout {
     delay: Duration,
-    skew:  Range<i64>,
+    skew:  Uniform<i64>,
 }
 
 impl Timeout {
     pub fn new(delay: Duration) -> Self {
-        let skew = Range::new(0, delay.num_seconds() + 1);
+        let skew = Uniform::new_inclusive(0, delay.num_seconds());
         Timeout{
             delay: delay,
             skew:  skew,
