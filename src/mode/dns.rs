@@ -16,7 +16,7 @@ use crate::protocol::dns::parser::{self, Rdata};
 use crate::reasm::Reassembler;
 use crate::flow::{Addr, Timestamp};
 
-struct Dns {
+pub struct Dns {
     asm:    Reassembler,
     buffer: Vec<Response>,
     client: Client,
@@ -39,7 +39,7 @@ pub fn run(mut cap: Capture<Active>, client: Client) -> Result<(), Error<'static
 }
 
 impl Dns {
-    fn new(client: Client) -> Self {
+    pub fn new(client: Client) -> Self {
         Dns {
             asm:    Reassembler::new(),
             buffer: Vec::with_capacity(1024),

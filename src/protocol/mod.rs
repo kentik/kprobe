@@ -5,6 +5,7 @@ pub mod dhcp;
 pub mod dns;
 pub mod http;
 pub mod postgres;
+pub mod radius;
 pub mod tls;
 
 pub use self::classify::Classify;

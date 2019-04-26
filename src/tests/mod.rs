@@ -3,6 +3,7 @@ mod iter;
 mod decoders;
 mod sampling;
 mod export;
+mod modes;
 
 use std::borrow::Cow;
 use std::ffi::CStr;

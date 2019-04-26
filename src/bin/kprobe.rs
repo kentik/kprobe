@@ -1,14 +1,15 @@
 use std::env;
+use std::ffi::CStr;
 use std::process::exit;
-use kprobe::{args, Config, Kprobe};
+use kprobe::args::{self, Args};
+use kprobe::{Config, Kprobe};
 use kprobe::libkflow;
 use kprobe::protocol::Classify;
 use kprobe::flow::Protocol::TCP;
 use kprobe::fanout;
 use kprobe::protocol::Decoder;
 use kprobe::mode;
-use kentik_api::AsyncClient;
-use kentik_api::dns::Client;
+use kentik_api::{dns, tag, AsyncClient, Client};
 use env_logger::Builder;
 use pcap::Capture;
 use jemallocator::Jemalloc;
@@ -30,6 +31,8 @@ fn main() {
     let region  = args.opt("region").unwrap_or(None);
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
+    let dns     = args.count("dns") > 0;
+    let radius  = args.count("radius") > 0;
 
     let (interface, device) = args.arg("interface").unwrap_or_else(abort);
 
@@ -48,7 +51,7 @@ fn main() {
     cfg.device_plan = args.opt("device_plan").unwrap_or(cfg.device_plan);
     cfg.device_site = args.opt("device_site").unwrap_or(cfg.device_site);
     cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
-    cfg.dns.enable  = args.count("dns") > 0;
+    cfg.dns.enable  = dns;
     cfg.dns.url     = args.arg("dns_url").unwrap_or(cfg.dns.url);
     cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
@@ -103,21 +106,15 @@ fn main() {
         fanout::join(&cap, group).unwrap_or_else(abort);
     }
 
-    if cfg.dns.enable {
-        let client = || {
-            let url = cfg.dns.url.into_string()?;
-            let (email, token, endpoint, proxy) = args.http_config(&url)?;
-            let proxy = proxy.as_ref().map(String::as_str);
-            Ok(AsyncClient::new(&email, &token, &endpoint, proxy).map_err(|e| {
-                args::Error::Invalid(format!("client setup error {}", e))
-            })?)
-        };
-
-        let client = client().unwrap_or_else(abort);
-        let client = Client::new(client);
-
+    if dns {
+        let client = async_api_client(&args, &cfg.dns.url).unwrap_or_else(abort);
+        let client = dns::Client::new(client);
         mode::dns::run(cap, client).unwrap_or_else(abort);
-
+        exit(0);
+    } else if radius {
+        let client = sync_api_client(&args, &cfg.api.url).unwrap_or_else(abort);
+        let client = tag::Client::new(client);
+        mode::radius::run(cap, client).unwrap_or_else(abort);
         exit(0);
     }
 
@@ -141,4 +138,22 @@ fn main() {
 fn abort<T>(e: args::Error) -> T {
     println!("{}", e);
     exit(1);
+}
+
+fn async_api_client<'a>(args: &'a Args<'a>, url: &CStr) -> Result<AsyncClient, args::Error<'a>> {
+    let url = url.to_str()?.to_owned();
+    let (email, token, endpoint, proxy) = args.http_config(&url)?;
+    let proxy = proxy.as_ref().map(String::as_str);
+    Ok(AsyncClient::new(&email, &token, &endpoint, proxy).map_err(|e| {
+        args::Error::Invalid(format!("client setup error {}", e))
+    })?)
+}
+
+fn sync_api_client<'a>(args: &'a Args<'a>, url: &CStr) -> Result<Client, args::Error<'a>> {
+    let url = url.to_str()?.to_owned();
+    let (email, token, endpoint, proxy) = args.http_config(&url)?;
+    let proxy = proxy.as_ref().map(String::as_str);
+    Ok(Client::new(&email, &token, &endpoint, proxy).map_err(|e| {
+        args::Error::Invalid(format!("client setup error {}", e))
+    })?)
 }

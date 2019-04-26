@@ -3,6 +3,7 @@ use std::fmt;
 use std::ffi::{CString, OsString, NulError, IntoStringError};
 use std::net::AddrParseError;
 use std::num::ParseIntError;
+use std::str::Utf8Error;
 use clap::{clap_app, crate_description, ArgMatches, Values};
 use errno::Errno;
 use pcap::{self, Device};
@@ -35,6 +36,7 @@ pub fn parse<'a>(args: &[OsString]) -> Args<'a> {
       (@arg http_port:    --("http-port")   [port] ...  "Decode HTTP on port")
       (@arg no_decode:    --("no-decode")               "No protocol decoding")
       (@arg dns:          --dns                         "DNS output only")
+      (@arg radius:       --radius                      "RADIUS output only")
       (@arg fanout:       --fanout          [group]     "Join fanout group")
       (@arg filter:       --filter          [filter]    "Filter traffic")
       (@arg translate:    --translate       [spec] ...  "Translate address")
@@ -206,6 +208,12 @@ pub enum Error<'a> {
 
 impl<'a> From<NulError> for Error<'a> {
     fn from(err: NulError) -> Self {
+        Error::Invalid(format!("invalid string, {}", err))
+    }
+}
+
+impl<'a> From<Utf8Error> for Error<'a> {
+    fn from(err: Utf8Error) -> Self {
         Error::Invalid(format!("invalid string, {}", err))
     }
 }
