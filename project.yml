@@ -2,7 +2,7 @@ name: kprobe
 description: kprobe
 version: TAG
 target:
-  build: env && ssh-add -l && cargo build --release --target x86_64-unknown-linux-musl
+  build: env && ls -l ${SSH_AUTH_SOCK} && ssh-add -l && cargo build --release --target x86_64-unknown-linux-musl
 docker:
   build:
     base: kt-build-rust:master
