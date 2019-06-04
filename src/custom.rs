@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::net::IpAddr;
 use std::ops::Deref;
-use std::ptr;
 use time::Duration;
 use crate::libkflow::*;
 use crate::protocol::Decoder;
@@ -131,25 +131,15 @@ impl Customs {
     }
 
     pub fn add_str(&mut self, id: u64, val: &CStr) {
-        self.vec.push(kflowCustom{
-            name:  ptr::null(),
-            id:    id,
-            vtype: KFLOW_CUSTOM_STR,
-            value: kflowCustomValue{
-                str: val.as_ptr(),
-            },
-        });
+        self.vec.push(kflowCustom::str(id, val))
     }
 
     pub fn add_u32(&mut self, id: u64, val: u32) {
-        self.vec.push(kflowCustom{
-            name:  ptr::null(),
-            id:    id,
-            vtype: KFLOW_CUSTOM_U32,
-            value: kflowCustomValue{
-                u32: val,
-            },
-        });
+        self.vec.push(kflowCustom::u32(id, val))
+    }
+
+    pub fn add_addr(&mut self, id: u64, val: IpAddr) {
+        self.vec.push(kflowCustom::addr(id, val))
     }
 
     pub fn add_latency(&mut self, id: u64, d: Duration) {
