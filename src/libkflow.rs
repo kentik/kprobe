@@ -1,11 +1,11 @@
 #![allow(non_snake_case, unused)]
 
+use std::convert::TryInto;
 use std::default::Default;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
-use std::ptr;
-use std::slice;
 use std::net::IpAddr;
+use std::{fmt, ptr, slice};
 use pnet::datalink::NetworkInterface;
 use pnet::util::MacAddr;
 use pnet::packet::PrimitiveValues;
@@ -349,9 +349,18 @@ extern {
     fn kflowSendEncodedDNS(ptr: *const u8, len: usize) -> c_int;
 }
 
-pub const KFLOW_CUSTOM_STR: c_int = 1;
-pub const KFLOW_CUSTOM_U32: c_int = 2;
-pub const KFLOW_CUSTOM_F32: c_int = 3;
+pub const KFLOW_CUSTOM_STR:  c_int =  1;
+pub const KFLOW_CUSTOM_U8:   c_int =  2;
+pub const KFLOW_CUSTOM_U16:  c_int =  3;
+pub const KFLOW_CUSTOM_U32:  c_int =  4;
+pub const KFLOW_CUSTOM_U64:  c_int =  5;
+pub const KFLOW_CUSTOM_I8:   c_int =  6;
+pub const KFLOW_CUSTOM_I16:  c_int =  7;
+pub const KFLOW_CUSTOM_I32:  c_int =  8;
+pub const KFLOW_CUSTOM_I64:  c_int =  9;
+pub const KFLOW_CUSTOM_F32:  c_int = 10;
+pub const KFLOW_CUSTOM_F64:  c_int = 11;
+pub const KFLOW_CUSTOM_ADDR: c_int = 12;
 
 #[repr(C)]
 struct kflowConfig {
@@ -426,9 +435,18 @@ pub struct kflowCustom {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union kflowCustomValue {
-    pub str: *const c_char,
-    pub u32: u32,
-    pub f32: f32,
+    pub str:  *const c_char,
+    pub u8:   u8,
+    pub u16:  u16,
+    pub u32:  u32,
+    pub u64:  u64,
+    pub i8:   i8,
+    pub i16:  i16,
+    pub i32:  i32,
+    pub i64:  i64,
+    pub f32:  f32,
+    pub f64:  f64,
+    pub addr: [u8; 17],
 }
 
 #[repr(C)]
@@ -506,6 +524,7 @@ pub struct kflow {
     pub ipv6DstNextHop: *const u8,
     pub ipv6SrcRoutePrefix: *const u8,
     pub ipv6DstRoutePrefix: *const u8,
+    pub isMetric: u8,
 
     pub customs: *const kflowCustom,
     pub numCustoms: u32,
@@ -528,14 +547,6 @@ pub struct kflowDomainQuery<'a> {
 pub struct kflowDomainAnswer<'a> {
     pub ip:  kflowByteSlice<'a>,
     pub ttl: u32,
-}
-
-impl kflowCustom {
-    pub fn name(&self) -> &str {
-        unsafe {
-            CStr::from_ptr(self.name).to_str().unwrap_or("")
-        }
-    }
 }
 
 impl Default for kflow {
@@ -561,31 +572,117 @@ fn pack_mac(mac: &MacAddr) -> u64 {
 }
 
 impl kflowCustom {
-    pub fn set_str(&mut self, str: &CStr) {
-        self.vtype = KFLOW_CUSTOM_STR;
-        unsafe { self.value.str = str.as_ptr(); }
+    pub fn str(id: u64, str: &CStr) -> Self {
+        let str = str.as_ptr();
+        Self::new(id, KFLOW_CUSTOM_STR, kflowCustomValue { str })
     }
 
-    pub fn set_u32(&mut self, u32: u32) {
-        self.vtype = KFLOW_CUSTOM_U32;
-        unsafe { self.value.u32 = u32; }
+    pub fn u8(id: u64, u8: u8) -> Self {
+        Self::new(id, KFLOW_CUSTOM_U8, kflowCustomValue { u8 })
+    }
+
+    pub fn u16(id: u64, u16: u16) -> Self {
+        Self::new(id, KFLOW_CUSTOM_U16, kflowCustomValue { u16 })
+    }
+
+    pub fn u32(id: u64, u32: u32) -> Self {
+        Self::new(id, KFLOW_CUSTOM_U32, kflowCustomValue { u32 })
+    }
+
+    pub fn u64(id: u64, u64: u64) -> Self {
+        Self::new(id, KFLOW_CUSTOM_U64, kflowCustomValue { u64 })
+    }
+
+    pub fn i8(id: u64, i8: i8) -> Self {
+        Self::new(id, KFLOW_CUSTOM_I8, kflowCustomValue { i8 })
+    }
+
+    pub fn i16(id: u64, i16: i16) -> Self {
+        Self::new(id, KFLOW_CUSTOM_I16, kflowCustomValue { i16 })
+    }
+
+    pub fn i32(id: u64, i32: i32) -> Self {
+        Self::new(id, KFLOW_CUSTOM_I32, kflowCustomValue { i32 })
+    }
+
+    pub fn i64(id: u64, i64: i64) -> Self {
+        Self::new(id, KFLOW_CUSTOM_I64, kflowCustomValue { i64 })
+    }
+
+    pub fn addr(id: u64, ip: IpAddr) -> Self {
+        let mut addr = [0u8; 17];
+        match ip {
+            IpAddr::V4(ip) => {
+                addr[0] = 4;
+                addr[1..=4].copy_from_slice(&ip.octets());
+            },
+            IpAddr::V6(ip) => {
+                addr[0] = 6;
+                addr[1..17].copy_from_slice(&ip.octets());
+            },
+        }
+        Self::new(id, KFLOW_CUSTOM_ADDR, kflowCustomValue { addr })
+    }
+
+    const fn new(id: u64, vtype: c_int, value: kflowCustomValue) -> Self {
+        Self {
+            name:   ptr::null(),
+            id:     id,
+            vtype:  vtype,
+            value:  value,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        unsafe {
+            CStr::from_ptr(self.name).to_str().unwrap_or("")
+        }
+    }
+
+    pub unsafe fn get_str(&self) -> CString {
+        CString::from_vec_unchecked(match self.value.str {
+            ptr if ptr.is_null() => &[],
+            ptr                  => CStr::from_ptr(ptr).to_bytes(),
+        }.to_vec())
+    }
+
+    pub unsafe fn get_addr(&self) -> IpAddr {
+        let v4 = || -> Result<[u8;  4], _> { self.value.addr[1..=4].try_into() };
+        let v6 = || -> Result<[u8; 16], _> { self.value.addr[1..17].try_into() };
+        match self.value.addr[0] {
+            4 => IpAddr::V4(v4().unwrap().into()),
+            6 => IpAddr::V6(v6().unwrap().into()),
+            _ => IpAddr::V4(0.into()),
+        }
     }
 }
 
-impl ::std::fmt::Debug for kflowCustom {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
-        let name = unsafe { CStr::from_ptr(self.name).to_str().unwrap_or("") };
-        let cstr: &CStr;
+impl fmt::Debug for kflowCustom {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let name = self.name();
+        let cstr: CString;
+        let addr: IpAddr;
 
         let mut s = fmt.debug_struct("kflowCustom");
         s.field("name",  &name);
         s.field("id",    &self.id);
         s.field("vtype", &self.vtype);
         s.field("value", match self.vtype {
-            KFLOW_CUSTOM_STR => unsafe { cstr = CStr::from_ptr(self.value.str); &cstr },
-            KFLOW_CUSTOM_U32 => unsafe { &self.value.u32 },
-            KFLOW_CUSTOM_F32 => unsafe { &self.value.f32 },
-            _                => panic!("kflowCustom has invalid vtype"),
+            KFLOW_CUSTOM_STR  => unsafe { cstr = self.get_str(); &cstr },
+            KFLOW_CUSTOM_U8   => unsafe { &self.value.u8  },
+            KFLOW_CUSTOM_U16  => unsafe { &self.value.u16 },
+            KFLOW_CUSTOM_U64  => unsafe { &self.value.u64 },
+            KFLOW_CUSTOM_U32  => unsafe { &self.value.u32 },
+            KFLOW_CUSTOM_U64  => unsafe { &self.value.u64 },
+            KFLOW_CUSTOM_I8   => unsafe { &self.value.i8  },
+            KFLOW_CUSTOM_I16  => unsafe { &self.value.i16 },
+            KFLOW_CUSTOM_I64  => unsafe { &self.value.i64 },
+            KFLOW_CUSTOM_I32  => unsafe { &self.value.i32 },
+            KFLOW_CUSTOM_I64  => unsafe { &self.value.i64 },
+            KFLOW_CUSTOM_F32  => unsafe { &self.value.f32 },
+            KFLOW_CUSTOM_F64  => unsafe { &self.value.f64 },
+            KFLOW_CUSTOM_ADDR => unsafe { addr = self.get_addr(); &addr },
+            _                 => panic!("kflowCustom has invalid vtype"),
         });
 
         s.finish()

@@ -384,8 +384,17 @@ const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Str(String),
+    U8 (u8),
+    U16(u16),
     U32(u32),
+    U64(u64),
+    I8 (i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
     F32(f32),
+    F64(f64),
+    Addr(IpAddr),
 }
 
 impl<'a> From<&'a str> for Value {
@@ -418,9 +427,18 @@ impl From<Ipv4Addr> for Value {
 impl<'a> From<&'a kflowCustom> for Value {
     fn from(c: &'a kflowCustom) -> Value {
         match c.vtype {
-            KFLOW_CUSTOM_STR => unsafe { c.value.str.into()      },
-            KFLOW_CUSTOM_U32 => unsafe { Value::U32(c.value.u32) },
-            KFLOW_CUSTOM_F32 => unsafe { Value::F32(c.value.f32) },
+            KFLOW_CUSTOM_STR  => unsafe { c.value.str.into()        },
+            KFLOW_CUSTOM_U8   => unsafe { Value::U8 (c.value.u8)    },
+            KFLOW_CUSTOM_U16  => unsafe { Value::U16(c.value.u16)   },
+            KFLOW_CUSTOM_U32  => unsafe { Value::U32(c.value.u32)   },
+            KFLOW_CUSTOM_U64  => unsafe { Value::U64(c.value.u64)   },
+            KFLOW_CUSTOM_I8   => unsafe { Value::I8 (c.value.i8)    },
+            KFLOW_CUSTOM_I16  => unsafe { Value::I16(c.value.i16)   },
+            KFLOW_CUSTOM_I32  => unsafe { Value::I32(c.value.i32)   },
+            KFLOW_CUSTOM_I64  => unsafe { Value::I64(c.value.i64)   },
+            KFLOW_CUSTOM_F32  => unsafe { Value::F32(c.value.f32)   },
+            KFLOW_CUSTOM_F64  => unsafe { Value::F64(c.value.f64)   },
+            KFLOW_CUSTOM_ADDR => unsafe { Value::Addr(c.get_addr()) },
             _                => panic!("kflowCustom has invalid vtype"),
         }
     }
