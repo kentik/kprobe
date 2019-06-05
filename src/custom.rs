@@ -60,18 +60,18 @@ impl Customs {
         }).collect::<HashMap<_, _>>();
 
         if fields.contains_key("APP_PROTOCOL") {
-            let str00 = fields["STR00"];
-            let str01 = fields["STR01"];
-            let str02 = fields["STR02"];
-            let str03 = fields["STR03"];
-            let int00 = fields["INT00"];
-            let int01 = fields["INT01"];
-            let int02 = fields["INT02"];
-            let int03 = fields["INT03"];
-            let int04 = fields["INT04"];
-            let int05 = fields["INT05"];
-            let ooo   = fields["OOORDER_IN_PKTS"];
-            let retx  = fields["RETRANSMITTED_OUT_PKTS"];
+            let str00  = fields["STR00"];
+            let str01  = fields["STR01"];
+            let str02  = fields["STR02"];
+            let str03  = fields["STR03"];
+            let int00  = fields["INT00"];
+            let int01  = fields["INT01"];
+            let int02  = fields["INT02"];
+            let addr00 = fields["INET_00"];
+            let addr01 = fields["INET_01"];
+            let addr02 = fields["INET_02"];
+            let ooo    = fields["OOORDER_IN_PKTS"];
+            let retx   = fields["RETRANSMITTED_OUT_PKTS"];
 
             fields.insert(DNS_QUERY_NAME.to_owned(),     str00);
             fields.insert(DNS_QUERY_TYPE.to_owned(),     int00);
@@ -90,10 +90,10 @@ impl Customs {
 
             fields.insert(DHCP_OP.to_owned(),            int00);
             fields.insert(DHCP_MSG_TYPE.to_owned(),      int01);
-            fields.insert(DHCP_CI_ADDR.to_owned(),       int02);
-            fields.insert(DHCP_YI_ADDR.to_owned(),       int03);
-            fields.insert(DHCP_SI_ADDR.to_owned(),       int04);
-            fields.insert(DHCP_LEASE.to_owned(),         int05);
+            fields.insert(DHCP_CI_ADDR.to_owned(),       addr00);
+            fields.insert(DHCP_YI_ADDR.to_owned(),       addr01);
+            fields.insert(DHCP_SI_ADDR.to_owned(),       addr02);
+            fields.insert(DHCP_LEASE.to_owned(),         int02);
             fields.insert(DHCP_CH_ADDR.to_owned(),       str00);
             fields.insert(DHCP_HOSTNAME.to_owned(),      str01);
             fields.insert(DHCP_DOMAIN.to_owned(),        str02);

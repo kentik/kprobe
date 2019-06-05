@@ -41,9 +41,9 @@ impl Decoder {
         self.message.as_ref().map(|msg| {
             cs.add_u32(self.op,     msg.op as u32);
             cs.add_u32(self.msg,    msg.msg as u32);
-            cs.add_u32(self.ciaddr, msg.ciaddr.into());
-            cs.add_u32(self.yiaddr, msg.yiaddr.into());
-            cs.add_u32(self.siaddr, msg.siaddr.into());
+            cs.add_addr(self.ciaddr, msg.ciaddr.into());
+            cs.add_addr(self.yiaddr, msg.yiaddr.into());
+            cs.add_addr(self.siaddr, msg.siaddr.into());
             cs.add_str(self.chaddr, msg.chaddr.as_ref());
             msg.host.as_ref().map(|s| cs.add_str(self.host, s));
             msg.domain.as_ref().map(|s| cs.add_str(self.domain, s));
