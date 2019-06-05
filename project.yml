@@ -2,7 +2,7 @@ name: kprobe
 description: kprobe
 version: TAG
 target:
-  build: cargo build --release --target x86_64-unknown-linux-musl
+  build: CC=x86_64-linux-musl-gcc cargo build --release --target x86_64-unknown-linux-musl
 docker:
   build:
     base: kt-build-rust:master
