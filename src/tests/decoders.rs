@@ -1,5 +1,4 @@
 use time::Duration;
-use std::net::Ipv4Addr;
 use crate::custom::Customs;
 use crate::protocol::{Classify, Decoder, Decoders};
 use crate::queue::Counter;
@@ -15,9 +14,10 @@ fn decode_dhcp() {
 
     let mac     = Value::from("00:1c:42:60:bb:37");
     let host    = Value::from("chdev");
+    let noaddr  = Value::from("0.0.0.0".parse::<IpAddr>().unwrap());
     let domain  = Value::from("localdomain");
-    let yiaddr  = Value::from("10.211.55.16".parse::<Ipv4Addr>().unwrap());
-    let siaddr  = Value::from("10.211.55.1".parse::<Ipv4Addr>().unwrap());
+    let yiaddr  = Value::from("10.211.55.16".parse::<IpAddr>().unwrap());
+    let siaddr  = Value::from("10.211.55.1".parse::<IpAddr>().unwrap());
     let lease   = Value::from(1800);
 
     // Request
@@ -26,9 +26,9 @@ fn decode_dhcp() {
 
     assert_eq!(Some(Value::from(1)), value(DHCP_OP, &customs));
     assert_eq!(Some(Value::from(3)), value(DHCP_MSG_TYPE, &customs));
-    assert_eq!(Some(Value::from(0)), value(DHCP_CI_ADDR, &customs));
-    assert_eq!(Some(Value::from(0)), value(DHCP_YI_ADDR, &customs));
-    assert_eq!(Some(Value::from(0)), value(DHCP_SI_ADDR, &customs));
+    assert_eq!(Some(noaddr.clone()), value(DHCP_CI_ADDR, &customs));
+    assert_eq!(Some(noaddr.clone()), value(DHCP_YI_ADDR, &customs));
+    assert_eq!(Some(noaddr.clone()), value(DHCP_SI_ADDR, &customs));
     assert_eq!(Some(mac.clone()),    value(DHCP_CH_ADDR, &customs));
     assert_eq!(Some(host.clone()),   value(DHCP_HOSTNAME, &customs));
     assert_eq!(None,                 value(DHCP_DOMAIN, &customs));
@@ -43,7 +43,7 @@ fn decode_dhcp() {
 
     assert_eq!(Some(Value::from(2)), value(DHCP_OP, &customs));
     assert_eq!(Some(Value::from(5)), value(DHCP_MSG_TYPE, &customs));
-    assert_eq!(Some(Value::from(0)), value(DHCP_CI_ADDR, &customs));
+    assert_eq!(Some(noaddr),         value(DHCP_CI_ADDR, &customs));
     assert_eq!(Some(yiaddr),         value(DHCP_YI_ADDR, &customs));
     assert_eq!(Some(siaddr),         value(DHCP_SI_ADDR, &customs));
     assert_eq!(Some(mac.clone()),    value(DHCP_CH_ADDR, &customs));

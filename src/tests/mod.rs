@@ -8,8 +8,8 @@ mod modes;
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::mem::swap;
-use std::net::{IpAddr, Ipv4Addr};
-use libc::c_char;
+use std::net::IpAddr;
+use libc::{c_char, c_int};
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
 use pnet::packet::ethernet::EthernetPacket;
@@ -345,6 +345,9 @@ pub const CUSTOMS: &[kflowCustom] = &[
     custom(b"STR01\0",                  20, KFLOW_CUSTOM_STR),
     custom(b"STR02\0",                  21, KFLOW_CUSTOM_STR),
     custom(b"STR03\0",                  22, KFLOW_CUSTOM_STR),
+    custom(b"INET_00\0",                23, KFLOW_CUSTOM_ADDR),
+    custom(b"INET_01\0",                24, KFLOW_CUSTOM_ADDR),
+    custom(b"INET_02\0",                25, KFLOW_CUSTOM_ADDR),
 ];
 
 pub const _CUSTOMS: &[kflowCustom] = &[
@@ -372,9 +375,9 @@ pub const _CUSTOMS: &[kflowCustom] = &[
     custom(b"CONNECTION_ID\0",          22, KFLOW_CUSTOM_U32),
 ];
 
-const fn custom(name: &[u8], id: u64, vtype: ::libc::c_int) -> kflowCustom {
+const fn custom(name: &'static [u8], id: u64, vtype: c_int) -> kflowCustom {
     kflowCustom{
-        name:  name as *const [u8] as *const u8 as *const i8,
+        name:  name.as_ptr() as *const c_char,
         id:    id,
         vtype: vtype,
         value: kflowCustomValue{u32: 0},
@@ -418,9 +421,9 @@ impl From<u32> for Value {
     }
 }
 
-impl From<Ipv4Addr> for Value {
-    fn from(v: Ipv4Addr) -> Self {
-        Value::U32(v.into())
+impl From<IpAddr> for Value {
+    fn from(ip: IpAddr) -> Self {
+        Value::Addr(ip)
     }
 }
 
