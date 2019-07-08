@@ -10,7 +10,7 @@ pub struct Message<'a> {
     pub attrs:  Vec<Attr<'a>>
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum Code {
     AccessRequest,
     AccessAccept,
@@ -19,6 +19,20 @@ pub enum Code {
     AccountingRequest,
     AccountingResponse,
     Other(u8),
+}
+
+impl From<Code> for u32 {
+    fn from(code: Code) -> Self {
+        match code {
+            Code::AccessRequest      => 1,
+            Code::AccessAccept       => 2,
+            Code::AccessReject       => 3,
+            Code::AccountingRequest  => 4,
+            Code::AccountingResponse => 5,
+            Code::AccessChallenge    => 11,
+            _                        => 0,
+        }
+    }
 }
 
 #[derive(Debug)]

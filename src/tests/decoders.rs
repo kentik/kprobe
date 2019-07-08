@@ -53,6 +53,25 @@ fn decode_dhcp() {
     assert_eq!(Some(Value::from(1)), value(APP_LATENCY, &customs));
 }
 
+#[test]
+fn decode_radius() {
+    let mut customs = Customs::new(&CUSTOMS);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
+
+    let mut flows = iter::flows("pcaps/radius/radius-acct-start.pcap");
+
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+    assert_eq!(Some(Value::from(4)), value(RADIUS_CODE, &customs))
+
+    // for flow in iter::flows("pcaps/radius/radius-acct-start.pcap") {
+    //     let key = flow.key();
+
+    //     let d = classify.find(&flow);
+    //     decoders.decode(d, &flow, &mut customs);
+    // }
+}
 
 #[test]
 fn decode_http() {

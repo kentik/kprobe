@@ -8,7 +8,7 @@ use crate::protocol::dhcp;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Decoder {
-    DHCP, DNS, HTTP, Postgres, TLS, None
+    DHCP, DNS, HTTP, Postgres, Radius, TLS, None
 }
 
 #[derive(Default)]
@@ -18,6 +18,7 @@ pub struct Decoders {
     http:     Option<http::Decoder>,
     tls:      Option<tls::Decoder>,
     postgres: Option<postgres::Decoder>,
+    radius:   Option<radius::Decoder>,
 }
 
 impl Decoders {
@@ -45,6 +46,12 @@ impl Decoders {
                 classify.add(TCP, 443, Decoder::TLS);
                 decoders.tls = Some(d);
             }
+
+            if let Ok(d) = radius::Decoder::new(cs) {
+                classify.add(UDP, 1813, Decoder::Radius);
+                classify.add(UDP, 1812, Decoder::Radius);
+                decoders.radius = Some(d);
+            }
         }
 
         decoders
@@ -61,6 +68,7 @@ impl Decoders {
             Decoder::HTTP     => self.http.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::TLS      => self.tls.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::Postgres => self.postgres.as_mut().map(|d| d.decode(flow, cs)),
+            Decoder::Radius   => self.radius.as_mut().map(|d| d.decode(flow, cs)),
             Decoder::None     => None,
         }.unwrap_or(false)
     }
@@ -78,6 +86,7 @@ impl Decoders {
         self.dns.as_mut().map(|d| d.clear(ts, timeout));
         self.http.as_mut().map(|d| d.clear(ts, timeout));
         self.tls.as_mut().map(|d| d.clear(ts, timeout));
+        self.radius.as_mut().map(|d| d.clear(ts, timeout));
         //self.postgres.as_mut().map(|d| d.clear(ts, timeout));
     }
 }
