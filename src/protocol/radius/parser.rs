@@ -6,6 +6,7 @@ use nom::*;
 pub struct Message<'a> {
     pub code:   Code,
     pub id:     u8,
+    pub len:    u16,
     pub auth:   &'a [u8],
     pub attrs:  Vec<Attr<'a>>
 }
@@ -21,7 +22,7 @@ pub enum Code {
     Other(u8),
 }
 
-impl From<Code> for u32 {
+impl From<Code> for u8 {
     fn from(code: Code) -> Self {
         match code {
             Code::AccessRequest      => 1,
@@ -32,6 +33,13 @@ impl From<Code> for u32 {
             Code::AccessChallenge    => 11,
             _                        => 0,
         }
+    }
+}
+
+impl From<Code> for u32 {
+    fn from(code: Code) -> Self {
+        let interim: u8 = code.into();
+        interim as u32
     }
 }
 
@@ -81,12 +89,13 @@ pub enum AcctStatusType {
 named!(pub message<&[u8], Message>, do_parse!(
     code:   call!(code)
  >> id:     be_u8
- >> _len:   map!(be_u16, usize::from)
+ >> len:    map!(be_u16, u16::from)
  >> auth:   take!(16)
  >> attrs:  many0!(attrs)
  >> (Message{
      code:  code,
      id:    id,
+     len:   len,
      auth:  auth,
      attrs: attrs,
  })

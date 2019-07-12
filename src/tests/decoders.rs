@@ -63,14 +63,24 @@ fn decode_radius() {
 
     let flow = flows.next().unwrap();
     decoders.decode(classify.find(&flow), &flow, &mut customs);
-    assert_eq!(Some(Value::from(4)), value(RADIUS_CODE, &customs))
 
-    // for flow in iter::flows("pcaps/radius/radius-acct-start.pcap") {
-    //     let key = flow.key();
+    assert_eq!(Some(Value::from(4)), value(RADIUS_CODE, &customs));
+    assert_eq!(Some(Value::from(37)), value(RADIUS_LENGTH, &customs));
+    assert_eq!(Some(Value::from("bob")), value(RADIUS_ATTR_USER_NAME, &customs));
 
-    //     let d = classify.find(&flow);
-    //     decoders.decode(d, &flow, &mut customs);
-    // }
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+
+    assert_eq!(Some(Value::from(4)), value(RADIUS_CODE, &customs));
+
+    let latency = value(APP_LATENCY, &customs);
+    println!("Latency: {:#?}", latency);
+    assert!(match latency {
+        Some(_) => true,
+        _       => false,
+    });
+
+    assert!(false)
 }
 
 #[test]

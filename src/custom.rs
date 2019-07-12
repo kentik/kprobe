@@ -46,8 +46,9 @@ pub const DHCP_HOSTNAME:         &str = "DHCP_HOSTNAME";
 pub const DHCP_DOMAIN:           &str = "DHCP_DOMAIN";
 pub const RADIUS_CODE:           &str = "RADIUS_CODE";
 pub const RADIUS_LENGTH:         &str = "RADIUS_LENGTH";
-pub const RADIUS_IDENTIFIER      &str = "RADIUS_IDENTIFIER";
+pub const RADIUS_IDENTIFIER:     &str = "RADIUS_IDENTIFIER";
 pub const RADIUS_ATTR_USER_NAME: &str = "RADIUS_ATTR_USER_NAME";
+// pub const RADIUS_ATTR_ACC_STATUS: &str
 
 #[derive(Debug)]
 pub struct Customs {
@@ -102,8 +103,9 @@ impl Customs {
             fields.insert(DHCP_HOSTNAME.to_owned(),      str01);
             fields.insert(DHCP_DOMAIN.to_owned(),        str02);
 
-            fields.insert(RADIUS_CODE.to_owned(),        int00);
-            fields.insert(RADIUS_USER_NAME.to_owned(),   str00);
+            fields.insert(RADIUS_CODE.to_owned(),           int00);
+            fields.insert(RADIUS_LENGTH.to_owned(),         int01);
+            fields.insert(RADIUS_ATTR_USER_NAME.to_owned(), str00);
 
             fields.insert(OOORDER_IN.to_owned(),         ooo);
             fields.insert(OOORDER_OUT.to_owned(),        ooo);
@@ -128,11 +130,12 @@ impl Customs {
 
         self.app_proto.map(|id| {
             match ctr.decoder {
-                Decoder::DNS  => self.add_u32(id, 1),
-                Decoder::HTTP => self.add_u32(id, 2),
-                Decoder::TLS  => self.add_u32(id, 3),
-                Decoder::DHCP => self.add_u32(id, 4),
-                _             => (),
+                Decoder::DNS    => self.add_u32(id, 1),
+                Decoder::HTTP   => self.add_u32(id, 2),
+                Decoder::TLS    => self.add_u32(id, 3),
+                Decoder::DHCP   => self.add_u32(id, 4),
+                Decoder::Radius => self.add_u32(id, 5),
+                _               => (),
             }
         });
     }
