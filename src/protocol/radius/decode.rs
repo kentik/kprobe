@@ -3,9 +3,11 @@ use crate::custom;
 use super::conn;
 use crate::flow::{Flow, Timestamp};
 
+use std::default::Default;
+
+#[derive(Default)]
 pub struct Decoder {
     code_col_id:      u64,
-    length_col_id:    u64,
     latency_col_id:   u64,
     user_name_col_id: u64,
     message:          Option<conn::Message>,
@@ -16,11 +18,11 @@ impl Decoder {
     pub fn new(cs: &custom::Customs) -> Result<Decoder, ()> {
         Ok(Decoder {
             code_col_id:      cs.get(custom::RADIUS_CODE)?,
-            length_col_id:    cs.get(custom::RADIUS_LENGTH)?,
             latency_col_id:   cs.get(custom::APP_LATENCY)?,
-            user_name_col_id: cs.get(custom::RADIUS_ATTR_USER_NAME)?,
-            message:          None,
+            user_name_col_id: cs.get(custom::RADIUS_A_USER_NAME)?,
+            
             tracker:          conn::Tracker::new(),
+            ..Default::default()
         })
     }
 
@@ -33,7 +35,6 @@ impl Decoder {
         };
 
         cs.add_u32(self.code_col_id, msg.code.into());
-        cs.add_u32(self.length_col_id, msg.length.into());
 
         if let Some(user) = &msg.user {
             cs.add_str(self.user_name_col_id, user.as_ref());

@@ -53,6 +53,7 @@ pub enum Attr<'a> {
     NASPort(u32),
     FramedIPAddr(Ipv4Addr),
     FramedIPMask(Ipv4Addr),
+    FramedProtocol(FramedProtocol),
     ReplyMessage(&'a str),
     NASIdentifier(&'a [u8]),
     AcctStatusType(AcctStatusType),
@@ -74,6 +75,64 @@ pub enum ServiceType {
     CallCheck,
     CallbackAdministrative,
     Other(u32),
+}
+
+impl From<ServiceType> for u8 {
+    fn from(st: ServiceType) -> Self {
+        match st {
+            ServiceType::Login                  => 1,
+            ServiceType::Framed                 => 2,
+            ServiceType::CallbackLogin          => 3,
+            ServiceType::CallbackFramed         => 4,
+            ServiceType::Outbound               => 5,
+            ServiceType::Administrative         => 6,
+            ServiceType::NASPrompt              => 7,
+            ServiceType::AuthenticateOnly       => 8,
+            ServiceType::CallbackNASPrompt      => 9,
+            ServiceType::CallCheck              => 10,
+            ServiceType::CallbackAdministrative => 11,
+            _                                   => 0,
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub enum FramedProtocol {
+    PPP,
+    SLIP,
+    AppleTalk,
+    Gandalf,
+    Xylogics,
+    X75,
+    Other(u32)
+}
+
+impl From<FramedProtocol> for u32 {
+    fn from(v: FramedProtocol) -> Self {
+        match v {
+            FramedProtocol::PPP       => 1,
+            FramedProtocol::SLIP      => 2,
+            FramedProtocol::AppleTalk => 3,
+            FramedProtocol::Gandalf   => 4,
+            FramedProtocol::Xylogics  => 5,
+            FramedProtocol::X75       => 6,
+            FramedProtocol::Other(n)  => n,
+        }
+    }
+}
+
+impl From<u32> for FramedProtocol {
+    fn from(v: u32) -> Self {
+        match v {
+            1 => FramedProtocol::PPP,
+            2 => FramedProtocol::SLIP,
+            3 => FramedProtocol::AppleTalk,
+            4 => FramedProtocol::Gandalf,
+            5 => FramedProtocol::Xylogics,
+            6 => FramedProtocol::X75,
+            n => FramedProtocol::Other(n),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -121,6 +180,7 @@ named!(attrs<&[u8], Attr>, alt!(
         6 => call!(attr_service_type)     |
         8 => call!(attr_framed_ip_addr)   |
         9 => call!(attr_framed_ip_mask)   |
+       10 => call!(attr_framed_proto)     |
        18 => call!(attr_reply_message)    |
        32 => call!(attr_nas_identifier)   |
        40 => call!(attr_acct_status_type) |
@@ -188,6 +248,12 @@ named!(attr_framed_ip_mask<&[u8], Attr>, do_parse!(
     _len:  verify!(be_u8, |n: u8| n == 6)
  >> ip:    map!(be_u32, Ipv4Addr::from)
  >> (Attr::FramedIPMask(ip))
+));
+
+named!(attr_framed_proto<&[u8], Attr>, do_parse!(
+    _len:  verify!(be_u8, |n: u8| n == 6)
+ >> proto: map!(be_u32, FramedProtocol::from)
+ >> (Attr::FramedProtocol(proto))
 ));
 
 named!(attr_reply_message<&[u8], Attr>, do_parse!(

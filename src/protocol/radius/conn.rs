@@ -8,28 +8,41 @@ use std::hash::{BuildHasher, Hash, Hasher};
 
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
+use std::net;
+use std::default::Default;
 use time;
 
+#[derive(Default)]
 pub struct Message {
-    pub code:   u8,
-    pub id:     u8,
-    pub length: u16,
-    pub user:   Option<ffi::CString>,
+    pub code:            u8,
+    pub id:              u8,
+    pub length:          u16,
+    pub user:            Option<ffi::CString>,
+    pub service_type:    Option<u8>,
+    pub framed_ip:       Option<net::Ipv4Addr>,
+    pub framed_mask:     Option<u32>,
+    pub framed_proto:    Option<u32>,
+    pub acct_session_id: Option<ffi::CString>,
 }
 
 impl<'a> From<parser::Message<'a>> for Message {
     fn from(m: parser::Message) -> Self {
         let mut ret = Self {
-            code:   m.code.into(),
-            id:     m.id,
-            length: m.len,
-            user:   None,
+            code:         m.code.into(),
+            id:           m.id,
+            length:       m.len,
+            ..Default::default()
         };
 
-        for attr in &m.attrs {
+        for attr in m.attrs {
             match attr {
-                parser::Attr::UserName(n) => ret.user = ffi::CString::new(n.as_bytes()).ok(),
-                _                         => (),
+                parser::Attr::UserName(n)        => ret.user = ffi::CString::new(n.as_bytes()).ok(),
+                parser::Attr::ServiceType(t)     => ret.service_type = Some(t.into()),
+                parser::Attr::FramedIPAddr(ip)   => ret.framed_ip = Some(ip),
+                parser::Attr::FramedIPMask(mask) => ret.framed_mask = Some(mask.into()),
+                parser::Attr::FramedProtocol(p)  => ret.framed_proto = Some(p.into()),
+                parser::Attr::AcctSessionID(sid) => ret.acct_session_id = ffi::CString::new(sid.as_bytes()).ok(),
+                _                                => (),
             }
         }
 
