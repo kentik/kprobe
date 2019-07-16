@@ -9,51 +9,49 @@ use crate::libkflow::*;
 use crate::protocol::Decoder;
 use crate::queue::Counter;
 
-pub const FRAGMENTS:                  &str = "FRAGMENTS";
-pub const APP_LATENCY:                &str = "APPL_LATENCY_MS";
-pub const FPX_LATENCY:                &str = "FPEX_LATENCY_MS";
-pub const CLIENT_NW_LATENCY:          &str = "CLIENT_NW_LATENCY_MS";
-pub const SERVER_NW_LATENCY:          &str = "SERVER_NW_LATENCY_MS";
-pub const RETRANSMITTED_IN:           &str = "RETRANSMITTED_IN_PKTS";
-pub const RETRANSMITTED_OUT:          &str = "RETRANSMITTED_OUT_PKTS";
-pub const REPEATED_RETRANSMITS:       &str = "REPEATED_RETRANSMITS";
-pub const OOORDER_IN:                 &str = "OOORDER_IN_PKTS";
-pub const OOORDER_OUT:                &str = "OOORDER_OUT_PKTS";
-pub const RECEIVE_WINDOW:             &str = "RECEIVE_WINDOW";
-pub const ZERO_WINDOWS:               &str = "ZERO_WINDOWS";
-pub const APP_PROTOCOL:               &str = "APP_PROTOCOL";
-pub const CONNECTION_ID:              &str = "CONNECTION_ID";
-pub const DNS_QUERY_NAME:             &str = "KFLOW_DNS_QUERY";
-pub const DNS_QUERY_TYPE:             &str = "KFLOW_DNS_QUERY_TYPE";
-pub const DNS_REPLY_CODE:             &str = "KFLOW_DNS_RET_CODE";
-pub const DNS_REPLY_DATA:             &str = "KFLOW_DNS_RESPONSE";
-pub const HTTP_URL:                   &str = "KFLOW_HTTP_URL";
-pub const HTTP_HOST:                  &str = "KFLOW_HTTP_HOST";
-pub const HTTP_REFERER:               &str = "KFLOW_HTTP_REFERER";
-pub const HTTP_UA:                    &str = "KFLOW_HTTP_UA";
-pub const HTTP_STATUS:                &str = "KFLOW_HTTP_STATUS";
-pub const TLS_SERVER_NAME:            &str = "TLS_SERVER_NAME";
-pub const TLS_SERVER_VERSION:         &str = "TLS_SERVER_VERSION";
-pub const TLS_CIPHER_SUITE:           &str = "TLS_CIPHER_SUITE";
-pub const DHCP_OP:                    &str = "DHCP_OP";
-pub const DHCP_MSG_TYPE:              &str = "DHCP_MSG_TYPE";
-pub const DHCP_CI_ADDR:               &str = "DHCP_CI_ADDR";
-pub const DHCP_YI_ADDR:               &str = "DHCP_YI_ADDR";
-pub const DHCP_SI_ADDR:               &str = "DHCP_SI_ADDR";
-pub const DHCP_LEASE:                 &str = "DHCP_LEASE";
-pub const DHCP_CH_ADDR:               &str = "DHCP_CH_ADDR";
-pub const DHCP_HOSTNAME:              &str = "DHCP_HOSTNAME";
-pub const DHCP_DOMAIN:                &str = "DHCP_DOMAIN";
-pub const RADIUS_CODE:                &str = "RADIUS_CODE";
-pub const RADIUS_A_USER_NAME:         &str = "RADIUS_A_USER_NAME";
-pub const RADIUS_A_SERVICE_TYPE:      &str = "RADIUS_A_SERVICE_TYPE";
-pub const RADIUS_A_FRAMED_IP_ADDR:    &str = "RADIUS_A_FRAMED_IP_ADDR";
-pub const RADIUS_A_FRAMED_IP_MASK:    &str = "RADIUS_A_FRAMED_IP_MASK";
-pub const RADIUS_A_FRAMED_PROTO:      &str = "RADIUS_A_FRAMED_PROTO";
-pub const RADIUS_A_ACCT_SESSION_ID:   &str = "RADIUS_A_ACCT_SESSION_ID";
-// pub const RADIUS_A_LOGIN_SERVICE:  &str = "RADIUS_A_LOGIN_SERVICE";
-// pub const RADIUS_A_LOGIN_IP:       &str = "RADIUS_A_LOGIN_IP";
-// pub const RADIUS_A_FILTER_ID:      &str = "RADIUS_A_FILTER_ID";
+pub const FRAGMENTS:                &str = "FRAGMENTS";
+pub const APP_LATENCY:              &str = "APPL_LATENCY_MS";
+pub const FPX_LATENCY:              &str = "FPEX_LATENCY_MS";
+pub const CLIENT_NW_LATENCY:        &str = "CLIENT_NW_LATENCY_MS";
+pub const SERVER_NW_LATENCY:        &str = "SERVER_NW_LATENCY_MS";
+pub const RETRANSMITTED_IN:         &str = "RETRANSMITTED_IN_PKTS";
+pub const RETRANSMITTED_OUT:        &str = "RETRANSMITTED_OUT_PKTS";
+pub const REPEATED_RETRANSMITS:     &str = "REPEATED_RETRANSMITS";
+pub const OOORDER_IN:               &str = "OOORDER_IN_PKTS";
+pub const OOORDER_OUT:              &str = "OOORDER_OUT_PKTS";
+pub const RECEIVE_WINDOW:           &str = "RECEIVE_WINDOW";
+pub const ZERO_WINDOWS:             &str = "ZERO_WINDOWS";
+pub const APP_PROTOCOL:             &str = "APP_PROTOCOL";
+pub const CONNECTION_ID:            &str = "CONNECTION_ID";
+pub const DNS_QUERY_NAME:           &str = "KFLOW_DNS_QUERY";
+pub const DNS_QUERY_TYPE:           &str = "KFLOW_DNS_QUERY_TYPE";
+pub const DNS_REPLY_CODE:           &str = "KFLOW_DNS_RET_CODE";
+pub const DNS_REPLY_DATA:           &str = "KFLOW_DNS_RESPONSE";
+pub const HTTP_URL:                 &str = "KFLOW_HTTP_URL";
+pub const HTTP_HOST:                &str = "KFLOW_HTTP_HOST";
+pub const HTTP_REFERER:             &str = "KFLOW_HTTP_REFERER";
+pub const HTTP_UA:                  &str = "KFLOW_HTTP_UA";
+pub const HTTP_STATUS:              &str = "KFLOW_HTTP_STATUS";
+pub const TLS_SERVER_NAME:          &str = "TLS_SERVER_NAME";
+pub const TLS_SERVER_VERSION:       &str = "TLS_SERVER_VERSION";
+pub const TLS_CIPHER_SUITE:         &str = "TLS_CIPHER_SUITE";
+pub const DHCP_OP:                  &str = "DHCP_OP";
+pub const DHCP_MSG_TYPE:            &str = "DHCP_MSG_TYPE";
+pub const DHCP_CI_ADDR:             &str = "DHCP_CI_ADDR";
+pub const DHCP_YI_ADDR:             &str = "DHCP_YI_ADDR";
+pub const DHCP_SI_ADDR:             &str = "DHCP_SI_ADDR";
+pub const DHCP_LEASE:               &str = "DHCP_LEASE";
+pub const DHCP_CH_ADDR:             &str = "DHCP_CH_ADDR";
+pub const DHCP_HOSTNAME:            &str = "DHCP_HOSTNAME";
+pub const DHCP_DOMAIN:              &str = "DHCP_DOMAIN";
+pub const RADIUS_CODE:              &str = "RADIUS_CODE";
+pub const RADIUS_A_USER_NAME:       &str = "RADIUS_A_USER_NAME";
+pub const RADIUS_A_SERVICE_TYPE:    &str = "RADIUS_A_SERVICE_TYPE";
+pub const RADIUS_A_FRAMED_IP_ADDR:  &str = "RADIUS_A_FRAMED_IP_ADDR";
+pub const RADIUS_A_FRAMED_IP_MASK:  &str = "RADIUS_A_FRAMED_IP_MASK";
+pub const RADIUS_A_FRAMED_PROTO:    &str = "RADIUS_A_FRAMED_PROTO";
+pub const RADIUS_A_ACCT_SESSION_ID: &str = "RADIUS_A_ACCT_SESSION_ID";
+pub const RADIUS_A_ACCT_STATUS:     &str = "RADIUS_A_ACCT_STATUS";
 
 #[derive(Debug)]
 pub struct Customs {
@@ -114,9 +112,9 @@ impl Customs {
             fields.insert(RADIUS_A_FRAMED_IP_ADDR.to_owned(),  addr00);
             fields.insert(RADIUS_A_FRAMED_IP_MASK.to_owned(),  addr01);
             fields.insert(RADIUS_A_FRAMED_PROTO.to_owned(),    str02);
+            fields.insert(RADIUS_A_ACCT_STATUS.to_owned(),     int02);
             fields.insert(RADIUS_A_ACCT_SESSION_ID.to_owned(), str03);
-            // fields.insert(RADIUS_A_LOGIN_SERVICE.to_owned(),  str03);
-            // fields.insert(RADIUS_A_LOGIN_IP.to_owned(),       addr03);
+
 
             fields.insert(OOORDER_IN.to_owned(),               ooo);
             fields.insert(OOORDER_OUT.to_owned(),              ooo);
@@ -182,6 +180,10 @@ impl Customs {
             Some(id) => Ok(*id),
             None     => Err(()),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.fields.len()
     }
 }
 

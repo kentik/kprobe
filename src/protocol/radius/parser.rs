@@ -145,6 +145,19 @@ pub enum AcctStatusType {
     Other(u32),
 }
 
+impl From<AcctStatusType> for u32 {
+    fn from(v: AcctStatusType) -> Self {
+       match v {
+            AcctStatusType::Start         => 1,
+            AcctStatusType::Stop          => 2,
+            AcctStatusType::InterimUpdate => 3,
+            AcctStatusType::AccountingOn  => 4,
+            AcctStatusType::AccountingOff => 5,
+            AcctStatusType::Other(n)      => n,
+        }
+    }
+}
+
 named!(pub message<&[u8], Message>, do_parse!(
     code:   call!(code)
  >> id:     be_u8

@@ -54,33 +54,91 @@ fn decode_dhcp() {
 }
 
 #[test]
-fn decode_radius() {
+fn decode_radius_acct() {
     let mut customs = Customs::new(&CUSTOMS);
     let mut classify = Classify::new();
     let mut decoders = Decoders::new(&customs, &mut classify, true);
-
     let mut flows = iter::flows("pcaps/radius/radius-acct-start.pcap");
 
     let flow = flows.next().unwrap();
     decoders.decode(classify.find(&flow), &flow, &mut customs);
 
     assert_eq!(Some(Value::from(4)), value(RADIUS_CODE, &customs));
-    // assert_eq!(Some(Value::from(37)), value(RADIUS_LENGTH, &customs));
     assert_eq!(Some(Value::from("bob")), value(RADIUS_A_USER_NAME, &customs));
+    assert_eq!(Some(Value::from(1)), value(RADIUS_A_ACCT_STATUS, &customs));
+    assert_eq!(Some(Value::Addr(std::net::IpAddr::from([10,1,2,3]))), value(RADIUS_A_FRAMED_IP_ADDR, &customs));
 
+    customs.clear();
     let flow = flows.next().unwrap();
+
     decoders.decode(classify.find(&flow), &flow, &mut customs);
 
-    assert_eq!(Some(Value::from(4)), value(RADIUS_CODE, &customs));
+    assert_eq!(Some(Value::from(5)), value(RADIUS_CODE, &customs));
 
-    let latency = value(APP_LATENCY, &customs);
-    println!("Latency: {:#?}", latency);
-    assert!(match latency {
+    assert!(match value(APP_LATENCY, &customs) {
         Some(_) => true,
         _       => false,
     });
 
-    // assert!(false)
+    customs.clear();
+
+    let mut flows = iter::flows("pcaps/radius/radius-acct-stop.pcap");
+    let flow = flows.next().unwrap();
+
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+    
+    assert_eq!(Some(Value::from(4)), value(RADIUS_CODE, &customs));
+    assert_eq!(Some(Value::from("bob")), value(RADIUS_A_USER_NAME, &customs));
+    assert_eq!(Some(Value::from(2)), value(RADIUS_A_ACCT_STATUS, &customs));
+
+    customs.clear();
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+    assert_eq!(Some(Value::from(5)), value(RADIUS_CODE, &customs));
+}
+
+#[test]
+fn decode_radius_access() {
+    let mut customs = Customs::new(&CUSTOMS);
+    let mut classify = Classify::new();
+    let mut decoders = Decoders::new(&customs, &mut classify, true);
+    let mut flows = iter::flows("pcaps/radius/radius-auth-req.pcap");
+
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+
+    assert_eq!(Some(Value::from(1)), value(RADIUS_CODE, &customs));
+    assert_eq!(Some(Value::from("John.McGuirk")), value(RADIUS_A_USER_NAME, &customs));
+    assert_eq!(Some(Value::from(2)), value(RADIUS_A_SERVICE_TYPE, &customs));
+    
+    customs.clear();
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+
+    assert!(match value(APP_LATENCY, &customs) {
+        Some(_) => true,
+        _       => false,
+    });
+
+    assert_eq!(Some(Value::from(11)), value(RADIUS_CODE, &customs));
+    assert_eq!(Some(Value::from(2)), value(RADIUS_A_SERVICE_TYPE, &customs));
+    assert_eq!(Some(Value::Addr(std::net::IpAddr::from([255,255,255,254]))), value(RADIUS_A_FRAMED_IP_ADDR, &customs));
+
+    customs.clear();
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+
+    assert_eq!(Some(Value::from(1)), value(RADIUS_CODE, &customs));
+    assert_eq!(Some(Value::from(2)), value(RADIUS_A_SERVICE_TYPE, &customs));
+    assert_eq!(Some(Value::from("John.McGuirk")), value(RADIUS_A_USER_NAME, &customs));
+
+    customs.clear();
+    let flow = flows.next().unwrap();
+    decoders.decode(classify.find(&flow), &flow, &mut customs);
+
+    assert_eq!(Some(Value::from(2)), value(RADIUS_CODE, &customs));
+    assert_eq!(Some(Value::from(2)), value(RADIUS_A_SERVICE_TYPE, &customs));
+    assert_eq!(Some(Value::Addr(std::net::IpAddr::from([255,255,255,254]))), value(RADIUS_A_FRAMED_IP_ADDR, &customs));
 }
 
 #[test]

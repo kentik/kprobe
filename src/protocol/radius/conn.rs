@@ -19,10 +19,11 @@ pub struct Message {
     pub length:          u16,
     pub user:            Option<ffi::CString>,
     pub service_type:    Option<u8>,
-    pub framed_ip:       Option<net::Ipv4Addr>,
+    pub framed_ip:       Option<net::IpAddr>,
     pub framed_mask:     Option<u32>,
     pub framed_proto:    Option<u32>,
     pub acct_session_id: Option<ffi::CString>,
+    pub acct_status:     Option<u32>,
 }
 
 impl<'a> From<parser::Message<'a>> for Message {
@@ -38,10 +39,11 @@ impl<'a> From<parser::Message<'a>> for Message {
             match attr {
                 parser::Attr::UserName(n)        => ret.user = ffi::CString::new(n.as_bytes()).ok(),
                 parser::Attr::ServiceType(t)     => ret.service_type = Some(t.into()),
-                parser::Attr::FramedIPAddr(ip)   => ret.framed_ip = Some(ip),
+                parser::Attr::FramedIPAddr(ip)   => ret.framed_ip = Some(net::IpAddr::from(ip)),
                 parser::Attr::FramedIPMask(mask) => ret.framed_mask = Some(mask.into()),
                 parser::Attr::FramedProtocol(p)  => ret.framed_proto = Some(p.into()),
                 parser::Attr::AcctSessionID(sid) => ret.acct_session_id = ffi::CString::new(sid.as_bytes()).ok(),
+                parser::Attr::AcctStatusType(s)  => ret.acct_status = Some(s.into()),
                 _                                => (),
             }
         }
