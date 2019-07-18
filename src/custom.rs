@@ -181,10 +181,6 @@ impl Customs {
             None     => Err(()),
         }
     }
-
-    pub fn len(&self) -> usize {
-        self.fields.len()
-    }
 }
 
 impl Deref for Customs {
