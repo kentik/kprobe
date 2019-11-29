@@ -1,4 +1,4 @@
-FROM xcc:base
+FROM wglozer/xcc:base
 
 ARG TARGET=x86_64-linux-musl
 ARG TOOLCHAIN=1.34.0
