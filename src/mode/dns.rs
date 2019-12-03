@@ -23,10 +23,10 @@ pub struct Dns {
     last:   Timestamp,
 }
 
-pub fn run(mut cap: Capture<Active>, client: Client) -> Result<(), Error<'static>> {
+pub fn run(mut cap: Capture<Active>, client: Client, filter_expr: &str) -> Result<(), Error<'static>> {
     let mut dns = Dns::new(client);
 
-    cap.filter("udp src port 53 or ip[6:2] & 0x1fff != 0x0000")?;
+    cap.filter(filter_expr)?;
 
     loop {
         match cap.next() {
@@ -81,6 +81,9 @@ impl Dns {
             _            => return None,
         };
 
+        // msg.header.qr == 1 -> dns reply
+        // msg.header.opcode == 0 -> standard query
+        // msg.answer.is_empty() -> nothing to look at
         if msg.header.qr != 1 || msg.header.opcode != 0 || msg.answer.is_empty() {
             return None;
         }

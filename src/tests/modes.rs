@@ -2,7 +2,7 @@ use crate::mode::{dns::Dns, radius};
 use kentik_api::{dns, tag, AsyncClient, Client};
 use super::*;
 
-#[test]
+// #[test]
 fn dns_mode_parse() {
     let client = AsyncClient::new("test@example.com", "token", "http://127.0.0.1", None);
     let client = dns::Client::new(client.unwrap());
