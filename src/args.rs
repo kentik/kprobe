@@ -36,6 +36,7 @@ pub fn parse<'a>(args: &[OsString]) -> Args<'a> {
       (@arg http_port:          --("http-port")      [port] ...  "Decode HTTP on port")
       (@arg no_decode:          --("no-decode")                  "No protocol decoding")
       (@arg dns:                --dns                            "DNS output only")
+      (@arg dns_juniper_mode:   --("juniper-mirror")             "Adds juniper mirror stripping to dns mode. Works only with --dns")
       (@arg dns_filter:         --("dns-filter")     [filter]    "DNS pcap expression. Works only with --dns. Defaults to \"udp src port 53 or ip[6:2] & 0x1fff != 0x0000\"")
       (@arg dns_port:           --("dns-port")       [port]      "DNS listen port. Works only without --dns. Defaults to 53")
       (@arg radius:             --radius                         "RADIUS output only")
