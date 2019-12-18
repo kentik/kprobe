@@ -32,7 +32,7 @@ fn main() {
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
     let dns     = args.count("dns") > 0;
-    let dns_filter_expr = args.arg("dns_filter").unwrap_or("udp src port 53 or ip[6:2] & 0x1fff != 0x0000".to_owned());
+    let dns_filter_expr = args.arg("dns_filter").ok();
     let dns_juniper_mirror = args.count("dns_juniper_mode") > 0;
     let radius  = args.count("radius") > 0;
 
@@ -120,9 +120,9 @@ fn main() {
         let client = async_api_client(&args, &cfg.dns.url).unwrap_or_else(abort);
         let client = dns::Client::new(client);
         if dns_juniper_mirror {
-            mode::dns::run_juniper(cap, client, &dns_filter_expr).unwrap_or_else(abort);
+            mode::dns::run_juniper(cap, client, dns_filter_expr).unwrap_or_else(abort);
         } else {
-            mode::dns::run(cap, client, &dns_filter_expr).unwrap_or_else(abort);
+            mode::dns::run(cap, client, dns_filter_expr).unwrap_or_else(abort);
         }
         exit(0);
     } else if radius {

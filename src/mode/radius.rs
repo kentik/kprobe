@@ -33,16 +33,13 @@ pub enum Request {
 pub fn run(mut cap: Capture<Active>, client: Client, pcap_ports: &[u16]) -> Result<(), Error<'static>> {
     let mut radius = Radius::new(client);
 
-    if pcap_ports.len() < 1 {
+    if pcap_ports.is_empty() {
         return Err(Error::Missing("no ports specified"));
     }
 
-    let mut filter = "ups dst ".to_string();
-    for port in pcap_ports.iter().take(pcap_ports.len() - 1) {
-        filter.push_str(&port.to_string());
-        filter.push_str(" or ");
-    }
-    filter.push_str(&pcap_ports.last().unwrap().to_string());
+    let mut filter = "udp dst port ".to_string();
+    filter.push_str(&pcap_ports.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(" or "));
+
     cap.filter(&filter)?;
 
     loop {
