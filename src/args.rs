@@ -35,18 +35,23 @@ pub fn parse<'a>(args: &[OsString]) -> Args<'a> {
       (@arg dns_url:            --("dns-url")        [URL]       "DNS URL")
       (@arg http_port:          --("http-port")      [port] ...  "Decode HTTP on port")
       (@arg no_decode:          --("no-decode")                  "No protocol decoding")
-      (@arg dns:                --dns                            "DNS output only")
-      (@arg dns_juniper_mode:   --("juniper-mirror")             "Adds juniper mirror stripping to dns mode. Works only with --dns")
-      (@arg dns_filter:         --("dns-filter")     [filter]    "DNS pcap expression. Works only with --dns. Defaults to \"udp src port 53 or ip[6:2] & 0x1fff != 0x0000\"")
-      (@arg dns_port:           --("dns-port")       [port]      "DNS listen port. Works only without --dns. Defaults to 53")
-      (@arg radius:             --radius                         "RADIUS output only")
-      (@arg radius_ports:       --("radius-ports")   [port] ...  "RADIUS ports, defaults to [1812,1813]")
       (@arg fanout:             --fanout             [group]     "Join fanout group")
       (@arg filter:             --filter             [filter]    "Filter traffic")
       (@arg translate:          --translate          [spec] ...  "Translate address")
       (@arg promisc:            --promisc                        "Promiscuous mode")
       (@arg snaplen:            --snaplen            [N]         "Capture snaplen")
       (@arg verbose:            -v                          ...  "Verbose output")
+      (@arg dns_port:           --("dns-port")       [port]      "DNS listen port. Works only without dns subcommand. Defaults to 53")
+      (@arg radius_ports:       --("radius-ports")    [port] ...  "Radius ports. Works only without radius subcommand. Defaults to [1812,1813]")
+      (@subcommand dns =>
+        (about:  "DNS capture/output only")
+        (@arg dns_filter:       --filter             [filter]    "DNS pcap expression. Defaults to \"udp src port 53 or ip[6:2] & 0x1fff != 0x0000\"")
+        (@arg dns_juniper_mode: --("juniper-mirror")             "Adds juniper mirror stripping. Assumes tcp/udp packet encapsulated in udp with 8 byte juniper header in between")
+      )
+      (@subcommand radius =>
+        (about:  "RADIUS capture/output only")
+        (@arg radius_ports:     --("ports")          [port] ...  "RADIUS ports, defaults to [1812,1813]")
+      )
     ).get_matches_from(args);
     Args{matches: matches}
 }
@@ -56,6 +61,13 @@ pub struct Args<'a> {
 }
 
 impl<'a> Args<'a> {
+    pub fn sub(&self, name: &'a str) -> Option<Self> {
+        match self.matches.subcommand_matches(name) {
+            Some(m) => Some(Self {matches: m.to_owned()}),
+            _       => None,
+        }
+    }
+
     pub fn arg<T: FromArg>(&self, name: &'a str) -> Result<T, Error> {
         match self.matches.value_of(name) {
             Some(value) => FromArg::from_arg(value),

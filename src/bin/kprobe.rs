@@ -31,10 +31,16 @@ fn main() {
     let region  = args.opt("region").unwrap_or(None);
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
-    let dns     = args.count("dns") > 0;
-    let dns_filter_expr = args.arg("dns_filter").ok();
-    let dns_juniper_mirror = args.count("dns_juniper_mode") > 0;
-    let radius  = args.count("radius") > 0;
+
+    let dns_args = args.sub("dns");
+    let dns = dns_args.is_some();
+    let (dns_filter_expr, dns_juniper_mirror) = dns_args.map(|m| {
+        (m.arg("dns_filter").ok(), m.count("dns_juniper_mode") > 0)
+    }).unwrap_or((None, false));
+
+    let radius_args = args.sub("radius");
+    let radius  = radius_args.is_some();
+    let radius_ports = radius_args.and_then(|m| m.args("radius_ports").ok()).unwrap_or(vec![1812,1813]);
 
     let (interface, device) = args.arg("interface").unwrap_or_else(abort);
 
@@ -89,9 +95,9 @@ fn main() {
         classify.add(Protocol::TCP, port, Decoder::HTTP);
     }
 
-    let radius_ports = args.args("radius_ports").unwrap_or(vec![1812,1813]);
-    for port in &radius_ports {
-        classify.add(Protocol::UDP, *port, Decoder::Radius)
+    let radius_default_mode_ports = args.args("radius-ports").unwrap_or(vec![1812,1813]);
+    for port in radius_default_mode_ports {
+        classify.add(Protocol::UDP, port, Decoder::Radius)
     }
 
     let dns_port = args.arg("dns_port").unwrap_or(53u16);
