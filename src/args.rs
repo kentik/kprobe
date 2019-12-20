@@ -15,34 +15,43 @@ pub fn parse<'a>(args: &[OsString]) -> Args<'a> {
     let matches = clap_app!(kprobe =>
       (version: env!("CARGO_PKG_VERSION"))
       (about:   crate_description!())
-      (@arg interface: -i --interface       <interface> "Network interface")
-      (@arg email:        --email           <email>     "API user email")
-      (@arg token:        --token           <token>     "API access token")
-      (@arg sample:       --sample          [N]         "Sample 1:N flows")
-      (@arg device_id:    --("device-id")   [ID]        "Device ID")
-      (@arg device_if:    --("device-if")   [interface] "Device interface")
-      (@arg device_ip:    --("device-ip")   [IP]        "Device IP")
-      (@arg device_name:  --("device-name") [name]      "Device name")
-      (@arg device_plan:  --("device-plan") [ID]        "Device plan")
-      (@arg device_site:  --("device-site") [ID]        "Device site")
-      (@arg region:       --region          [region]    "Kentik region")
-      (@arg api_url:      --("api-url")     [URL]       "API URL")
-      (@arg flow_url:     --("flow-url")    [URL]       "Flow URL")
-      (@arg metrics_url:  --("metrics-url") [URL]       "Metrics URL")
-      (@arg proxy_url:    --("proxy-url")   [URL]       "Proxy URL")
-      (@arg status_host:  --("status-host") [host]      "Status host")
-      (@arg status_port:  --("status-port") [port]      "Status port")
-      (@arg dns_url:      --("dns-url")     [URL]       "DNS URL")
-      (@arg http_port:    --("http-port")   [port] ...  "Decode HTTP on port")
-      (@arg no_decode:    --("no-decode")               "No protocol decoding")
-      (@arg dns:          --dns                         "DNS output only")
-      (@arg radius:       --radius                      "RADIUS output only")
-      (@arg fanout:       --fanout          [group]     "Join fanout group")
-      (@arg filter:       --filter          [filter]    "Filter traffic")
-      (@arg translate:    --translate       [spec] ...  "Translate address")
-      (@arg promisc:      --promisc                     "Promiscuous mode")
-      (@arg snaplen:      --snaplen         [N]         "Capture snaplen")
-      (@arg verbose: -v                     ...         "Verbose output")
+      (@arg interface: -i       --interface          <interface> "Network interface")
+      (@arg email:              --email              <email>     "API user email")
+      (@arg token:              --token              <token>     "API access token")
+      (@arg sample:             --sample             [N]         "Sample 1:N flows")
+      (@arg device_id:          --("device-id")      [ID]        "Device ID")
+      (@arg device_if:          --("device-if")      [interface] "Device interface")
+      (@arg device_ip:          --("device-ip")      [IP]        "Device IP")
+      (@arg device_name:        --("device-name")    [name]      "Device name")
+      (@arg device_plan:        --("device-plan")    [ID]        "Device plan")
+      (@arg device_site:        --("device-site")    [ID]        "Device site")
+      (@arg region:             --region             [region]    "Kentik region")
+      (@arg api_url:            --("api-url")        [URL]       "API URL")
+      (@arg flow_url:           --("flow-url")       [URL]       "Flow URL")
+      (@arg metrics_url:        --("metrics-url")    [URL]       "Metrics URL")
+      (@arg proxy_url:          --("proxy-url")      [URL]       "Proxy URL")
+      (@arg status_host:        --("status-host")    [host]      "Status host")
+      (@arg status_port:        --("status-port")    [port]      "Status port")
+      (@arg dns_url:            --("dns-url")        [URL]       "DNS URL")
+      (@arg http_port:          --("http-port")      [port] ...  "Decode HTTP on port")
+      (@arg no_decode:          --("no-decode")                  "No protocol decoding")
+      (@arg fanout:             --fanout             [group]     "Join fanout group")
+      (@arg filter:             --filter             [filter]    "Filter traffic")
+      (@arg translate:          --translate          [spec] ...  "Translate address")
+      (@arg promisc:            --promisc                        "Promiscuous mode")
+      (@arg snaplen:            --snaplen            [N]         "Capture snaplen")
+      (@arg verbose:            -v                          ...  "Verbose output")
+      (@arg dns_port:           --("dns-port")       [port]      "DNS listen port. Works only without dns subcommand. Defaults to 53")
+      (@arg radius_ports:       --("radius-ports")    [port] ...  "Radius ports. Works only without radius subcommand. Defaults to [1812,1813]")
+      (@subcommand dns =>
+        (about:  "DNS capture/output only")
+        (@arg dns_filter:       --filter             [filter]    "DNS pcap expression. Defaults to \"udp src port 53 or ip[6:2] & 0x1fff != 0x0000\"")
+        (@arg dns_juniper_mode: --("juniper-mirror")             "Adds juniper mirror stripping. Assumes tcp/udp packet encapsulated in udp with 8 byte juniper header in between")
+      )
+      (@subcommand radius =>
+        (about:  "RADIUS capture/output only")
+        (@arg radius_ports:     --("ports")          [port] ...  "RADIUS ports, defaults to [1812,1813]")
+      )
     ).get_matches_from(args);
     Args{matches: matches}
 }
@@ -52,6 +61,13 @@ pub struct Args<'a> {
 }
 
 impl<'a> Args<'a> {
+    pub fn sub(&self, name: &'a str) -> Option<Self> {
+        match self.matches.subcommand_matches(name) {
+            Some(m) => Some(Self {matches: m.to_owned()}),
+            _       => None,
+        }
+    }
+
     pub fn arg<T: FromArg>(&self, name: &'a str) -> Result<T, Error> {
         match self.matches.value_of(name) {
             Some(value) => FromArg::from_arg(value),

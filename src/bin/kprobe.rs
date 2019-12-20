@@ -5,7 +5,7 @@ use kprobe::args::{self, Args};
 use kprobe::{Config, Kprobe};
 use kprobe::libkflow;
 use kprobe::protocol::Classify;
-use kprobe::flow::Protocol::TCP;
+use kprobe::flow::Protocol;
 use kprobe::fanout;
 use kprobe::protocol::Decoder;
 use kprobe::mode;
@@ -31,8 +31,16 @@ fn main() {
     let region  = args.opt("region").unwrap_or(None);
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
-    let dns     = args.count("dns") > 0;
-    let radius  = args.count("radius") > 0;
+
+    let dns_args = args.sub("dns");
+    let dns = dns_args.is_some();
+    let (dns_filter_expr, dns_juniper_mirror) = dns_args.map(|m| {
+        (m.arg("dns_filter").ok(), m.count("dns_juniper_mode") > 0)
+    }).unwrap_or((None, false));
+
+    let radius_args = args.sub("radius");
+    let radius  = radius_args.is_some();
+    let radius_ports = radius_args.and_then(|m| m.args("radius_ports").ok()).unwrap_or(vec![1812,1813]);
 
     let (interface, device) = args.arg("interface").unwrap_or_else(abort);
 
@@ -84,8 +92,16 @@ fn main() {
     let mut classify = Classify::new();
 
     for port in args.args("http_port").unwrap_or_default() {
-        classify.add(TCP, port, Decoder::HTTP);
+        classify.add(Protocol::TCP, port, Decoder::HTTP);
     }
+
+    let radius_default_mode_ports = args.args("radius-ports").unwrap_or(vec![1812,1813]);
+    for port in radius_default_mode_ports {
+        classify.add(Protocol::UDP, port, Decoder::Radius)
+    }
+
+    let dns_port = args.arg("dns_port").unwrap_or(53u16);
+    classify.add(Protocol::UDP, dns_port, Decoder::DNS);
 
     let translate = args.opts("translate").unwrap_or_else(abort);
 
@@ -109,12 +125,16 @@ fn main() {
     if dns {
         let client = async_api_client(&args, &cfg.dns.url).unwrap_or_else(abort);
         let client = dns::Client::new(client);
-        mode::dns::run(cap, client).unwrap_or_else(abort);
+        if dns_juniper_mirror {
+            mode::dns::run_juniper(cap, client, dns_filter_expr).unwrap_or_else(abort);
+        } else {
+            mode::dns::run(cap, client, dns_filter_expr).unwrap_or_else(abort);
+        }
         exit(0);
     } else if radius {
         let client = sync_api_client(&args, &cfg.api.url).unwrap_or_else(abort);
         let client = tag::Client::new(client);
-        mode::radius::run(cap, client).unwrap_or_else(abort);
+        mode::radius::run(cap, client, &radius_ports).unwrap_or_else(abort);
         exit(0);
     }
 
@@ -130,7 +150,7 @@ fn main() {
         customs:   dev.customs,
         decode:    decode,
         sample:    sample,
-        translate: translate,
+        translate: translate
     });
     kprobe.run(cap).expect("capture succeeded");
 }

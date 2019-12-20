@@ -27,7 +27,7 @@ impl Decoders {
 
         if decode {
             if let Ok(d) = dns::Decoder::new(cs) {
-                classify.add(UDP, 53, Decoder::DNS);
+                // Populated in bin/kprobe.rs
                 decoders.dns = Some(d);
             }
 
@@ -48,8 +48,7 @@ impl Decoders {
             }
 
             if let Ok(d) = radius::Decoder::new(cs) {
-                classify.add(UDP, 1813, Decoder::Radius);
-                classify.add(UDP, 1812, Decoder::Radius);
+                // Populated in bin/kprobe.rs
                 decoders.radius = Some(d);
             }
         }

@@ -30,10 +30,17 @@ pub enum Request {
     Stop(String),
 }
 
-pub fn run(mut cap: Capture<Active>, client: Client) -> Result<(), Error<'static>> {
+pub fn run(mut cap: Capture<Active>, client: Client, pcap_ports: &[u16]) -> Result<(), Error<'static>> {
     let mut radius = Radius::new(client);
 
-    cap.filter("udp dst portrange 1812-1813")?;
+    if pcap_ports.is_empty() {
+        return Err(Error::Missing("no ports specified"));
+    }
+
+    let mut filter = "udp dst port ".to_string();
+    filter.push_str(&pcap_ports.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(" or "));
+
+    cap.filter(&filter)?;
 
     loop {
         match cap.next() {

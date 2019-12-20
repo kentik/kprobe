@@ -1,7 +1,7 @@
 FROM wglozer/xcc:base
 
 ARG TARGET=x86_64-linux-musl
-ARG TOOLCHAIN=1.34.0
+ARG TOOLCHAIN=1.39.0
 
 ENV PATH="/root/.cargo/bin:/opt/xcc/${TARGET}/bin:${PATH}"
 ENV PKG_CONFIG_PATH=/opt/xcc/${TARGET}/lib/pkgconfig

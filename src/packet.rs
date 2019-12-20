@@ -54,6 +54,18 @@ pub fn decode<'a>(p: &'a EthernetPacket<'a>) -> (Option<u16>, Option<Packet<'a>>
     }
 }
 
+pub fn decode_from_l3<'a>(buf: &'a [u8]) -> Option<Packet<'a>> {
+    if buf.len() < 1 {
+        return None
+    }
+
+    match buf[0] >> 4 {
+        4 => Ipv4Packet::new(buf).map(Packet::IPv4),
+        6 => Ipv6Packet::new(buf).map(Packet::IPv6),
+        _ => None,
+    }
+}
+
 impl<'a> Packet<'a> {
     pub fn src(&self) -> IpAddr {
         match *self {

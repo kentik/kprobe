@@ -1,6 +1,6 @@
 use std::mem::swap;
 use std::net::IpAddr;
-use log::warn;
+use log::{debug, warn};
 use nom::IResult::Done;
 use pcap::{Capture, Active};
 use pcap::Error::*;
@@ -23,14 +23,33 @@ pub struct Dns {
     last:   Timestamp,
 }
 
-pub fn run(mut cap: Capture<Active>, client: Client) -> Result<(), Error<'static>> {
+pub fn run(
+    cap: Capture<Active>,
+    client: Client,
+    filter_expr: Option<String>,
+) -> Result<(), Error<'static>> {
+    run_base(cap, client, filter_expr, Dns::plain_parse)
+}
+
+pub fn run_juniper(
+    cap: Capture<Active>,
+    client: Client,
+    filter_expr: Option<String>,
+) -> Result<(), Error<'static>> {
+    run_base(cap, client, filter_expr, Dns::parse_stripped)
+}
+
+pub fn run_base<F>(mut cap: Capture<Active>, client: Client, filter_expr: Option<String>, mut parser: F) -> Result<(), Error<'static>>
+where F: FnMut(&mut Dns, Addr, Addr, & [u8], Timestamp)
+{
     let mut dns = Dns::new(client);
 
-    cap.filter("udp src port 53 or ip[6:2] & 0x1fff != 0x0000")?;
+    let filter_expr = filter_expr.unwrap_or("udp src port 53 or ip[6:2] & 0x1fff != 0x0000".to_owned());
+    cap.filter(&filter_expr)?;
 
     loop {
         match cap.next() {
-            Ok(packet)          => dns.record(packet),
+            Ok(packet) => dns.record(packet, &mut parser),
             Err(TimeoutExpired) => dns.flush(Timestamp::now()),
             Err(NoMorePackets)  => return Ok(()),
             Err(e)              => return Err(e.into()),
@@ -48,10 +67,12 @@ impl Dns {
         }
     }
 
-    pub fn record<'a>(&mut self, packet: pcap::Packet<'a>) {
+    pub fn record<'a, F>(&mut self, packet: pcap::Packet<'a>, consumer: &mut F)
+    where F: FnMut(&mut Self, Addr, Addr, & [u8], Timestamp),
+    {
         let eth = match EthernetPacket::new(packet.data) {
             Some(pkt) => pkt,
-            None      => return,
+            None => return,
         };
 
         if let (_vlan, Some(pkt)) = packet::decode(&eth) {
@@ -60,18 +81,42 @@ impl Dns {
             if let Some(out) = self.asm.reassemble(ts, &pkt) {
                 if let Some(transport) = pkt.transport(&out.data) {
                     let (src, dst, payload) = match transport {
-                        TCP(ref tcp)   => self.tcp(&pkt, tcp),
-                        UDP(ref udp)   => self.udp(&pkt, udp),
-                        _              => return,
+                        TCP(ref tcp) => self.tcp(&pkt, tcp),
+                        UDP(ref udp) => self.udp(&pkt, udp),
+                        _ => return,
                     };
 
-                    self.parse(src, dst, payload).map(|r| {
-                        self.buffer.push(r);
-                    });
+                    consumer(self, src, dst, payload, ts);
                 }
             }
 
             self.flush(ts);
+        }
+    }
+
+    pub fn plain_parse(&mut self, src: Addr, dst: Addr, payload: &[u8], _ts: Timestamp) {
+        self.parse(src, dst, payload).map(|r| {
+            self.buffer.push(r);
+        });
+    }
+
+    pub fn parse_stripped(&mut self, _src: Addr, _dst: Addr, payload: &[u8], ts: Timestamp) {
+        let pkt = packet::decode_from_l3(&payload[8..]);
+        if pkt.is_none() {
+            return
+        }
+        let pkt = pkt.unwrap();
+
+        if let Some(out) = self.asm.reassemble(ts, &pkt) {
+            if let Some(transport) = pkt.transport(&out.data) {
+                let (src, dst, payload) = match transport {
+                    TCP(ref tcp) => self.tcp(&pkt, tcp),
+                    UDP(ref udp) => self.udp(&pkt, udp),
+                    _ => return,
+                };
+
+                self.plain_parse(src, dst, payload, ts);
+            }
         }
     }
 
@@ -81,6 +126,9 @@ impl Dns {
             _            => return None,
         };
 
+        // msg.header.qr == 1 -> dns reply
+        // msg.header.opcode == 0 -> standard query
+        // msg.answer.is_empty() -> nothing to look at
         if msg.header.qr != 1 || msg.header.opcode != 0 || msg.answer.is_empty() {
             return None;
         }
@@ -113,8 +161,9 @@ impl Dns {
             swap(&mut self.buffer, &mut rs);
 
             let timeout = Duration::milliseconds(10).to_std().unwrap();
+            let len = rs.len();
             match self.client.send(rs, timeout) {
-                Ok(..) => (),
+                Ok(..) => debug!("DNS batch sent: {}", len),
                 Err(e) => warn!("DNS queue full: {:?}", e),
             };
 
