@@ -41,6 +41,12 @@ assets = [
   ["target/x86_64-unknown-linux-musl/release/kprobe", "usr/bin/", "755"],
 ]
 
+[package.metadata.deb.variants.dev]
+name   = "kprobe-dev"
+assets = [
+  ["target/x86_64-unknown-linux-musl/release/kprobe", "usr/bin/kprobe-dev", "755"],
+]
+
 [package.metadata.rpm.cargo]
 buildflags = ["--release", "--target", "x86_64-unknown-linux-musl", "--bin", "kprobe"]
 

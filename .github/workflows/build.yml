@@ -1,0 +1,71 @@
+name: build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+      - uses: webfactory/ssh-agent@v0.2.0
+        with:
+          ssh-private-key: ${{ secrets.GITHUB_DEPLOY_KEY }}
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - id: version
+        run: |
+          git describe --always --tags >  version
+          date -u +%Y%m%d%H%M%S        >> version
+          echo ::set-output name=version::`sed -n 2p version`
+      - uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target x86_64-unknown-linux-musl
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-deb
+      - uses: actions-rs/cargo@v1
+        with:
+          command: deb
+          args: --no-build --deb-version ${{ steps.version.outputs.version }} --variant dev
+      - uses: actions/upload-artifact@v1
+        with:
+          name: kprobe-dev-deb
+          path: target/debian/kprobe-dev_${{ steps.version.outputs.version }}_amd64.deb
+      - uses: actions/upload-artifact@v1
+        with:
+          name: version
+          path: version
+  publish-kprobe-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+      - uses: actions/download-artifact@v1
+        with:
+          name: kprobe-dev-deb
+      - name: push dev package
+        run: |
+          PACKAGE=kprobe-dev-deb/kprobe-dev*.deb
+          echo $PACKAGE
+
+          gem install package_cloud
+
+          package_cloud push kentik/kprobe-dev/debian/jessie  $PACKAGE
+          package_cloud push kentik/kprobe-dev/debian/stretch $PACKAGE
+          package_cloud push kentik/kprobe-dev/debian/buster  $PACKAGE
+        env:
+          PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+    needs: build
