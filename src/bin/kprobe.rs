@@ -25,12 +25,14 @@ fn main() {
     let args    = args::parse(&args);
     let verbose = args.count("verbose");
     let decode  = args.count("no_decode") == 0;
-    let fanout  = args.opt("fanout").unwrap_or_else(abort);
     let filter  = args.opt::<String>("filter").unwrap_or_else(abort);
     let promisc = args.count("promisc") > 0;
     let region  = args.opt("region").unwrap_or(None);
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
+
+    let fangroup = args.opt("fangroup").unwrap_or_else(abort);
+    let fanmode  = args.opt("fanmode").unwrap_or_else(abort);
 
     let dns_args = args.sub("dns");
     let dns = dns_args.is_some();
@@ -118,8 +120,9 @@ fn main() {
         .open()
         .unwrap();
 
-    if let Some(group) = fanout {
-        fanout::join(&cap, group).unwrap_or_else(abort);
+    if let Some(group) = fangroup {
+        let mode = fanmode.unwrap_or(fanout::Mode::Hash);
+        fanout::join(&cap, group, mode).unwrap_or_else(abort);
     }
 
     if dns {
