@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
-use std::mem;
+use std::mem::{self, MaybeUninit};
 use std::net::IpAddr;
 use std::ops::{Add, Sub};
 use std::ptr;
@@ -151,7 +151,7 @@ impl PartialOrd for Timestamp {
 
 impl<'a> Default for Flow<'a> {
     fn default() -> Self {
-        unsafe { mem::zeroed() }
+        unsafe { MaybeUninit::zeroed().assume_init() }
     }
 }
 
