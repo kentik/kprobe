@@ -29,7 +29,7 @@ time         = "0.1.42"
 url          = "1.7.2"
 
 [dependencies.kentik-api]
-git = "ssh://git@github.com/kentik/kentik-api"
+git = "ssh://git@github.com/kentik/kentik-api-rust"
 tag = "0.0.2"
 
 [profile.release]
