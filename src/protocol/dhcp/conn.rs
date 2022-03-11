@@ -7,7 +7,7 @@ use time::Duration;
 use nom::IResult::Done;
 use pnet::util::MacAddr;
 use super::parser::{self, Opt};
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 
 pub struct Connection {
     last:   Timestamp,

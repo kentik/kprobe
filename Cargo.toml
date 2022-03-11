@@ -18,13 +18,13 @@ clap         = "2.33.0"
 env_logger   = "0.6.1"
 errno        = "0.2.4"
 http-muncher = "0.3.2"
-jemallocator = "0.3.0"
 libc         = "0.2.51"
 log          = "0.4.6"
 nom          = "3.2.1"
 pnet         = "0.22.0"
 pcap         = "0.7.0"
 rand         = "0.6.5"
+ring         = "0.16.20"
 time         = "0.1.42"
 url          = "1.7.2"
 
@@ -32,23 +32,13 @@ url          = "1.7.2"
 git = "ssh://git@github.com/kentik/kentik-api"
 tag = "0.0.2"
 
+[target.'cfg(not(target_arch = "arm"))'.dependencies]
+jemallocator = "0.3.0"
+
+[build-dependencies]
+anyhow       = "1.0.55"
+platforms    = "2.0.0"
+
 [profile.release]
 lto   = true
 debug = true
-
-[package.metadata.deb]
-assets = [
-  ["target/x86_64-unknown-linux-musl/release/kprobe", "usr/bin/", "755"],
-]
-
-[package.metadata.deb.variants.dev]
-name   = "kprobe-dev"
-assets = [
-  ["target/x86_64-unknown-linux-musl/release/kprobe", "usr/bin/kprobe-dev", "755"],
-]
-
-[package.metadata.rpm.cargo]
-buildflags = ["--release", "--target", "x86_64-unknown-linux-musl", "--bin", "kprobe"]
-
-[package.metadata.rpm.targets]
-"../x86_64-unknown-linux-musl/release/kprobe" = { path = "/usr/bin/kprobe" }

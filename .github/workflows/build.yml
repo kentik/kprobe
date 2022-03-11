@@ -5,15 +5,52 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - armv7-unknown-linux-musleabihf
+    continue-on-error: ${{ !startsWith(matrix.target, 'x86_64') }}
     steps:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
-          target: x86_64-unknown-linux-musl
-      - uses: webfactory/ssh-agent@v0.2.0
+          target: ${{ matrix.target }}
+      - uses: webfactory/ssh-agent@v0.4.1
         with:
           ssh-private-key: ${{ secrets.KENTIK_API_RUST_DEPLOY_KEY }}
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - run: |
+          DOCKER_OPTS="-v $SSH_AUTH_SOCK:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent"
+          echo DOCKER_OPTS="$DOCKER_OPTS" >> $GITHUB_ENV
+      - uses: docker/build-push-action@v2
+        with:
+          context: .github/workflows
+          file: .github/workflows/Dockerfile.${{ matrix.target }}
+          tags: local/cross:${{ matrix.target }}
+          push: false
+        env:
+          DOCKER_BUILDKIT: 1
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v2
+        with:
+          name: kprobe-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/kprobe
+    needs: version
+
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -22,33 +59,45 @@ jobs:
           git describe --always --tags >  version
           date -u +%Y%m%d%H%M%S        >> version
           echo ::set-output name=version::`sed -n 2p version`
-      - uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      - run: |
-          echo ::set-env name=DOCKER_OPTS::-v $SSH_AUTH_SOCK:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --release --target x86_64-unknown-linux-musl
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-deb
-      - uses: actions-rs/cargo@v1
-        with:
-          command: deb
-          args: --no-build --deb-version ${{ steps.version.outputs.version }} --variant dev
-      - uses: actions/upload-artifact@v1
-        with:
-          name: kprobe-dev-deb
-          path: target/debian/kprobe-dev_${{ steps.version.outputs.version }}_amd64.deb
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         with:
           name: version
           path: version
+
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        format: [deb, rpm]
+        target:
+          - name: aarch64-unknown-linux-musl
+            arch: aarch64
+          - name: armv7-unknown-linux-musleabihf
+            arch: armv7
+          - name: x86_64-unknown-linux-musl
+            arch: x86_64
+    continue-on-error: ${{ !startsWith(matrix.target, 'x86_64') }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v2
+        with:
+          name: kprobe-${{ matrix.target.name }}
+      - id: package
+        uses: kentik/pkg@master
+        with:
+          name: ${{ github.event.repository.name }}
+          version: ${{ needs.version.outputs.version }}
+          arch: ${{ matrix.target.arch }}
+          format: ${{ matrix.format }}
+          package: package.yml
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.package.outputs.package }}
+          path: ${{ steps.package.outputs.package }}
+    needs: [build, version]
+
   publish-kprobe-dev:
     runs-on: ubuntu-latest
     steps:
@@ -57,10 +106,11 @@ jobs:
           ruby-version: 2.6
       - uses: actions/download-artifact@v1
         with:
-          name: kprobe-dev-deb
+          name: kprobe_${{ needs.version.outputs.version }}-1_amd64.deb
       - name: push dev package
         run: |
-          PACKAGE=kprobe-dev-deb/kprobe-dev*.deb
+          ls -lt
+          PACKAGE=kprobe*.deb/kprobe*.deb
           echo $PACKAGE
 
           gem install package_cloud
@@ -70,4 +120,4 @@ jobs:
           package_cloud push kentik/kprobe-dev/debian/buster  $PACKAGE
         env:
           PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
-    needs: build
+    needs: [package, version]

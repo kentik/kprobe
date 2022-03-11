@@ -12,7 +12,7 @@ use crate::args::Error;
 use crate::packet::{self, Transport::UDP};
 use crate::protocol::radius::parser;
 use crate::reasm::Reassembler;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 use parser::{Attr::*, AcctStatusType::*};
 use parser::Code::AccountingRequest;
 
@@ -70,7 +70,7 @@ impl Radius {
         };
 
         if let (_vlan, Some(pkt)) = packet::decode(&eth) {
-            let ts = Timestamp(packet.header.ts);
+            let ts = Timestamp::from(packet.header.ts);
 
             if let Some(out) = self.asm.reassemble(ts, &pkt) {
                 if let Some(transport) = pkt.transport(&out.data) {

@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use time::Duration;
 use nom::IResult::Done;
 use crate::protocol::buf::Buffer;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 use super::parser::{self, Message};
 use self::Message::*;
 

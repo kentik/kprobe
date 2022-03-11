@@ -4,7 +4,7 @@ use time::Duration;
 use nom::IResult::Done;
 use super::parser::{self, QQ, Rdata};
 use crate::protocol::buf::Buffer;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 
 pub struct Connection {
     buffer: Buffer,

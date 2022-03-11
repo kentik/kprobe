@@ -1,0 +1,10 @@
+FROM ghcr.io/kentik/cross:aarch64-unknown-linux-musl
+
+ARG LIBPCAP=libpcap-1.10.0
+
+RUN apt-get update && apt-get install -y bison flex capnproto
+
+RUN mkdir /work && cd /work
+RUN curl -L -O https://www.tcpdump.org/release/$LIBPCAP.tar.gz
+RUN tar xzf $LIBPCAP.tar.gz
+RUN cd $LIBPCAP && ./configure --host aarch64-linux-musl && make install

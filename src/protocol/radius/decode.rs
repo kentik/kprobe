@@ -1,7 +1,8 @@
 use time;
 use crate::custom;
 use super::conn;
-use crate::flow::{Flow, Timestamp};
+use crate::flow::Flow;
+use crate::time::Timestamp;
 
 use std::default::Default;
 

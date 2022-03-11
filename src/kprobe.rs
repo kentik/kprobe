@@ -13,6 +13,7 @@ use crate::flow::*;
 use crate::reasm::Reassembler;
 use crate::sample::Sampler;
 use crate::sample::Accept::*;
+use crate::time::Timestamp;
 use crate::translate::Translate;
 use crate::queue::FlowQueue;
 
@@ -65,7 +66,7 @@ impl Kprobe {
                 _                           => Direction::Unknown,
             };
 
-            let ts = Timestamp(packet.header.ts);
+            let ts = Timestamp::from(packet.header.ts);
 
             if let Some(out) = self.asm.reassemble(ts, &pkt) {
                 if let Some(transport) = pkt.transport(&out.data) {

@@ -12,11 +12,11 @@ use kprobe::mode;
 use kentik_api::{dns, tag, AsyncClient, Client};
 use env_logger::Builder;
 use pcap::Capture;
-use jemallocator::Jemalloc;
 use crate::libkflow::Error::*;
 
 #[global_allocator]
-static ALLOC: Jemalloc = Jemalloc;
+#[cfg(not(target_arch = "arm"))]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 fn main() {
     Builder::from_default_env().init();

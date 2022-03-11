@@ -1,16 +1,14 @@
-use std::ffi;
-use super::parser;
-use crate::flow;
-use nom::IResult::Done;
-
-use crate::flow::Timestamp;
-use std::hash::{BuildHasher, Hash, Hasher};
-
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
-use std::net;
 use std::default::Default;
+use std::ffi;
+use std::hash::{BuildHasher, Hash, Hasher};
+use std::net;
+use nom::IResult::Done;
 use time;
+use super::parser;
+use crate::flow;
+use crate::time::Timestamp;
 
 #[derive(Default)]
 pub struct Message {

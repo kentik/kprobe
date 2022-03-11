@@ -3,7 +3,7 @@ use time::Duration;
 use nom::IResult::*;
 use super::parser::*;
 use crate::protocol::buf::Buffer;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 
 pub struct Connection {
     buffer: Buffer,

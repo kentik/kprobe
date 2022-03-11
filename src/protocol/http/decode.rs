@@ -3,8 +3,9 @@ use std::collections::hash_map::Entry::*;
 use std::collections::hash_map::VacantEntry;
 use std::ffi::CString;
 use time::Duration;
-use crate::flow::{Addr, Flow, Timestamp, SYN, ACK, FIN};
+use crate::flow::{Addr, Flow, SYN, ACK, FIN};
 use crate::custom::*;
+use crate::time::Timestamp;
 use super::conn::Connection;
 
 pub struct Decoder {

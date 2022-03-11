@@ -7,7 +7,7 @@ use std::u16;
 use pnet::packet::{Packet as PacketExt};
 use pnet::packet::ipv4::Ipv4Packet;
 use time::Duration;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 use super::Output;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

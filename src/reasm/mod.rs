@@ -2,7 +2,7 @@ mod ipv4;
 
 use std::borrow::Cow;
 use time::Duration;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 use crate::packet::Packet;
 
 #[derive(Debug)]

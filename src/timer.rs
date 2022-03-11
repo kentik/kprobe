@@ -1,7 +1,7 @@
 use rand;
 use rand::distributions::{Distribution, Uniform};
 use time::Duration;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 
 pub struct Timer {
     delay: Duration,

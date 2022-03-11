@@ -2,9 +2,10 @@ pub mod id;
 
 use std::collections::HashMap;
 use time::Duration;
-use crate::flow::{Flow, Key, Timestamp, Transport, Window};
+use crate::flow::{Flow, Key, Transport, Window};
 use crate::flow::{FIN, SYN, RST, ACK};
 use crate::custom::*;
+use crate::time::Timestamp;
 use crate::track::id::Generator;
 
 pub struct Tracker {

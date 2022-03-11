@@ -4,6 +4,7 @@ use crate::flow::*;
 use crate::custom::Customs;
 use crate::libkflow;
 use crate::protocol::{Classify, Decoder, Decoders};
+use crate::time::Timestamp;
 use crate::timer::{Timeout, Timer};
 use crate::track::Tracker;
 

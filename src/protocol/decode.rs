@@ -1,10 +1,11 @@
 use time::Duration;
-use crate::flow::{Flow, Key, Timestamp};
+use crate::flow::{Flow, Key};
 use crate::flow::{FIN, SYN};
 use crate::flow::Protocol::{TCP, UDP};
 use crate::custom::Customs;
 use crate::protocol::*;
 use crate::protocol::dhcp;
+use crate::time::Timestamp;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Decoder {

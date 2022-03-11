@@ -6,6 +6,7 @@ pub mod kprobe;
 pub mod mode;
 pub mod libkflow;
 pub mod packet;
+pub mod time;
 
 pub mod fanout;
 pub mod queue;

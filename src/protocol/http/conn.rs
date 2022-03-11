@@ -1,10 +1,11 @@
 use std::collections::VecDeque;
 use std::ffi::CString;
 use std::slice;
-use crate::flow::{Flow, Timestamp};
-use time::Duration;
-use crate::protocol::buf::Buffer;
 use http_muncher::{Parser, ParserHandler};
+use time::Duration;
+use crate::flow::Flow;
+use crate::time::Timestamp;
+use crate::protocol::buf::Buffer;
 
 pub struct Connection {
     server:    u16,

@@ -11,10 +11,11 @@ use pnet::packet::udp::UdpPacket;
 use time::Duration;
 use kentik_api::dns::*;
 use crate::args::Error;
+use crate::flow::Addr;
 use crate::packet::{self, Packet, Transport::*};
 use crate::protocol::dns::parser::{self, Rdata};
 use crate::reasm::Reassembler;
-use crate::flow::{Addr, Timestamp};
+use crate::time::Timestamp;
 
 pub struct Dns {
     asm:    Reassembler,
@@ -76,7 +77,7 @@ impl Dns {
         };
 
         if let (_vlan, Some(pkt)) = packet::decode(&eth) {
-            let ts = Timestamp(packet.header.ts);
+            let ts = Timestamp::from(packet.header.ts);
 
             if let Some(out) = self.asm.reassemble(ts, &pkt) {
                 if let Some(transport) = pkt.transport(&out.data) {

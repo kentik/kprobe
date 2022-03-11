@@ -1,0 +1,8 @@
+meta:
+  description: Kentik host & sensor probe
+  vendor: Kentik
+  maintainer: Kentik
+files:
+  "/usr/bin/kprobe":
+    file: kprobe
+    mode: "0755"
