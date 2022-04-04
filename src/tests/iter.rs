@@ -10,6 +10,7 @@ use crate::reasm::Reassembler;
 use crate::flow::*;
 use crate::packet::{self, Packet, Opaque};
 use crate::packet::Transport::*;
+use crate::time::Timestamp;
 
 pub struct FlowIterator<'a>  {
     capture: Capture<Offline>,
@@ -31,7 +32,7 @@ impl<'a> Iterator for FlowIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Ok(pkt) = self.capture.next() {
-            let ts = Timestamp(pkt.header.ts);
+            let ts = Timestamp::from(pkt.header.ts);
             if let Some(eth) = EthernetPacket::new(pkt.data) {
                 if let (vlan, Some(pkt)) = packet::decode(&eth) {
                     if let Some(out) = self.asm.reassemble(ts, &pkt) {

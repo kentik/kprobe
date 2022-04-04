@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use super::conn::*;
-use crate::flow::Timestamp;
+use crate::time::Timestamp;
 use libc::timeval;
 use time::Duration;
 
@@ -74,7 +74,7 @@ fn test_is_idle() {
 }
 
 fn ts() -> Timestamp {
-    Timestamp(timeval{
+    Timestamp::from(timeval{
         tv_sec:  0,
         tv_usec: 0,
     })

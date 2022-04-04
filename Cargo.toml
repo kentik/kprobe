@@ -29,8 +29,9 @@ time         = "0.1.42"
 url          = "1.7.2"
 
 [dependencies.kentik-api]
-git = "ssh://git@github.com/kentik/kentik-api"
-tag = "0.0.2"
+git = "ssh://git@github.com/kentik/kentik-api-rust"
+tag = "0.0.3"
+
 
 [target.'cfg(not(target_arch = "arm"))'.dependencies]
 jemallocator = "0.3.0"

@@ -20,6 +20,7 @@ use crate::flow::*;
 use crate::packet;
 use crate::custom::*;
 use crate::reasm::Reassembler;
+use crate::time::Timestamp;
 use crate::timer::{Timer, Timeout};
 use crate::track::Tracker;
 use crate::track::id::Generator;
@@ -79,7 +80,7 @@ fn test_reassemble_single() {
     let mut asm = Reassembler::new();
 
     while let Ok(pkt) = cap.next() {
-        let ts  = Timestamp(pkt.header.ts);
+        let ts  = Timestamp::from(pkt.header.ts);
         let eth = EthernetPacket::new(pkt.data).unwrap();
         let len = pkt.header.len as usize - eth.packet_size();
 
@@ -105,7 +106,7 @@ fn test_reassemble_fragmented() {
     let mut done    = false;
 
     while let Ok(pkt) = cap.next() {
-        let ts  = Timestamp(pkt.header.ts);
+        let ts  = Timestamp::from(pkt.header.ts);
         let eth = EthernetPacket::new(pkt.data).unwrap();
         let len = pkt.header.len as usize - eth.packet_size();
 
