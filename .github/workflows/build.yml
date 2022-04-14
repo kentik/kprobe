@@ -27,7 +27,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - run: |
-          echo ::set-env name=DOCKER_OPTS::-v $SSH_AUTH_SOCK:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent
+          echo DOCKER_OPTS="-v $SSH_AUTH_SOCK:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent" >> $GITHUB_ENV
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
