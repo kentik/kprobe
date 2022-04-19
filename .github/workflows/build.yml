@@ -115,9 +115,10 @@ jobs:
 
           gem install package_cloud
 
-          package_cloud push kentik/kprobe-dev/debian/jessie  $PACKAGE
-          package_cloud push kentik/kprobe-dev/debian/stretch $PACKAGE
-          package_cloud push kentik/kprobe-dev/debian/buster  $PACKAGE
+          package_cloud push kentik/kprobe-dev/debian/jessie   $PACKAGE
+          package_cloud push kentik/kprobe-dev/debian/stretch  $PACKAGE
+          package_cloud push kentik/kprobe-dev/debian/buster   $PACKAGE
+          package_cloud push kentik/kprobe-dev/debian/bullseye $PACKAGE
         env:
           PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
     needs: [package, version]
