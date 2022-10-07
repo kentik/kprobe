@@ -1,0 +1,5 @@
+FROM ghcr.io/cross-rs/x86_64-unknown-freebsd:0.2.4
+
+RUN curl --retry 3 -sSfL http://ftp.freebsd.org/pub/FreeBSD/releases/amd64/12.3-RELEASE/base.txz | tar xJvf - -C /usr/local/x86_64-unknown-freebsd12/lib --strip-components 3 ./usr/lib/libkvm.a ./usr/lib/libdevstat.a
+
+RUN apt-get update && apt-get install -y capnproto
