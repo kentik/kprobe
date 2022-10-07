@@ -1,6 +1,6 @@
 [package]
 name    = "kprobe"
-version = "2.0.0"
+version = "0.0.0"
 authors = ["Will <will@kentik.com>"]
 edition = "2018"
 build   = "build.rs"
@@ -32,13 +32,17 @@ url          = "1.7.2"
 git = "ssh://git@github.com/kentik/kentik-api-rust"
 tag = "0.0.3"
 
-
 [target.'cfg(not(target_arch = "arm"))'.dependencies]
 jemallocator = "0.3.0"
 
 [build-dependencies]
 anyhow       = "1.0.55"
 platforms    = "2.0.0"
+
+[build-dependencies.git2]
+version  = "0.15.0"
+features = []
+default-features = false
 
 [profile.release]
 lto   = true

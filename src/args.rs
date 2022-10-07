@@ -10,10 +10,13 @@ use pcap::{self, Device};
 use pnet::datalink::{self, NetworkInterface};
 use url::Url;
 use crate::flow::Addr;
+use crate::version::Version;
 
 pub fn parse<'a>(args: &[OsString]) -> Args<'a> {
+    let version = Version::new();
+
     let matches = clap_app!(kprobe =>
-      (version: env!("CARGO_PKG_VERSION"))
+      (version: &*version.version)
       (about:   crate_description!())
       (@arg interface: -i       --interface          <interface> "Network interface")
       (@arg email:              --email              <email>     "API user email")

@@ -16,6 +16,7 @@ pub mod sample;
 pub mod timer;
 pub mod track;
 pub mod translate;
+pub mod version;
 
 pub use crate::kprobe::Kprobe;
 pub use crate::config::Config;
