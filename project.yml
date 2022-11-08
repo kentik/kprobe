@@ -6,6 +6,8 @@ target:
 docker:
   build:
     base: kt-build-rust:master
+  run:
+    base: kt-run-generic-bullseye:master
 notifications:
   slack:
-    channel: "will-test"
+    channel: will-test
