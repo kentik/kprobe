@@ -25,7 +25,7 @@ jobs:
       - uses: webfactory/ssh-agent@v0.4.1
         with:
           ssh-private-key: ${{ secrets.KENTIK_API_RUST_DEPLOY_KEY }}
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - run: |
@@ -55,7 +55,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - id: version
@@ -67,8 +67,8 @@ jobs:
                  false) VERSION=`sed -n 2p version` ;;
           esac
           echo "::notice ::kprobe version: $VERSION"
-          echo "::set-output name=version::$VERSION"
-      - uses: actions/upload-artifact@v2
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v3
         with:
           name: version
           path: version
@@ -87,7 +87,7 @@ jobs:
             arch: x86_64
     continue-on-error: ${{ !startsWith(matrix.target, 'x86_64') }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - uses: actions/download-artifact@v2
@@ -110,7 +110,7 @@ jobs:
   publish-packages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-ruby@v1
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 2.6
       - uses: actions/download-artifact@v3
