@@ -2,7 +2,7 @@ use std::env;
 use std::path::PathBuf;
 use anyhow::Result;
 use git2::{DescribeOptions, Repository};
-use platforms::{Platform, target::OS};
+use platforms::{Platform, target::Env, target::OS};
 
 fn main() -> Result<()> {
     let base     = env::var("CARGO_MANIFEST_DIR")?;
@@ -39,8 +39,8 @@ fn main() -> Result<()> {
     libs.push(platform.target_arch.as_str());
     libs.push(platform.target_os.as_str());
 
-    if let Some(env) = platform.target_env {
-        libs.push(env.as_str());
+    if platform.target_env != Env::None {
+        libs.push(platform.target_env.as_str());
     }
 
     if platform.target_os == OS::MacOS {
