@@ -22,7 +22,7 @@ jobs:
           profile: minimal
           toolchain: stable
           target: ${{ matrix.target }}
-      - uses: webfactory/ssh-agent@v0.4.1
+      - uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.KENTIK_API_RUST_DEPLOY_KEY }}
       - uses: actions/checkout@v3
@@ -31,7 +31,7 @@ jobs:
       - run: |
           DOCKER_OPTS="-v $SSH_AUTH_SOCK:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent"
           echo DOCKER_OPTS="$DOCKER_OPTS" >> $GITHUB_ENV
-      - uses: docker/build-push-action@v2
+      - uses: docker/build-push-action@v4
         with:
           context: .github/workflows
           file: .github/workflows/Dockerfile.${{ matrix.target }}
@@ -44,7 +44,7 @@ jobs:
           use-cross: true
           command: build
           args: --release --target ${{ matrix.target }}
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: kprobe-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/kprobe
@@ -90,7 +90,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: kprobe-${{ matrix.target.name }}
       - id: package
@@ -101,7 +101,7 @@ jobs:
           arch: ${{ matrix.target.arch }}
           format: ${{ matrix.format }}
           package: package.yml
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.package.outputs.package }}
           path: ${{ steps.package.outputs.package }}
