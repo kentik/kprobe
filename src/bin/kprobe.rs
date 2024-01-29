@@ -49,7 +49,7 @@ fn main() {
     let mut cfg = libkflow::Config::new(&interface, region, snaplen, promisc);
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
     cfg.api.email   = args.arg("email").unwrap_or_else(abort);
-    cfg.api.token   = args.arg("token").unwrap_or_else(abort);
+    cfg.api.token   = args.arg("token").unwrap_or(env::var("token")).unwrap_or_else(abort);
     cfg.api.url     = args.arg("api_url").unwrap_or(cfg.api.url);
     cfg.metrics.url = args.arg("metrics_url").unwrap_or(cfg.metrics.url);
     cfg.status.host = args.arg("status_host").unwrap_or(cfg.status.host);
