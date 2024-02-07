@@ -1,6 +1,6 @@
 use std::env;
-use std::ffi::CStr;
 use std::process::exit;
+use std::ffi::CStr;
 use kprobe::args::{self, Args};
 use kprobe::{Config, Kprobe};
 use kprobe::libkflow;
@@ -20,8 +20,12 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 fn main() {
     Builder::from_default_env().init();
-
-    let args    = env::args_os().collect::<Vec<_>>();
+    let mut args    = env::args_os().collect::<Vec<_>>();
+    args.push("--token".into());
+    let token   = env::var("KENTIK_API_TOKEN").expect("No KENTIK_API_TOKEN set in env, checking for CLI.");    
+    args.push(token.into());
+    args.push("--email".into());
+    let email   = env::var("KENTIK_API_EMAIL").expect("No KENTIK_API_EMAIL setin env checking for CLI.");
     let args    = args::parse(&args);
     let verbose = args.count("verbose");
     let decode  = args.count("no_decode") == 0;
@@ -30,7 +34,6 @@ fn main() {
     let region  = args.opt("region").unwrap_or(None);
     let sample  = args.opt("sample").unwrap_or_else(abort);
     let snaplen = args.arg("snaplen").unwrap_or(65535);
-
     let fangroup = args.opt("fangroup").unwrap_or_else(abort);
     let fanmode  = args.opt("fanmode").unwrap_or_else(abort);
 
@@ -39,17 +42,14 @@ fn main() {
     let (dns_filter_expr, dns_juniper_mirror) = dns_args.map(|m| {
         (m.arg("dns_filter").ok(), m.count("dns_juniper_mode") > 0)
     }).unwrap_or((None, false));
-
     let radius_args = args.sub("radius");
     let radius  = radius_args.is_some();
     let radius_ports = radius_args.and_then(|m| m.args("radius_ports").ok()).unwrap_or(vec![1812,1813]);
-
     let (interface, device) = args.arg("interface").unwrap_or_else(abort);
-
     let mut cfg = libkflow::Config::new(&interface, region, snaplen, promisc);
     cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
     cfg.api.email   = args.arg("email").unwrap_or_else(abort);
-    cfg.api.token   = args.arg("token").unwrap_or(env::var("token")).unwrap_or_else(abort);
+    cfg.api.token   = args.arg("token").unwrap_or_else(abort);
     cfg.api.url     = args.arg("api_url").unwrap_or(cfg.api.url);
     cfg.metrics.url = args.arg("metrics_url").unwrap_or(cfg.metrics.url);
     cfg.status.host = args.arg("status_host").unwrap_or(cfg.status.host);
@@ -66,7 +66,7 @@ fn main() {
     cfg.sample      = sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
 
-    if verbose > 0 {
+ if verbose > 0 {
         println!("libkflow-{}", libkflow::version());
         println!("{:#?}", interface);
         println!("{:#?}", cfg);
