@@ -22,10 +22,10 @@ jobs:
           profile: minimal
           toolchain: stable
           target: ${{ matrix.target }}
-      - uses: webfactory/ssh-agent@v0.8.0
+      - uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.KENTIK_API_RUST_DEPLOY_KEY }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: |
@@ -44,7 +44,7 @@ jobs:
           use-cross: true
           command: build
           args: --release --target ${{ matrix.target }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: kprobe-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/kprobe
@@ -55,7 +55,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: version
@@ -68,7 +68,7 @@ jobs:
           esac
           echo "::notice ::kprobe version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: version
           path: version
@@ -87,10 +87,10 @@ jobs:
             arch: x86_64
     continue-on-error: ${{ !startsWith(matrix.target, 'x86_64') }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: kprobe-${{ matrix.target.name }}
       - id: package
@@ -101,7 +101,7 @@ jobs:
           arch: ${{ matrix.target.arch }}
           format: ${{ matrix.format }}
           package: package.yml
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package.outputs.package }}
           path: ${{ steps.package.outputs.package }}
@@ -112,8 +112,8 @@ jobs:
     steps:
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.6
-      - uses: actions/download-artifact@v3
+          ruby-version: 2.7
+      - uses: actions/download-artifact@v4
         with:
           path: packages
       - name: publish packages
