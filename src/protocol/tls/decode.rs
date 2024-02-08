@@ -63,7 +63,7 @@ impl Decoder {
         self.conns.retain(|_, c| !c.is_idle(ts, timeout))
     }
 
-    fn conn<'a>(&'a mut self, src: Addr, dst: Addr, flags: u16) -> Option<&'a mut Connection> {
+    fn conn<'a>(&'a mut self, src: Addr, dst: Addr, flags: u8) -> Option<&'a mut Connection> {
         let key = match src.port < dst.port {
             true  => (src, dst),
             false => (dst, src),

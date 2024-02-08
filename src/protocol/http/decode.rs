@@ -54,14 +54,14 @@ impl Decoder {
         self.conns.retain(|_, c| !c.is_idle(ts, timeout))
     }
 
-    fn conn<'a>(&mut self, src: Addr, dst: Addr, flags: u16) -> Option<&'a mut Connection> {
+    fn conn<'a>(&mut self, src: Addr, dst: Addr, flags: u8) -> Option<&'a mut Connection> {
         let key = match src.port < dst.port {
             true  => (src, dst),
             false => (dst, src),
         };
 
         let maybe_insert = |e: VacantEntry<'a, _, _>| -> Option<&'a mut Connection> {
-            const SYNACK: u16 = SYN|ACK;
+            const SYNACK: u8 = SYN|ACK;
             match flags & SYNACK {
                 SYN    => Some(e.insert(Connection::new(dst.port))),
                 SYNACK => Some(e.insert(Connection::new(src.port))),

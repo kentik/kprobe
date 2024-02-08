@@ -13,7 +13,7 @@ pub struct Counter {
     pub ethernet:  Ethernet,
     pub direction: Direction,
     pub tos:       u8,
-    pub tcp_flags: u16,
+    pub tcp_flags: u8,
     pub packets:   u64,
     pub bytes:     u64,
     pub fragments: u64,

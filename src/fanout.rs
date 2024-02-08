@@ -1,4 +1,3 @@
-use log::info;
 use pcap::{Capture, Active};
 use crate::args::{Error, FromArg};
 
@@ -32,7 +31,7 @@ pub fn join(cap: &Capture<Active>, group: u16, mode: Mode) -> Result<(), Error> 
         let len = size_of::<c_int>() as u32;
 
         match libc::setsockopt(fd, SOL_PACKET, PACKET_FANOUT, val, len) {
-            0 => Ok(info!("joined fanout group {}, mode {}", group, mode)),
+            0 => Ok(log::info!("joined fanout group {}, mode {}", group, mode)),
             _ => Err(errno().into()),
         }
     }

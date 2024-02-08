@@ -6,10 +6,10 @@ use pnet::packet::tcp::TcpPacket;
 use pnet::util::MacAddr;
 use crate::time::Timestamp;
 
-pub const FIN: u16 = 0b00001;
-pub const SYN: u16 = 0b00010;
-pub const RST: u16 = 0b00100;
-pub const ACK: u16 = 0b10000;
+pub const FIN: u8 = 0b00001;
+pub const SYN: u8 = 0b00010;
+pub const RST: u8 = 0b00100;
+pub const ACK: u8 = 0b10000;
 
 #[derive(Clone)]
 pub struct Flow<'a> {
@@ -52,7 +52,7 @@ pub struct Addr {
 #[derive(Copy, Clone, Debug)]
 pub enum Transport {
     ICMP,
-    TCP  { seq: u32, flags: u16, window: Window },
+    TCP  { seq: u32, flags: u8, window: Window },
     UDP,
     Other,
 }
@@ -76,7 +76,7 @@ impl<'a> Flow<'a> {
         Key(self.protocol, self.src, self.dst)
     }
 
-    pub fn tcp_flags(&self) -> u16 {
+    pub fn tcp_flags(&self) -> u8 {
         match self.transport {
             Transport::TCP { flags, .. } => flags,
             _                            => 0,

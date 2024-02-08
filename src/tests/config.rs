@@ -95,6 +95,7 @@ fn interface() -> NetworkInterface {
         mac:   None,
         ips:   Vec::new(),
         flags: 0,
+        description: "".to_owned(),
     }
 }
 

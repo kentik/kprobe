@@ -13,35 +13,35 @@ documentation of flags, options, and recommended configuration.
 """
 
 [dependencies]
-byteorder    = "1.4.3"
-clap         = "2.34.0"
+byteorder    = "1.5.0"
+clap         = "=2.34.0"
 env_logger   = "0.6.1"
-errno        = "0.3.2"
+errno        = "0.3.8"
 http-muncher = "0.3.2"
-libc         = "0.2.147"
+libc         = "0.2.153"
 log          = "0.4.20"
-nom          = "3.2.1"
-pnet         = "0.22.0"
-pnet_macros  = "0.22.0"
-pcap         = "0.7.0"
+nom          = "=3.2.1"
+pnet         = "0.34.0"
+pnet_macros  = "0.34.0"
+pcap         = "=0.7.0"
 rand         = "0.8.5"
-ring         = "0.16.20"
+ring         = "0.17.7"
 time         = "0.1.42"
-url          = "2.4.0"
+url          = "2.5.0"
 
 [dependencies.kentik-api]
 git = "ssh://git@github.com/kentik/kentik-api-rust"
-rev = "66c2079747498fed9f8cead29061085857c9fae3"
+rev = "eb57bb5121acff7c59e399c545696f270ff4a557"
 
 [target.'cfg(not(target_arch = "arm"))'.dependencies]
 jemallocator = "0.5.4"
 
 [build-dependencies]
-anyhow       = "1.0.75"
-platforms    = "3.0.2"
+anyhow       = "1.0.79"
+platforms    = "3.3.0"
 
 [build-dependencies.git2]
-version  = "0.17.2"
+version  = "0.18.2"
 features = []
 default-features = false
 
