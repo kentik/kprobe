@@ -170,7 +170,7 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
             ip:      opt(&cfg.capture.ip),
         },
         metrics: kflowConfigMetrics {
-            interval: cfg.metrics.interval.num_minutes() as c_int,
+            interval: cfg.metrics.interval.whole_minutes() as c_int,
             URL:      cfg.metrics.url.as_ptr(),
         },
         proxy: kflowConfigProxy {
@@ -182,7 +182,7 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         },
         dns: kflowConfigDNS {
             enable:   cfg.dns.enable as c_int,
-            interval: cfg.dns.interval.num_seconds() as c_int,
+            interval: cfg.dns.interval.whole_seconds() as c_int,
             URL:      cfg.dns.url.as_ptr(),
         },
         device_id:   cfg.device_id as c_int,
@@ -192,7 +192,7 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
         device_plan: cfg.device_plan.unwrap_or(0) as c_int,
         device_site: cfg.device_site.unwrap_or(0) as c_int,
         sample:      cfg.sample as c_int,
-        timeout:     cfg.timeout.num_milliseconds() as c_int,
+        timeout:     cfg.timeout.whole_milliseconds() as c_int,
         verbose:     cfg.verbose as c_int,
         program:     cfg.program.as_ptr(),
         version:     cfg.version.as_ptr(),
@@ -297,7 +297,7 @@ pub fn send(key: &Key, ctr: &Counter, sr: u32, cs: Option<&[kflowCustom]>) -> Re
 
 pub fn stop(timeout: Duration) -> Result<(), Error> {
     unsafe {
-        match kflowStop(timeout.num_milliseconds() as c_int) {
+        match kflowStop(timeout.whole_milliseconds() as c_int) {
             0 => Ok(()),
             _ => Err(Error::Timeout),
         }

@@ -48,7 +48,7 @@ impl Reassembler {
     }
 
     pub fn flush(&mut self, ts: Timestamp) {
-        if (ts - self.flushed).num_seconds() > 15 {
+        if (ts - self.flushed).whole_seconds() > 15 {
             self.ipv4.clear(ts, self.timeout);
             self.flushed = ts;
         }

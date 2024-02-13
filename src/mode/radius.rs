@@ -152,7 +152,7 @@ impl Radius {
                 deletes:     deletes,
             };
 
-            let timeout = Duration::milliseconds(10).to_std().unwrap();
+            let timeout = Duration::milliseconds(10).unsigned_abs();
             match self.client.send("kt_user", req, timeout) {
                 Ok(..) => (),
                 Err(e) => warn!("tag queue full: {:?}", e),

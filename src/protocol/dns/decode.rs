@@ -50,7 +50,7 @@ impl Decoder {
                     cs.add_u32(self.query_type, qq.qtype as u32);
                     cs.add_u32(self.reply_code, rc as u32);
                     cs.add_str(self.reply_data, self.data_str.as_ref().unwrap_or(&self.empty));
-                    cs.add_u32(self.latency, d.num_milliseconds() as u32);
+                    cs.add_u32(self.latency, d.whole_milliseconds() as u32);
                     true
                 },
             }

@@ -113,7 +113,7 @@ impl Decoder {
             cs.add_str(req_referer, res.referer.as_ref().unwrap_or(empty));
             cs.add_str(req_ua, res.ua.as_ref().unwrap_or(empty));
             cs.add_u32(res_status, res.status as u32);
-            cs.add_u32(latency, res.latency.num_milliseconds() as u32);
+            cs.add_u32(latency, res.latency.whole_milliseconds() as u32);
             true
         }).unwrap_or(false)
     }

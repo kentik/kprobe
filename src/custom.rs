@@ -168,7 +168,7 @@ impl Customs {
             d if d >= min && d <= max => d,
             d if d >= min             => max,
             _                         => min,
-        }.num_milliseconds() as u32);
+        }.whole_milliseconds() as u32);
     }
 
     pub fn clear(&mut self) {

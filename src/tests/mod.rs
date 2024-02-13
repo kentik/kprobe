@@ -9,6 +9,7 @@ use std::borrow::Cow;
 use std::ffi::CStr;
 use std::mem::swap;
 use std::net::IpAddr;
+use std::time::{UNIX_EPOCH, SystemTime};
 use libc::{c_char, c_int};
 use pcap::Capture;
 use pnet::packet::{Packet as PacketExt, PacketSize};
@@ -48,6 +49,21 @@ fn timeout_range() {
         let first = timeout.first(start);
         assert!(first >= start && first <= start + max);
     }
+}
+
+#[test]
+fn time_sanity_checks() {
+    let system    = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let timestamp = Timestamp::now().sec;
+    assert!(timestamp >= system);
+    assert!(timestamp - system < 2);
+
+    let timestamp = Timestamp::zero() + Duration::seconds(2);
+    assert_eq!(2, timestamp.sec);
+
+    let timestamp0 = Timestamp::zero() + Duration::seconds(2);
+    let timestamp1 = Timestamp::zero() + Duration::seconds(4);
+    assert_eq!(Duration::seconds(2), timestamp1 - timestamp0);
 }
 
 #[test]
@@ -139,7 +155,7 @@ fn test_udp_first_exchange_latency() {
     let dst = Addr{addr: "8.8.4.4".parse().unwrap(),   port: 53   };
     let key = Key(Protocol::UDP, dst, src);
 
-    assert_eq!(Some(44), trk.latency(&key).map(|d| d.num_milliseconds()));
+    assert_eq!(Some(44), trk.latency(&key).map(|d| d.whole_milliseconds()));
 
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key, &mut customs);
@@ -162,7 +178,7 @@ fn test_tcp_first_exchange_latency() {
     let dst = Addr{addr: "172.217.25.110".parse().unwrap(), port: 80   };
     let key = Key(Protocol::TCP, dst, src);
 
-    assert_eq!(Some(7), trk.latency(&key).map(|d| d.num_milliseconds()));
+    assert_eq!(Some(7), trk.latency(&key).map(|d| d.whole_milliseconds()));
 
     let mut customs = Customs::new(&CUSTOMS);
     trk.append(&key, &mut customs);

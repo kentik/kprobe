@@ -26,7 +26,7 @@ pnet_macros  = "0.34.0"
 pcap         = "=0.7.0"
 rand         = "0.8.5"
 ring         = "0.17.7"
-time         = "0.1.42"
+time         = "0.3.34"
 url          = "2.5.0"
 
 [dependencies.kentik-api]

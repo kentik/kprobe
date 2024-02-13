@@ -161,7 +161,7 @@ impl Dns {
             let mut rs = Vec::with_capacity(self.buffer.len());
             swap(&mut self.buffer, &mut rs);
 
-            let timeout = Duration::milliseconds(10).to_std().unwrap();
+            let timeout = Duration::milliseconds(10).unsigned_abs();
             let len = rs.len();
             match self.client.send(rs, timeout) {
                 Ok(..) => debug!("DNS batch sent: {}", len),

@@ -35,7 +35,7 @@ pub struct Timeout {
 
 impl Timeout {
     pub fn new(delay: Duration) -> Self {
-        let skew = Uniform::new_inclusive(0, delay.num_seconds());
+        let skew = Uniform::new_inclusive(0, delay.whole_seconds());
         Timeout{
             delay: delay,
             skew:  skew,

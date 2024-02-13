@@ -48,7 +48,7 @@ impl Decoder {
             cs.add_str(self.chaddr, msg.chaddr.as_ref());
             msg.host.as_ref().map(|s| cs.add_str(self.host, s));
             msg.domain.as_ref().map(|s| cs.add_str(self.domain, s));
-            msg.lease.map(|d| cs.add_u32(self.lease, d.num_seconds() as u32));
+            msg.lease.map(|d| cs.add_u32(self.lease, d.whole_seconds() as u32));
             msg.latency.map(|d| cs.add_latency(self.latency, d));
             true
         }).unwrap_or(false)
