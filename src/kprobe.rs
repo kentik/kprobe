@@ -38,7 +38,7 @@ impl Kprobe {
 
     pub fn run(&mut self, mut cap: Capture<Active>) -> Result<(), Error> {
         loop {
-            match cap.next() {
+            match cap.next_packet() {
                 Ok(packet)          => self.record(packet),
                 Err(TimeoutExpired) => self.queue.export(Timestamp::now()),
                 Err(NoMorePackets)  => return Ok(()),

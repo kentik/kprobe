@@ -46,10 +46,10 @@ where F: FnMut(&mut Dns, Addr, Addr, & [u8], Timestamp)
     let mut dns = Dns::new(client);
 
     let filter_expr = filter_expr.unwrap_or("udp src port 53 or ip[6:2] & 0x1fff != 0x0000".to_owned());
-    cap.filter(&filter_expr)?;
+    cap.filter(&filter_expr, true)?;
 
     loop {
-        match cap.next() {
+        match cap.next_packet() {
             Ok(packet) => dns.record(packet, &mut parser),
             Err(TimeoutExpired) => dns.flush(Timestamp::now()),
             Err(NoMorePackets)  => return Ok(()),

@@ -31,7 +31,7 @@ impl<'a> Iterator for FlowIterator<'a> {
     type Item = Flow<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Ok(pkt) = self.capture.next() {
+        while let Ok(pkt) = self.capture.next_packet() {
             let ts = Timestamp::from(pkt.header.ts);
             if let Some(eth) = EthernetPacket::new(pkt.data) {
                 if let (vlan, Some(pkt)) = packet::decode(&eth) {

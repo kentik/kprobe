@@ -142,7 +142,7 @@ fn main() {
     }
 
     if let Some(ref filter) = filter {
-        match cap.filter(filter) {
+        match cap.filter(filter, true) {
             Ok(()) => (),
             Err(e) => abort(e.into())
         }

@@ -40,10 +40,10 @@ pub fn run(mut cap: Capture<Active>, client: Client, pcap_ports: &[u16]) -> Resu
     let mut filter = "udp dst port ".to_string();
     filter.push_str(&pcap_ports.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(" or "));
 
-    cap.filter(&filter)?;
+    cap.filter(&filter, true)?;
 
     loop {
-        match cap.next() {
+        match cap.next_packet() {
             Ok(packet)          => radius.record(packet),
             Err(TimeoutExpired) => radius.flush(Timestamp::now()),
             Err(NoMorePackets)  => return Ok(()),

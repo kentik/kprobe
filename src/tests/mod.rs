@@ -69,7 +69,7 @@ fn time_sanity_checks() {
 #[test]
 fn test_decode_wrong_ipv4_length() {
     let mut cap = Capture::from_file("pcaps/dns/sns-pb.isc.org.pcap").unwrap();
-    let pkt = cap.next().unwrap();
+    let pkt = cap.next_packet().unwrap();
     let eth = EthernetPacket::new(&pkt.data).unwrap();
 
     let udp_payload_len = |add: i16| -> usize {
@@ -95,7 +95,7 @@ fn test_reassemble_single() {
     let mut cap = Capture::from_file("pcaps/dns/sns-pb.isc.org.pcap").unwrap();
     let mut asm = Reassembler::new();
 
-    while let Ok(pkt) = cap.next() {
+    while let Ok(pkt) = cap.next_packet() {
         let ts  = Timestamp::from(pkt.header.ts);
         let eth = EthernetPacket::new(pkt.data).unwrap();
         let len = pkt.header.len as usize - eth.packet_size();
@@ -114,14 +114,14 @@ fn test_reassemble_fragmented() {
     let mut cap = Capture::from_file("pcaps/dns/sns-pb.isc.org-dnssec.pcap").unwrap();
     let mut asm = Reassembler::new();
 
-    cap.next().unwrap();
+    cap.next_packet().unwrap();
 
     let mut packets = 0;
     let mut frags   = 0;
     let mut bytes   = 0;
     let mut done    = false;
 
-    while let Ok(pkt) = cap.next() {
+    while let Ok(pkt) = cap.next_packet() {
         let ts  = Timestamp::from(pkt.header.ts);
         let eth = EthernetPacket::new(pkt.data).unwrap();
         let len = pkt.header.len as usize - eth.packet_size();
@@ -312,7 +312,7 @@ fn test_connection_id() {
 fn test_ignore_ipv4_ethernet_padding() {
     let mut cap = Capture::from_file("pcaps/ip/ipv4_eth_padding.pcap").unwrap();
 
-    while let Ok(pkt) = cap.next() {
+    while let Ok(pkt) = cap.next_packet() {
         let eth = EthernetPacket::new(pkt.data).unwrap();
         let ip  = Ipv4Packet::new(eth.payload()).unwrap();
         let pkt = packet::decode(&eth).1.unwrap();
