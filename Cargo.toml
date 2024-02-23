@@ -13,8 +13,9 @@ documentation of flags, options, and recommended configuration.
 """
 
 [dependencies]
+anyhow       = "1.0.80"
+bpaf         = "0.9.9"
 byteorder    = "1.5.0"
-clap         = "=2.34.0"
 env_logger   = "0.11.2"
 errno        = "0.3.8"
 http-muncher = "0.3.2"
@@ -37,7 +38,7 @@ rev = "0a053437f1aae7ba69c287654bfbd28da1b463cb"
 jemallocator = "0.5.4"
 
 [build-dependencies]
-anyhow       = "1.0.79"
+anyhow       = "1.0.80"
 platforms    = "3.3.0"
 
 [build-dependencies.git2]

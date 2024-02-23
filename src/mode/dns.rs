@@ -1,5 +1,6 @@
 use std::mem::swap;
 use std::net::IpAddr;
+use anyhow::Result;
 use log::{debug, warn};
 use nom::IResult::Done;
 use pcap::{Capture, Active};
@@ -10,7 +11,6 @@ use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
 use time::Duration;
 use kentik_api::dns::*;
-use crate::args::Error;
 use crate::flow::Addr;
 use crate::packet::{self, Packet, Transport::*};
 use crate::protocol::dns::parser::{self, Rdata};
@@ -28,7 +28,7 @@ pub fn run(
     cap: Capture<Active>,
     client: Client,
     filter_expr: Option<String>,
-) -> Result<(), Error<'static>> {
+) -> Result<()> {
     run_base(cap, client, filter_expr, Dns::plain_parse)
 }
 
@@ -36,11 +36,11 @@ pub fn run_juniper(
     cap: Capture<Active>,
     client: Client,
     filter_expr: Option<String>,
-) -> Result<(), Error<'static>> {
+) -> Result<()> {
     run_base(cap, client, filter_expr, Dns::parse_stripped)
 }
 
-pub fn run_base<F>(mut cap: Capture<Active>, client: Client, filter_expr: Option<String>, mut parser: F) -> Result<(), Error<'static>>
+pub fn run_base<F>(mut cap: Capture<Active>, client: Client, filter_expr: Option<String>, mut parser: F) -> Result<()>
 where F: FnMut(&mut Dns, Addr, Addr, & [u8], Timestamp)
 {
     let mut dns = Dns::new(client);

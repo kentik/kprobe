@@ -1,10 +1,11 @@
+use std::str::FromStr;
+use anyhow::{anyhow, Error, Result};
 use pcap::{Capture, Active};
-use crate::args::{Error, FromArg};
 
 const PACKET_FANOUT_HASH: u32 = 0x0;
 const PACKET_FANOUT_LB:   u32 = 0x1;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(u32)]
 pub enum Mode {
     Hash = PACKET_FANOUT_HASH,
@@ -42,12 +43,14 @@ pub fn join(_cap: &Capture<Active>, _group: u16, _mode: Mode) -> Result<(), Erro
     unimplemented!();
 }
 
-impl FromArg for Mode {
-    fn from_arg(mode: &str) -> Result<Self, Error> {
+impl FromStr for Mode {
+    type Err = Error;
+
+    fn from_str(mode: &str) -> Result<Self> {
         match mode {
             "hash" => Ok(Mode::Hash),
             "lb"   => Ok(Mode::LB),
-            other  => Err(Error::Invalid(format!("invalid fanout mode: {}", other))),
+            _      => Err(anyhow!("invalid fanout mode"))
         }
     }
 }

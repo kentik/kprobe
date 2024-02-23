@@ -13,6 +13,7 @@ use time::Duration;
 use libc::{self, c_char, c_int};
 use super::flow::{Direction, Key, Protocol};
 use super::queue::Counter;
+use crate::version::Version;
 
 #[derive(Debug)]
 pub struct Config {
@@ -89,7 +90,7 @@ pub enum Error {
 impl Config {
     pub fn new(dev: &NetworkInterface, region: Option<String>, snaplen: i32, promisc: bool) -> Self {
         let program = env!("CARGO_PKG_NAME");
-        let version = env!("CARGO_PKG_VERSION");
+        let version = Version::new().version;
 
         let device  = dev.name.clone();
         let ip      = dev.ips.iter().filter(|net| net.ip().is_ipv4()).map(|net| {
