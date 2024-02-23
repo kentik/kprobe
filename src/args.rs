@@ -1,286 +1,219 @@
-use std::borrow::Cow;
-use std::fmt;
-use std::ffi::{CString, OsString, NulError, IntoStringError};
-use std::net::AddrParseError;
-use std::num::ParseIntError;
-use std::str::Utf8Error;
-use clap::{clap_app, crate_description, ArgMatches, Values};
-use errno::Errno;
+use std::ffi::CString;
+use anyhow::{anyhow, Result};
+use bpaf::*;
+use bpaf::parsers::NamedArg;
 use pcap::{self, Device};
 use pnet::datalink::{self, NetworkInterface};
-use url::Url;
+use crate::fanout;
 use crate::flow::Addr;
 use crate::version::Version;
 
-pub fn parse<'a>(args: &[OsString]) -> Args<'a> {
-    let version = Version::new();
+#[derive(Clone, Debug)]
+pub struct Args {
+    pub capture:     Capture,
+    pub email:       CString,
+    pub token:       CString,
 
-    let matches = clap_app!(kprobe =>
-      (version: &*version.version)
-      (about:   crate_description!())
-      (@arg interface: -i       --interface          <interface> "Network interface")
-      (@arg email:              --email env[KENTIK_EMAIL] <email> "API user email")
-      (@arg token:              --token env[KENTIK_TOKEN] <token> "API access token")
-      (@arg sample:             --sample             [N]         "Sample 1:N flows")
-      (@arg device_id:          --("device-id")      [ID]        "Device ID")
-      (@arg device_if:          --("device-if")      [interface] "Device interface")
-      (@arg device_ip:          --("device-ip")      [IP]        "Device IP")
-      (@arg device_name:        --("device-name")    [name]      "Device name")
-      (@arg device_plan:        --("device-plan")    [ID]        "Device plan")
-      (@arg device_site:        --("device-site")    [ID]        "Device site")
-      (@arg region:             --region             [region]    "Kentik region")
-      (@arg api_url:            --("api-url")        [URL]       "API URL")
-      (@arg flow_url:           --("flow-url")       [URL]       "Flow URL")
-      (@arg metrics_url:        --("metrics-url")    [URL]       "Metrics URL")
-      (@arg proxy_url:          --("proxy-url")      [URL]       "Proxy URL")
-      (@arg status_host:        --("status-host")    [host]      "Status host")
-      (@arg status_port:        --("status-port")    [port]      "Status port")
-      (@arg dns_url:            --("dns-url")        [URL]       "DNS URL")
-      (@arg http_port:          --("http-port")      [port] ...  "Decode HTTP on port")
-      (@arg no_decode:          --("no-decode")                  "No protocol decoding")
-      (@arg fangroup:           --("fanout-group")   [group]     "Join fanout group")
-      (@arg fanmode:            --("fanout-mode")    [mode]      "Use fanout mode")
-      (@arg filter:             --filter             [filter]    "Filter traffic")
-      (@arg translate:          --translate          [spec] ...  "Translate address")
-      (@arg promisc:            --promisc                        "Promiscuous mode")
-      (@arg snaplen:            --snaplen            [N]         "Capture snaplen")
-      (@arg verbose:            -v                          ...  "Verbose output")
-      (@arg dns_port:           --("dns-port")       [port]      "DNS listen port. Works only without dns subcommand. Defaults to 53")
-      (@arg radius_ports:       --("radius-ports")    [port] ...  "Radius ports. Works only without radius subcommand. Defaults to [1812,1813]")
-      (@subcommand dns =>
-        (about:  "DNS capture/output only")
-        (@arg dns_filter:       --filter             [filter]    "DNS pcap expression. Defaults to \"udp src port 53 or ip[6:2] & 0x1fff != 0x0000\"")
-        (@arg dns_juniper_mode: --("juniper-mirror")             "Adds juniper mirror stripping. Assumes tcp/udp packet encapsulated in udp with 8 byte juniper header in between")
-      )
-      (@subcommand radius =>
-        (about:  "RADIUS capture/output only")
-        (@arg radius_ports:     --("ports")          [port] ...  "RADIUS ports, defaults to [1812,1813]")
-      )
-    ).get_matches_from(args);
-    Args{matches: matches}
+    pub sample:      Option<u64>,
+    pub decode:      bool,
+    pub fangroup:    Option<u16>,
+    pub fanmode:     Option<fanout::Mode>,
+    pub filter:      Option<String>,
+    pub promisc:     bool,
+    pub snaplen:     Option<i32>,
+
+    pub device_id:   Option<u32>,
+    pub device_if:   Option<CString>,
+    pub device_ip:   Option<CString>,
+    pub device_name: Option<CString>,
+    pub device_plan: Option<u32>,
+    pub device_site: Option<u32>,
+
+    pub region:      Option<String>,
+    pub api_url:     Option<CString>,
+    pub flow_url:    Option<CString>,
+    pub dns_url:     Option<CString>,
+    pub metrics_url: Option<CString>,
+    pub proxy_url:   Option<CString>,
+
+    pub status_host: Option<CString>,
+    pub status_port: Option<u16>,
+
+    pub translate:   Option<Vec<(Addr, Addr)>>,
+    pub http_port:   Option<Vec<u16>>,
+    pub dns_port:    Option<u16>,
+    pub radius_port: Option<Vec<u16>>,
+
+    pub verbose:     usize,
+
+    pub mode:        Option<Mode>,
 }
 
-pub struct Args<'a> {
-    matches: ArgMatches<'a>
+#[derive(Clone, Debug)]
+pub struct Capture(String);
+
+#[derive(Clone, Debug)]
+pub enum Mode {
+    Dns {
+        filter:  Option<String>,
+        juniper: bool,
+    },
+
+    Radius {
+        ports:   Option<Vec<u16>>,
+    },
 }
 
-impl<'a> Args<'a> {
-    pub fn sub(&self, name: &'a str) -> Option<Self> {
-        match self.matches.subcommand_matches(name) {
-            Some(m) => Some(Self {matches: m.to_owned()}),
-            _       => None,
-        }
-    }
-
-    pub fn arg<T: FromArg>(&self, name: &'a str) -> Result<T, Error> {
-        match self.matches.value_of(name) {
-            Some(value) => FromArg::from_arg(value),
-            None        => Err(Error::Missing(name)),
-        }
-    }
-
-    pub fn opt<T: FromArg>(&self, name: &'a str) -> Result<Option<T>, Error> {
-        match self.matches.value_of(name) {
-            Some(value) => Ok(Some(FromArg::from_arg(value)?)),
-            None        => Ok(None),
-        }
-    }
-
-    pub fn args<T: FromArg>(&self, name: &'a str) -> Result<Vec<T>, Error> {
-        match self.matches.values_of(name) {
-            Some(values) => self.multiple(values),
-            None         => Err(Error::Missing(name)),
-        }
-    }
-
-    pub fn opts<T: FromArg>(&self, name: &'a str) -> Result<Option<Vec<T>>, Error> {
-        match self.matches.values_of(name) {
-            Some(values) => Ok(Some(self.multiple(values)?)),
-            None         => Ok(None),
-        }
-    }
-
-    pub fn count(&self, name: &'a str) -> u64 {
-        self.matches.occurrences_of(name)
-    }
-
-    fn multiple<T: FromArg>(&self, values: Values<'a>) -> Result<Vec<T>, Error> {
-        let mut vec: Vec<T> = Vec::new();
-        for v in values {
-            match FromArg::from_arg(v) {
-                Ok(arg) => vec.push(arg),
-                Err(e)  => return Err(e),
-            }
-        }
-        Ok(vec)
-    }
-
-    pub fn http_config(&self, url: &str) -> Result<(String, String, String, Option<String>), Error> {
-        let email   = self.arg::<String>("email")?;
-        let token   = self.arg::<String>("token")?;
-        let proxy   = self.opt::<String>("proxy_url")?;
-
-        let mut url = Url::parse(url)?;
-        url.set_path("/");
-        let url = url.as_str().trim_end_matches('/');
-
-        Ok((email, token, url.to_string(), proxy))
-    }
+pub fn arguments() -> Result<Args> {
+    Ok(parser().run())
 }
 
-pub trait FromArg: Sized {
-    fn from_arg(_: &str) -> Result<Self, Error>;
+pub fn parser() -> OptionParser<Args> {
+    let capture = short('i').long("interface").argument("interface").map(Capture);
+
+    let email = long("email").env("KENTIK_EMAIL").cstring("email");
+    let token = long("token").env("KENTIK_TOKEN").cstring("token");
+
+    let sample      = long("sample").argument("N").optional();
+    let decode      = long("no-decode").switch().map(|b| !b);
+    let fangroup    = long("fanout-group").argument("group").optional();
+    let fanmode     = long("fanout-mode").argument("mode").optional();
+    let filter      = long("filter").argument("filter").optional();
+    let promisc     = long("promisc").switch();
+    let snaplen     = long("snaplen").argument("N").optional();
+
+    let device_id   = long("device-id").argument("ID").optional();
+    let device_if   = long("device-if").cstring("interface").optional();
+    let device_ip   = long("device-ip").cstring("IP").optional();
+    let device_name = long("device-name").cstring("name").optional();
+    let device_plan = long("device-plan").argument("ID").optional();
+    let device_site = long("device-site").argument("ID").optional();
+
+    let region      = long("region").argument("region").optional();
+    let api_url     = long("api-url").cstring("URL").optional();
+    let flow_url    = long("flow-url").cstring("URL").optional();
+    let dns_url     = long("dns-url").cstring("URL").optional();
+    let metrics_url = long("metrics-url").cstring("URL").optional();
+    let proxy_url   = long("proxy-url").cstring("URL").optional();
+
+    let status_host = long("status-host").cstring("host").optional();
+    let status_port = long("status-port").argument("port").optional();
+
+    let translate   = translate();
+    let http_port   = long("http-port").argument("port").some("").optional();
+    let dns_port    = long("dns-port").argument("port").optional();
+    let radius_port = long("radius-port").argument("port").some("").optional();
+
+    let verbose     = short('v').req_flag(()).count();
+    let version     = Version::new();
+
+    let dns    = dns().command("dns");
+    let radius = radius().command("radius");
+    let mode   = construct!([dns, radius]).optional();
+
+    construct!(Args {
+        capture,
+
+        email,
+        token,
+
+        sample,
+        decode,
+        fangroup,
+        fanmode,
+        filter,
+        promisc,
+        snaplen,
+
+        device_id,
+        device_if,
+        device_ip,
+        device_name,
+        device_plan,
+        device_site,
+
+        region,
+        api_url,
+        flow_url,
+        dns_url,
+        metrics_url,
+        proxy_url,
+
+        status_host,
+        status_port,
+
+        translate,
+        http_port,
+        dns_port,
+        radius_port,
+
+        verbose,
+
+        mode,
+    }).to_options().version(&*version.version)
 }
 
-impl FromArg for (NetworkInterface, Device) {
-    fn from_arg(value: &str) -> Result<Self, Error> {
-        let mut interfaces = datalink::interfaces().into_iter();
-        let mut devices    = Device::list().map_err(|e| {
-            Error::Invalid(format!("pcap error '{}'", e))
-        })?.into_iter();
-
-        let interface = interfaces.find(|i| i.name == value).ok_or_else(|| {
-            Error::Invalid(format!("unknown interface '{}'", value))
-        })?;
-
-        let device = devices.find(|d| d.name == value).ok_or_else(|| {
-            Error::Invalid(format!("unsupported interface '{}'", value))
-        })?;
-
-        Ok((interface, device))
-    }
-}
-
-impl FromArg for u16 {
-    fn from_arg(value: &str) -> Result<u16, Error> {
-        value.parse().map_err(|_| {
-            Error::Invalid(format!("'{}' is not a number", value))
-        })
-    }
-}
-
-impl FromArg for i32 {
-    fn from_arg(value: &str) -> Result<i32, Error> {
-        value.parse().map_err(|_| {
-            Error::Invalid(format!("'{}' is not a number", value))
-        })
-    }
-}
-
-impl FromArg for u32 {
-    fn from_arg(value: &str) -> Result<u32, Error> {
-        value.parse().map_err(|_| {
-            Error::Invalid(format!("'{}' is not a number", value))
-        })
-    }
-}
-
-impl FromArg for u64 {
-    fn from_arg(value: &str) -> Result<u64, Error> {
-        value.parse().map_err(|_| {
-            Error::Invalid(format!("'{}' is not a number", value))
-        })
-    }
-}
-
-impl<'a> FromArg for CString {
-    fn from_arg(value: &str) -> Result<CString, Error> {
-        Ok(CString::new(value)?)
-    }
-}
-
-impl<'a> FromArg for Cow<'a, str> {
-    fn from_arg(value: &str) -> Result<Self, Error> {
-        Ok(Cow::from(value.to_owned()))
-    }
-}
-
-impl<'a> FromArg for String {
-    fn from_arg(value: &str) -> Result<Self, Error> {
-        Ok(value.to_owned())
-    }
-}
-
-impl FromArg for (Addr, Addr) {
-    fn from_arg(value: &str) -> Result<(Addr, Addr), Error> {
+fn translate() -> impl Parser<Option<Vec<(Addr, Addr)>>> {
+    long("translate").argument::<String>("spec").parse(|value| -> Result<(Addr, Addr)> {
         let mut parts = value.split(',');
 
         let mut parse = |what| {
             match (parts.next(), parts.next()) {
                 (Some(a), Some(b)) => Ok(Addr{addr: a.parse()?, port: b.parse()?}),
-                (None,    Some(_)) => Err(Error::Invalid(format!("missing {} addr", what))),
-                (Some(_), None   ) => Err(Error::Invalid(format!("missing {} port", what))),
-                (None,    None   ) => Err(Error::Invalid(format!("missing {} spec", what))),
+                (None,    Some(_)) => Err(anyhow!("missing {what} addr")),
+                (Some(_), None   ) => Err(anyhow!("missing {what} port")),
+                (None,    None   ) => Err(anyhow!("missing {what} spec")),
             }
         };
 
         Ok((parse("src")?, parse("dst")?))
+    }).some("").optional()
+}
+
+fn dns() -> OptionParser<Mode> {
+    let filter  = long("filter").argument("filter").optional();
+    let juniper = long("juniper-mirror").switch();
+    construct!(Mode::Dns { filter, juniper }).to_options()
+}
+
+fn radius() -> OptionParser<Mode> {
+    let ports = long("ports").argument("port").some("").optional();
+    construct!(Mode::Radius { ports }).to_options()
+}
+
+impl Args {
+   pub fn http_config(&self) -> Result<(String, String, Option<String>)> {
+        let email = self.email.to_string_lossy().to_string();
+        let token = self.token.to_string_lossy().to_string();
+        let proxy = self.proxy_url.as_ref().map(|p| p.to_string_lossy().to_string());
+        Ok((email, token, proxy))
     }
 }
 
-#[derive(Debug)]
-pub enum Error<'a> {
-    Missing(&'a str),
-    Invalid(String),
-    Syscall(Errno),
-    Pcap(pcap::Error)
-}
-
-impl<'a> From<NulError> for Error<'a> {
-    fn from(err: NulError) -> Self {
-        Error::Invalid(format!("invalid string, {}", err))
-    }
-}
-
-impl<'a> From<Utf8Error> for Error<'a> {
-    fn from(err: Utf8Error) -> Self {
-        Error::Invalid(format!("invalid string, {}", err))
-    }
-}
-
-impl<'a> From<IntoStringError> for Error<'a> {
-    fn from(err: IntoStringError) -> Self {
-        Error::Invalid(format!("invalid string, {}", err))
-    }
-}
-
-impl<'a> From<ParseIntError> for Error<'a> {
-    fn from(err: ParseIntError) -> Self {
-        Error::Invalid(format!("invalid number, {}", err))
-    }
-}
-
-impl<'a> From<AddrParseError> for Error<'a> {
-    fn from(err: AddrParseError) -> Self {
-        Error::Invalid(format!("invalid address, {}", err))
-    }
-}
-
-impl<'a> From<url::ParseError> for Error<'a> {
-    fn from(err: url::ParseError) -> Self {
-        Error::Invalid(format!("invalid url, {}", err))
-    }
-}
-
-impl<'a> From<Errno> for Error<'a> {
-    fn from(err: Errno) -> Self {
-        Error::Syscall(err)
-    }
-}
-
-impl<'a> From<pcap::Error> for Error<'a> {
-    fn from(err: pcap::Error) -> Self {
-        Error::Pcap(err)
-    }
-}
-
-impl<'a> fmt::Display for Error<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Missing(name)    => write!(f, "missing argument '{}'", name),
-            Error::Invalid(ref str) => write!(f, "invalid argument: {}", str),
-            Error::Syscall(ref err) => write!(f, "syscall failed: {}", err),
-            Error::Pcap(ref err)    => write!(f, "pcap error: {}", err),
+impl Capture {
+    pub fn device(&self) -> Result<Device> {
+        let name = &self.0;
+        match Device::list()?.into_iter().find(|d| &d.name == name) {
+            Some(d) => Ok(d),
+            None    => Err(anyhow!("unsupported interface {name}")),
         }
+    }
+
+    pub fn interface(&self) -> Result<NetworkInterface> {
+        let name = &self.0;
+        match datalink::interfaces().into_iter().find(|i| &i.name == name) {
+            Some(i) => Ok(i),
+            None    => Err(anyhow!("unknown interface {name}")),
+        }
+    }
+}
+
+trait Extensions {
+    fn cstring(self, arg: &'static str) -> impl Parser<CString>;
+}
+
+impl Extensions for NamedArg {
+    fn cstring(self, arg: &'static str) -> impl Parser<CString> {
+        self.argument::<String>(arg).parse(CString::new)
     }
 }

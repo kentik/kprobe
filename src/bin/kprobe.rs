@@ -1,69 +1,53 @@
-use std::env;
 use std::ffi::CStr;
 use std::process::exit;
-use kprobe::args::{self, Args};
-use kprobe::{Config, Kprobe};
-use kprobe::libkflow;
-use kprobe::protocol::Classify;
-use kprobe::flow::Protocol;
-use kprobe::fanout;
-use kprobe::protocol::Decoder;
-use kprobe::mode;
-use kentik_api::{dns, tag, AsyncClient, Client};
+use anyhow::Result;
 use env_logger::Builder;
 use pcap::Capture;
-use crate::libkflow::Error::*;
+use url::Url;
+use kentik_api::{dns, tag, AsyncClient, Client};
+use kprobe::{Config, Kprobe};
+use kprobe::args::{arguments, Mode};
+use kprobe::fanout;
+use kprobe::flow::Protocol;
+use kprobe::libkflow;
+use kprobe::mode;
+use kprobe::protocol::{Classify, Decoder};
+use kprobe::libkflow::Error::*;
 
 #[global_allocator]
 #[cfg(not(target_arch = "arm"))]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-fn main() {
+fn main() -> Result<()> {
     Builder::from_default_env().init();
 
-    let args    = env::args_os().collect::<Vec<_>>();
-    let args    = args::parse(&args);
-    let verbose = args.count("verbose");
-    let decode  = args.count("no_decode") == 0;
-    let filter  = args.opt::<String>("filter").unwrap_or_else(abort);
-    let promisc = args.count("promisc") > 0;
-    let region  = args.opt("region").unwrap_or(None);
-    let sample  = args.opt("sample").unwrap_or_else(abort);
-    let snaplen = args.arg("snaplen").unwrap_or(65535);
+    let args = arguments()?;
 
-    let fangroup = args.opt("fangroup").unwrap_or_else(abort);
-    let fanmode  = args.opt("fanmode").unwrap_or_else(abort);
+    let (email, token, proxy) = args.http_config()?;
+    let device    = args.capture.device()?;
+    let interface = args.capture.interface()?;
 
-    let dns_args = args.sub("dns");
-    let dns = dns_args.is_some();
-    let (dns_filter_expr, dns_juniper_mirror) = dns_args.map(|m| {
-        (m.arg("dns_filter").ok(), m.count("dns_juniper_mode") > 0)
-    }).unwrap_or((None, false));
+    let snaplen = args.snaplen.unwrap_or(65535);
+    let verbose = args.verbose;
 
-    let radius_args = args.sub("radius");
-    let radius  = radius_args.is_some();
-    let radius_ports = radius_args.and_then(|m| m.args("radius_ports").ok()).unwrap_or(vec![1812,1813]);
-
-    let (interface, device) = args.arg("interface").unwrap_or_else(abort);
-
-    let mut cfg = libkflow::Config::new(&interface, region, snaplen, promisc);
-    cfg.url         = args.arg("flow_url").unwrap_or(cfg.url);
-    cfg.api.email   = args.arg("email").unwrap_or_else(abort);
-    cfg.api.token   = args.arg("token").unwrap_or_else(abort);
-    cfg.api.url     = args.arg("api_url").unwrap_or(cfg.api.url);
-    cfg.metrics.url = args.arg("metrics_url").unwrap_or(cfg.metrics.url);
-    cfg.status.host = args.arg("status_host").unwrap_or(cfg.status.host);
-    cfg.status.port = args.arg("status_port").unwrap_or(cfg.status.port);
-    cfg.device_id   = args.arg("device_id").unwrap_or(cfg.device_id);
-    cfg.device_if   = args.opt("device_if").unwrap_or(cfg.device_if);
-    cfg.device_ip   = args.opt("device_ip").unwrap_or(cfg.device_ip);
-    cfg.device_name = args.arg("device_name").unwrap_or(cfg.device_name);
-    cfg.device_plan = args.opt("device_plan").unwrap_or(cfg.device_plan);
-    cfg.device_site = args.opt("device_site").unwrap_or(cfg.device_site);
-    cfg.proxy       = args.opt("proxy_url").unwrap_or(cfg.proxy);
-    cfg.dns.enable  = dns;
-    cfg.dns.url     = args.arg("dns_url").unwrap_or(cfg.dns.url);
-    cfg.sample      = sample.unwrap_or(0) as u32;
+    let mut cfg = libkflow::Config::new(&interface, args.region, snaplen, args.promisc);
+    cfg.url         = args.flow_url.unwrap_or(cfg.url);
+    cfg.api.email   = args.email;
+    cfg.api.token   = args.token;
+    cfg.api.url     = args.api_url.unwrap_or(cfg.api.url);
+    cfg.metrics.url = args.metrics_url.unwrap_or(cfg.metrics.url);
+    cfg.status.host = args.status_host.unwrap_or(cfg.status.host);
+    cfg.status.port = args.status_port.unwrap_or(cfg.status.port);
+    cfg.device_id   = args.device_id.unwrap_or(cfg.device_id);
+    cfg.device_if   = args.device_if.or(cfg.device_if);
+    cfg.device_ip   = args.device_ip.or(cfg.device_ip);
+    cfg.device_name = args.device_name.unwrap_or(cfg.device_name);
+    cfg.device_plan = args.device_plan.or(cfg.device_plan);
+    cfg.device_site = args.device_site.or(cfg.device_site);
+    cfg.proxy       = args.proxy_url.or(cfg.proxy);
+    cfg.dns.enable  = matches!(args.mode, Some(Mode::Dns{..}));
+    cfg.dns.url     = args.dns_url.unwrap_or(cfg.dns.url);
+    cfg.sample      = args.sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
 
     if verbose > 0 {
@@ -86,97 +70,97 @@ fn main() {
         exit(1);
     });
 
-    let sample = match sample.unwrap_or(dev.sample) {
+    let sample = match args.sample.unwrap_or(dev.sample) {
         0 | 1 => None,
         n     => Some(n),
     };
 
     let mut classify = Classify::new();
 
-    for port in args.args("http_port").unwrap_or_default() {
-        classify.add(Protocol::TCP, port, Decoder::HTTP);
+    classify.add(Protocol::UDP, args.dns_port.unwrap_or(53), Decoder::DNS);
+
+    for port in args.http_port.as_deref().unwrap_or(&[]) {
+        classify.add(Protocol::TCP, *port, Decoder::HTTP);
     }
 
-    let radius_default_mode_ports = args.args("radius-ports").unwrap_or(vec![1812,1813]);
-    for port in radius_default_mode_ports {
-        classify.add(Protocol::UDP, port, Decoder::Radius)
+    for port in args.radius_port.as_deref().unwrap_or(&[1812, 1813]) {
+        classify.add(Protocol::UDP, *port, Decoder::Radius)
     }
 
-    let dns_port = args.arg("dns_port").unwrap_or(53u16);
-    classify.add(Protocol::UDP, dns_port, Decoder::DNS);
-
-    let translate = args.opts("translate").unwrap_or_else(abort);
-
-    let timeout = match cfg.dns.enable {
-        false => 15_000,
-        true  =>  1_000,
+    let timeout = match args.mode {
+        Some(Mode::Dns{..}) => 15_000,
+        _                   =>  1_000,
     };
 
     let mut cap = Capture::from_device(device).unwrap()
         .buffer_size(100_000_000)
         .timeout(timeout)
         .snaplen(snaplen)
-        .promisc(promisc)
-        .open()
-        .unwrap();
+        .promisc(args.promisc)
+        .open()?;
 
-    if let Some(group) = fangroup {
-        let mode = fanmode.unwrap_or(fanout::Mode::Hash);
-        fanout::join(&cap, group, mode).unwrap_or_else(abort);
+    if let Some(group) = args.fangroup {
+        let mode = args.fanmode.unwrap_or(fanout::Mode::Hash);
+        fanout::join(&cap, group, mode)?;
     }
 
-    if dns {
-        let client = async_api_client(&args, &cfg.dns.url).unwrap_or_else(abort);
-        let client = dns::Client::new(client);
-        if dns_juniper_mirror {
-            mode::dns::run_juniper(cap, client, dns_filter_expr).unwrap_or_else(abort);
-        } else {
-            mode::dns::run(cap, client, dns_filter_expr).unwrap_or_else(abort);
+    if let Some(mode) = args.mode {
+        let email = &email;
+        let token = &token;
+        let proxy = proxy.as_deref();
+
+        match mode {
+            Mode::Dns { filter, juniper } => {
+                let client = async_api_client(email, token, proxy, &cfg.dns.url)?;
+                let client = dns::Client::new(client);
+
+                if juniper {
+                    mode::dns::run_juniper(cap, client, filter)?;
+                } else {
+                    mode::dns::run(cap, client, filter)?;
+                }
+            },
+            Mode::Radius { ports } => {
+                let ports  = ports.unwrap_or(vec![1812, 1813]);
+                let client = sync_api_client(email, token, proxy, &cfg.api.url)?;
+                let client = tag::Client::new(client);
+
+                mode::radius::run(cap, client, &ports)?;
+            },
         }
-        exit(0);
-    } else if radius {
-        let client = sync_api_client(&args, &cfg.api.url).unwrap_or_else(abort);
-        let client = tag::Client::new(client);
-        mode::radius::run(cap, client, &radius_ports).unwrap_or_else(abort);
+
         exit(0);
     }
 
-    if let Some(ref filter) = filter {
-        match cap.filter(filter, true) {
-            Ok(()) => (),
-            Err(e) => abort(e.into())
-        }
+    if let Some(ref filter) = args.filter {
+        cap.filter(filter, true)?;
     }
 
     let mut kprobe = Kprobe::new(interface, Config{
         classify:  classify,
         customs:   dev.customs,
-        decode:    decode,
+        decode:    args.decode,
         sample:    sample,
-        translate: translate
+        translate: args.translate
     });
-    kprobe.run(cap).expect("capture succeeded");
+
+    kprobe.run(cap)?;
+
+    Ok(())
 }
 
-fn abort<T>(e: args::Error) -> T {
-    println!("{}", e);
-    exit(1);
+fn async_api_client(email: &str, token: &str, proxy: Option<&str>, url: &CStr) -> Result<AsyncClient> {
+    let endpoint = endpoint(url)?;
+    Ok(AsyncClient::new(email, token, &endpoint, proxy)?)
 }
 
-fn async_api_client<'a>(args: &'a Args<'a>, url: &CStr) -> Result<AsyncClient, args::Error<'a>> {
-    let url = url.to_str()?.to_owned();
-    let (email, token, endpoint, proxy) = args.http_config(&url)?;
-    let proxy = proxy.as_ref().map(String::as_str);
-    Ok(AsyncClient::new(&email, &token, &endpoint, proxy).map_err(|e| {
-        args::Error::Invalid(format!("client setup error {}", e))
-    })?)
+fn sync_api_client(email: &str, token: &str, proxy: Option<&str>, url: &CStr) -> Result<Client> {
+    let endpoint = endpoint(url)?;
+    Ok(Client::new(email, token, &endpoint, proxy)?)
 }
 
-fn sync_api_client<'a>(args: &'a Args<'a>, url: &CStr) -> Result<Client, args::Error<'a>> {
-    let url = url.to_str()?.to_owned();
-    let (email, token, endpoint, proxy) = args.http_config(&url)?;
-    let proxy = proxy.as_ref().map(String::as_str);
-    Ok(Client::new(&email, &token, &endpoint, proxy).map_err(|e| {
-        args::Error::Invalid(format!("client setup error {}", e))
-    })?)
+fn endpoint(url: &CStr) -> Result<String> {
+    let mut url = Url::parse(url.to_str()?)?;
+    url.set_path("/");
+    Ok(url.as_str().trim_end_matches('/').to_string())
 }

@@ -1,5 +1,6 @@
 use std::mem::swap;
 use std::net::Ipv4Addr;
+use anyhow::{anyhow, Result};
 use log::warn;
 use nom::IResult::Done;
 use pcap::{Capture, Active};
@@ -8,7 +9,6 @@ use pnet::packet::{Packet as PacketExt};
 use pnet::packet::ethernet::EthernetPacket;
 use time::Duration;
 use kentik_api::tag::{self, *};
-use crate::args::Error;
 use crate::packet::{self, Transport::UDP};
 use crate::protocol::radius::parser;
 use crate::reasm::Reassembler;
@@ -30,11 +30,11 @@ pub enum Request {
     Stop(String),
 }
 
-pub fn run(mut cap: Capture<Active>, client: Client, pcap_ports: &[u16]) -> Result<(), Error<'static>> {
+pub fn run(mut cap: Capture<Active>, client: Client, pcap_ports: &[u16]) -> Result<()> {
     let mut radius = Radius::new(client);
 
     if pcap_ports.is_empty() {
-        return Err(Error::Missing("no ports specified"));
+        return Err(anyhow!("no ports specified"));
     }
 
     let mut filter = "udp dst port ".to_string();

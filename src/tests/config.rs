@@ -1,6 +1,7 @@
-use std::ffi::{CString, OsString};
+use std::ffi::{CString};
 use pnet::datalink::NetworkInterface;
-use crate::{args, libkflow::*};
+use crate::args::{Args, parser};
+use crate::libkflow::*;
 
 #[test]
 fn test_default_urls() {
@@ -49,39 +50,29 @@ fn test_region_case_insensitivity() {
 
 #[test]
 fn test_http_config() {
-    let args = args::parse(&args(&[
+    let args = parse(&[
         "--email",  "test@example.com",
         "--token",  "asdf1234",
-    ]));
+    ]);
 
-    let config = args.http_config("http://127.0.0.1/api").unwrap();
+    let config = args.http_config().unwrap();
 
     assert_eq!("test@example.com", config.0);
     assert_eq!("asdf1234",         config.1);
-    assert_eq!("http://127.0.0.1", config.2);
-    assert_eq!(None,               config.3);
+    assert_eq!(None,               config.2);
 }
 
 #[test]
 fn test_http_config_with_proxy() {
-    let args = args::parse(&args(&[
+    let args = parse(&[
         "--email",     "test@example.com",
         "--token",     "asdf1234",
         "--proxy-url", "http://proxy:1234",
-    ]));
+    ]);
 
-    let config = args.http_config("http://127.0.0.1/api").unwrap();
+    let config = args.http_config().unwrap();
 
-    assert_eq!(Some("http://proxy:1234".into()), config.3);
-}
-
-#[test]
-fn test_http_config_with_invalid_url() {
-    let args = args::parse(&args(&[
-        "--email",     "test@example.com",
-        "--token",     "asdf1234",
-    ]));
-    assert!(args.http_config("").is_err());
+    assert_eq!(Some("http://proxy:1234".into()), config.2);
 }
 
 fn cstr(str: &str) -> CString {
@@ -99,8 +90,9 @@ fn interface() -> NetworkInterface {
     }
 }
 
-fn args(args: &[&str]) -> Vec<OsString> {
-    let mut vec = vec!["kprobe", "-i", "lo"];
+fn parse(args: &[&str]) -> Args {
+    let mut vec = vec!["-i", "lo"];
     vec.extend_from_slice(args);
-    vec.into_iter().map(OsString::from).collect()
+    let args = bpaf::Args::from(&vec[..]);
+    parser().run_inner(args).unwrap()
 }
