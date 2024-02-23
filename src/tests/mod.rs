@@ -20,6 +20,7 @@ use crate::libkflow::*;
 use crate::flow::*;
 use crate::packet;
 use crate::custom::*;
+use crate::protocol::{Classify, Decoder};
 use crate::reasm::Reassembler;
 use crate::time::Timestamp;
 use crate::timer::{Timer, Timeout};
@@ -466,6 +467,16 @@ impl<'a> From<&'a kflowCustom> for Value {
 
 pub fn value(name: &str, cs: &Customs) -> Option<Value> {
     cs.get(name).ok().and_then(|id| cs.iter().find(|c| c.id == id).map(Value::from))
+}
+
+pub fn classifier() -> Classify {
+    let mut classify = Classify::new();
+    classify.add(Protocol::TCP, 22,   Decoder::TLS);
+    classify.add(Protocol::TCP, 80,   Decoder::HTTP);
+    classify.add(Protocol::UDP, 53,   Decoder::DNS);
+    classify.add(Protocol::UDP, 1812, Decoder::Radius);
+    classify.add(Protocol::UDP, 1813, Decoder::Radius);
+    classify
 }
 
 fn flow<'a>(src: u32, dst: u32, export: bool) -> Flow<'a> {

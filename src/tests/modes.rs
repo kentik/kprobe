@@ -12,7 +12,9 @@ fn dns_mode_parse() {
     let flows = iter::flows("pcaps/dns/google.com-any.pcap");
     let res   = flows.skip(1).next().unwrap();
 
-    let result = dns.parse(res.src, res.dst, &res.payload);
+    let packet = res.payload.to_vec();
+    let result = dns.parse(res.src, res.dst, &packet);
+
     let expect = Some(dns::Response {
         question: dns::Question {
             name: "google.com".to_owned(),

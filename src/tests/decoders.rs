@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn decode_dhcp() {
     let mut customs  = Customs::new(&CUSTOMS);
-    let mut classify = Classify::new();
+    let mut classify = classifier();
     let mut decoders = Decoders::new(&customs, &mut classify, true);
 
     let mut flows = iter::flows("pcaps/dhcp/dhcpv4.pcap");
@@ -56,7 +56,7 @@ fn decode_dhcp() {
 #[test]
 fn decode_radius_acct() {
     let mut customs = Customs::new(&CUSTOMS);
-    let mut classify = Classify::new();
+    let mut classify = classifier();
     let mut decoders = Decoders::new(&customs, &mut classify, true);
     let mut flows = iter::flows("pcaps/radius/radius-acct-start.pcap");
 
@@ -100,7 +100,7 @@ fn decode_radius_acct() {
 #[test]
 fn decode_radius_access() {
     let mut customs = Customs::new(&CUSTOMS);
-    let mut classify = Classify::new();
+    let mut classify = classifier();
     let mut decoders = Decoders::new(&customs, &mut classify, true);
     let mut flows = iter::flows("pcaps/radius/radius-auth-req.pcap");
 
@@ -236,7 +236,7 @@ fn decode_http_1_0_fin_data() {
 #[test]
 fn decode_dns() {
     let mut customs  = Customs::new(&CUSTOMS);
-    let mut classify = Classify::new();
+    let mut classify = classifier();
     let mut decoders = Decoders::new(&customs, &mut classify, true);
 
     let mut query_name: Option<Value> = None;
