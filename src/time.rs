@@ -80,7 +80,7 @@ fn format(fmt: &str, time: time_t) -> String {
         };
 
         let mut str = [0i8; 32];
-        let ptr = str.as_mut_ptr();
+        let ptr = str.as_mut_ptr() as *mut _;
         let len = str.len() - 1;
         let fmt = fmt.as_ptr() as *const _;
 
