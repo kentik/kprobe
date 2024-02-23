@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn new_flow_export_timeout_correct() {
     let customs   = Customs::new(&[]);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(None, customs, classifier(), true);
 
     let flow = flow(23, 31, true);
     let key  = flow.key();
@@ -24,7 +24,7 @@ fn new_flow_export_timeout_correct() {
 #[test]
 fn exported_counter_updated_on_add() {
     let customs   = Customs::new(&[]);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(None, customs, classifier(), true);
 
     let mut flow_a = flow(23, 31, true);
     let mut flow_b = flow_a.clone();
@@ -117,7 +117,7 @@ fn unexported_flow_not_sent_on_export() {
 #[test]
 fn customs_appended_on_decode() {
     let customs   = Customs::new(&CUSTOMS);
-    let mut queue = FlowQueue::new(None, customs, Classify::new(), true);
+    let mut queue = FlowQueue::new(None, customs, classifier(), true);
     for mut flow in iter::flows("pcaps/dns/google.com-any.pcap") {
         let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
             flow.fragments = 2;
