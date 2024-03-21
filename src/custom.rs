@@ -55,10 +55,16 @@ pub const RADIUS_ACCT_STATUS:     &str = "RADIUS_ACCT_STATUS";
 
 #[derive(Debug)]
 pub struct Customs {
+    columns:  Columns,
+    output:   Vec<kflowCustom>,
+    protocol: u32,
+}
+
+#[derive(Debug)]
+pub struct Columns {
     app_proto: Option<u64>,
     fragments: Option<u64>,
-    fields:    HashMap<String, u64>,
-    vec:       Vec<kflowCustom>,
+    columns:   HashMap<String, u64>,
 }
 
 impl Customs {
@@ -124,41 +130,52 @@ impl Customs {
             fields.insert(TLS_SERVER_NAME.to_owned(), id);
         }
 
-        Customs{
+        let columns = Columns {
             app_proto: fields.get(APP_PROTOCOL).cloned(),
             fragments: fields.get(FRAGMENTS).cloned(),
-            fields:    fields,
-            vec:       Vec::with_capacity(cs.len()),
+            columns:   fields,
+        };
+
+        Customs {
+            columns:  columns,
+            output:   Vec::with_capacity(cs.len()),
+            protocol: 0,
         }
     }
 
     pub fn append(&mut self, ctr: &Counter) {
-        if ctr.fragments > 0 {
-            self.fragments.map(|id| self.add_u32(id, ctr.fragments as u32));
+        self.protocol = match ctr.decoder {
+            Decoder::DNS    => 1,
+            Decoder::HTTP   => 2,
+            Decoder::TLS    => 3,
+            Decoder::DHCP   => 4,
+            Decoder::Radius => 9,
+            _               => 0,
+        };
+
+        if let Some(id) = self.columns.fragments {
+            if ctr.fragments > 0 {
+                self.add_u32(id, ctr.fragments as u32);
+            }
         }
 
-        self.app_proto.map(|id| {
-            match ctr.decoder {
-                Decoder::DNS    => self.add_u32(id, 1),
-                Decoder::HTTP   => self.add_u32(id, 2),
-                Decoder::TLS    => self.add_u32(id, 3),
-                Decoder::DHCP   => self.add_u32(id, 4),
-                Decoder::Radius => self.add_u32(id, 9),
-                _               => (),
+        if let Some(id) = self.columns.app_proto {
+            if self.protocol > 0 {
+                self.add_u32(id, self.protocol);
             }
-        });
+        }
     }
 
     pub fn add_str(&mut self, id: u64, val: &CStr) {
-        self.vec.push(kflowCustom::str(id, val))
+        self.output.push(kflowCustom::str(id, val))
     }
 
     pub fn add_u32(&mut self, id: u64, val: u32) {
-        self.vec.push(kflowCustom::u32(id, val))
+        self.output.push(kflowCustom::u32(id, val))
     }
 
     pub fn add_addr(&mut self, id: u64, val: IpAddr) {
-        self.vec.push(kflowCustom::addr(id, val))
+        self.output.push(kflowCustom::addr(id, val))
     }
 
     pub fn add_latency(&mut self, id: u64, d: Duration) {
@@ -171,21 +188,33 @@ impl Customs {
         }.whole_milliseconds() as u32);
     }
 
+    pub fn app_protocol(&self) -> u32 {
+        self.protocol
+    }
+
     pub fn clear(&mut self) {
-        self.vec.clear();
+        self.protocol = 0;
+        self.output.clear();
     }
 
     pub fn get(&self, key: &str) -> Result<u64, ()> {
-        match self.fields.get(key) {
+        match self.columns.get(key) {
             Some(id) => Ok(*id),
             None     => Err(()),
         }
     }
 }
 
+impl Columns {
+    pub fn get(&self, key: &str) -> Option<&u64> {
+        self.columns.get(key)
+    }
+}
+
 impl Deref for Customs {
     type Target = [kflowCustom];
+
     fn deref(&self) -> &[kflowCustom] {
-        &self.vec[..]
+        &self.output[..]
     }
 }

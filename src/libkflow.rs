@@ -227,7 +227,7 @@ pub fn configure(cfg: &Config) -> Result<Device, Error> {
     }
 }
 
-pub fn send(key: &Key, ctr: &Counter, sr: u32, cs: Option<&[kflowCustom]>) -> Result<(), Error> {
+pub fn flow(key: &Key, ctr: &Counter, sample_rate: u32, app_protocol: u32) -> kflow {
     let mut kflow: kflow = Default::default();
     let mut v6src: [u8; 16];
     let mut v6dst: [u8; 16];
@@ -260,13 +260,14 @@ pub fn send(key: &Key, ctr: &Counter, sr: u32, cs: Option<&[kflowCustom]>) -> Re
         },
     }
 
-    kflow.srcEthMac  = pack_mac(&ctr.ethernet.src);
-    kflow.dstEthMac  = pack_mac(&ctr.ethernet.dst);
-    kflow.tos        = ctr.tos as u32;
-    kflow.l4SrcPort  = key.1.port as u32;
-    kflow.l4DstPort  = key.2.port as u32;
-    kflow.tcpFlags   = ctr.tcp_flags as u32;
-    kflow.sampleRate = sr;
+    kflow.srcEthMac   = pack_mac(&ctr.ethernet.src);
+    kflow.dstEthMac   = pack_mac(&ctr.ethernet.dst);
+    kflow.tos         = ctr.tos as u32;
+    kflow.l4SrcPort   = key.1.port as u32;
+    kflow.l4DstPort   = key.2.port as u32;
+    kflow.tcpFlags    = ctr.tcp_flags as u32;
+    kflow.sampleRate  = sample_rate;
+    kflow.appProtocol = app_protocol;
 
     match ctr.direction {
         Direction::In => {
@@ -283,6 +284,10 @@ pub fn send(key: &Key, ctr: &Counter, sr: u32, cs: Option<&[kflowCustom]>) -> Re
         },
     }
 
+    kflow
+}
+
+pub fn send(mut kflow: kflow, cs: Option<&[kflowCustom]>) -> Result<(), Error> {
     if let Some(cs) = cs {
         kflow.customs    = cs.as_ptr();
         kflow.numCustoms = cs.len() as u32;
@@ -526,6 +531,7 @@ pub struct kflow {
     pub ipv6SrcRoutePrefix: *const u8,
     pub ipv6DstRoutePrefix: *const u8,
     pub isMetric: u8,
+    pub appProtocol: u32,
 
     pub customs: *const kflowCustom,
     pub numCustoms: u32,
