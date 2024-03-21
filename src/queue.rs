@@ -131,10 +131,14 @@ impl FlowQueue {
     fn send(customs: &mut Customs, tracker: &mut Tracker, key: &Key, ctr: &mut Counter, sr: u32) {
         customs.append(ctr);
         tracker.append(key, customs);
-        libkflow::send(key, ctr, sr, match &customs {
+
+        let flow = libkflow::flow(key, ctr, sr, customs.app_protocol());
+
+        libkflow::send(flow, match &customs {
             cs if !cs.is_empty() => Some(cs),
             _                    => None,
         }).expect("failed to send flow");
+
         ctr.clear();
     }
 }
