@@ -14,7 +14,7 @@ documentation of flags, options, and recommended configuration.
 
 [dependencies]
 anyhow       = "1.0.80"
-bpaf         = "0.9.9"
+bpaf         = "0.9.11"
 byteorder    = "1.5.0"
 env_logger   = "0.11.2"
 errno        = "0.3.8"
