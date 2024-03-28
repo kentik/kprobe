@@ -4,12 +4,14 @@ use pcap::{Capture, Active};
 
 const PACKET_FANOUT_HASH: u32 = 0x0;
 const PACKET_FANOUT_LB:   u32 = 0x1;
+const PACKET_FANOUT_CPU:  u32 = 0x2;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u32)]
 pub enum Mode {
     Hash = PACKET_FANOUT_HASH,
     LB   = PACKET_FANOUT_LB,
+    CPU  = PACKET_FANOUT_CPU,
 }
 
 #[cfg(target_os = "linux")]
@@ -50,6 +52,7 @@ impl FromStr for Mode {
         match mode {
             "hash" => Ok(Mode::Hash),
             "lb"   => Ok(Mode::LB),
+            "cpu"  => Ok(Mode::CPU),
             _      => Err(anyhow!("invalid fanout mode"))
         }
     }
