@@ -52,7 +52,7 @@ impl FromStr for Mode {
         match mode {
             "hash" => Ok(Mode::Hash),
             "lb"   => Ok(Mode::LB),
-	    "cpu"  => Ok(Mode::CPU),
+            "cpu"  => Ok(Mode::CPU),
             _      => Err(anyhow!("invalid fanout mode"))
         }
     }
