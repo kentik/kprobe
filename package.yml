@@ -6,3 +6,9 @@ files:
   "/usr/bin/kprobe":
     file: kprobe
     mode: "0755"
+  "/etc/default/kprobe.env.sample":
+    file: kprobe.env.sample
+    mode: "0644"
+    keep: true
+units:
+  - kprobe.service
