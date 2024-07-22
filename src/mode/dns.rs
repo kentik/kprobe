@@ -17,6 +17,8 @@ use crate::protocol::dns::parser::{self, Rdata};
 use crate::reasm::Reassembler;
 use crate::time::Timestamp;
 
+const MAX_BUFFER_LEN: usize = 10000;
+
 pub struct Dns {
     asm:    Reassembler,
     buffer: Vec<Response>,
@@ -157,20 +159,21 @@ impl Dns {
     }
 
     fn flush(&mut self, ts: Timestamp) {
-        if (ts - self.last) >= Duration::seconds(1) {
-            let mut rs = Vec::with_capacity(self.buffer.len());
-            swap(&mut self.buffer, &mut rs);
-
-            let timeout = Duration::milliseconds(10).unsigned_abs();
-            let len = rs.len();
-            match self.client.send(rs, timeout) {
-                Ok(..) => debug!("DNS batch sent: {}", len),
-                Err(e) => warn!("DNS queue full: {:?}", e),
-            };
-
-            self.asm.flush(ts);
-            self.last = ts;
+        if (ts - self.last) < Duration::seconds(1) || self.buffer.len() < MAX_BUFFER_LEN {
+            return;
         }
+        let mut rs = Vec::with_capacity(self.buffer.len());
+        swap(&mut self.buffer, &mut rs);
+
+        let timeout = Duration::milliseconds(10).unsigned_abs();
+        let len = rs.len();
+        match self.client.send(rs, timeout) {
+            Ok(..) => debug!("DNS batch sent: {}", len),
+            Err(e) => warn!("DNS queue full: {:?}", e),
+        };
+
+        self.asm.flush(ts);
+        self.last = ts;
     }
 
     fn tcp<'a>(&self, p: &Packet, tcp: &'a TcpPacket) -> (Addr, Addr, &'a [u8]) {
