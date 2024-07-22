@@ -159,7 +159,7 @@ impl Dns {
     }
 
     fn flush(&mut self, ts: Timestamp) {
-        if (ts - self.last) < Duration::seconds(1) || self.buffer.len() < MAX_BUFFER_LEN {
+        if (ts - self.last) < Duration::seconds(1) && self.buffer.len() < MAX_BUFFER_LEN {
             return;
         }
         let mut rs = Vec::with_capacity(self.buffer.len());
