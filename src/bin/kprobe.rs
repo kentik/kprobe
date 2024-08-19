@@ -2,6 +2,7 @@ use std::ffi::CStr;
 use std::process::exit;
 use anyhow::Result;
 use env_logger::Builder;
+use log::{LevelFilter, debug};
 use pcap::Capture;
 use url::Url;
 use kentik_api::{dns, tag, AsyncClient, Client};
@@ -19,8 +20,6 @@ use kprobe::libkflow::Error::*;
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 fn main() -> Result<()> {
-    Builder::from_default_env().init();
-
     let args = arguments()?;
 
     let (email, token, proxy) = args.http_config()?;
@@ -29,6 +28,14 @@ fn main() -> Result<()> {
 
     let snaplen = args.snaplen.unwrap_or(65535);
     let verbose = args.verbose;
+
+    let mut builder = Builder::from_default_env();
+    builder.filter(None, match args.verbose {
+        0 => LevelFilter::Info,
+        1 => LevelFilter::Debug,
+        _ => LevelFilter::Trace,
+    });
+    builder.init();
 
     let mut cfg = libkflow::Config::new(&interface, args.region, snaplen, args.promisc);
     cfg.url         = args.flow_url.unwrap_or(cfg.url);
@@ -50,11 +57,9 @@ fn main() -> Result<()> {
     cfg.sample      = args.sample.unwrap_or(0) as u32;
     cfg.verbose     = verbose.saturating_sub(1) as u32;
 
-    if verbose > 0 {
-        println!("libkflow-{}", libkflow::version());
-        println!("{:#?}", interface);
-        println!("{:#?}", cfg);
-    }
+    debug!("libkflow-{}", libkflow::version());
+    debug!("{:#?}", interface);
+    debug!("{:#?}", cfg);
 
     let dev = libkflow::configure(&cfg).unwrap_or_else(|e| {
         println!("error: {}", match e {
