@@ -52,26 +52,44 @@ jobs:
 
   version:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: version
-        run: |
-          git describe --always --tags >  version
-          date -u +%Y%m%d%H%M%S        >> version
-          case "${{ startsWith(github.ref, 'refs/tags') }}" in
-                  true) VERSION=`sed -n 1p version` ;;
-                 false) VERSION=`sed -n 2p version` ;;
-          esac
-          echo "::notice ::kprobe version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/version
+        id: version
+    outputs:
+      version:    ${{ steps.version.outputs.version    }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      publish:    ${{ steps.version.outputs.publish    }}
+      release:    ${{ steps.version.outputs.release    }}
+
+  bundle:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - armv7-unknown-linux-musleabihf
+    steps:
+      - uses: actions/checkout@v4
         with:
-          name: version
-          path: version
+          fetch-depth: 0
+      - uses: ./.github/actions/bundle
+        with:
+          binary: kprobe
+          name:   kprobe
+          target: ${{ matrix.target }}
+          version: "v${{ needs.version.outputs.version }}"
+      - uses: ./.github/actions/bundle
+        with:
+          binary: kprobe
+          name:   kprobe-ott
+          target: ${{ matrix.target }}
+          version: "v${{ needs.version.outputs.version }}"
+    if: ${{ contains(needs.version.outputs.publish, 'bundle') }}
+    needs: [build, version]
 
   package:
     runs-on: ubuntu-latest
@@ -85,27 +103,50 @@ jobs:
             arch: armv7
           - name: x86_64-unknown-linux-musl
             arch: x86_64
-    continue-on-error: ${{ !startsWith(matrix.target, 'x86_64') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/package
+        with:
+          artifact: kprobe-${{ matrix.target.name }}
+          version: ${{ needs.version.outputs.version }}
+          arch: ${{ matrix.target.arch }}
+          format: ${{ matrix.format }}
+    if: ${{ contains(needs.version.outputs.publish, 'package') }}
+    needs: [build, version]
+
+  publish-bundle:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        bundle:
+          - kprobe
+          - kprobe-ott
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: actions/download-artifact@v4
+      - run: ls -lR
+      - uses: actions/create-github-app-token@v1
         with:
-          name: kprobe-${{ matrix.target.name }}
-      - id: package
-        uses: kentik/pkg@master
+          app-id: ${{ vars.KENTIK_MACHINERY_APP_ID }}
+          private-key: ${{ secrets.KENTIK_MACHINERY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: packages
+        id: token
+      - uses: ncipollo/release-action@v1
         with:
-          name: ${{ github.event.repository.name }}
-          version: ${{ needs.version.outputs.version }}
-          arch: ${{ matrix.target.arch }}
-          format: ${{ matrix.format }}
-          package: package.yml
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.package.outputs.package }}
-          path: ${{ steps.package.outputs.package }}
-    needs: [build, version]
+          token: ${{ steps.token.outputs.token }}
+          repo: packages
+          tag: "${{ matrix.bundle }}/v${{ needs.version.outputs.version }}"
+          prerelease: ${{ needs.version.outputs.prerelease }}
+          allowUpdates: false
+          removeArtifacts: true
+          artifacts: "${{ matrix.bundle }}_*.tgz/${{ matrix.bundle }}_*.tgz"
+    if: ${{ contains(needs.version.outputs.publish, 'bundle') }}
+    needs: [bundle, version]
 
   publish-packages:
     runs-on: ubuntu-latest
@@ -122,9 +163,9 @@ jobs:
 
           gem install package_cloud
 
-          case "${{ startsWith(github.ref, 'refs/tags') }}" in
-                  true) REPO="${{ github.event.repository.name }}"     ;;
-                 false) REPO="${{ github.event.repository.name }}-dev" ;;
+          case "${{ needs.version.outputs.prerelease }}" in
+                  true) REPO="${{ github.event.repository.name }}-dev" ;;
+                 false) REPO="${{ github.event.repository.name }}"     ;;
           esac
 
           for deb in packages/*.deb/*.deb; do
@@ -145,4 +186,5 @@ jobs:
           done
         env:
           PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+    if: ${{ contains(needs.version.outputs.publish, 'package') }}
     needs: [package, version]

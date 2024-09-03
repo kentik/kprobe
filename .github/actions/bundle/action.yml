@@ -1,0 +1,39 @@
+name: bundle
+
+inputs:
+  binary:
+    required: true
+  name:
+    required: true
+  target:
+    required: true
+  version:
+    required: true
+
+outputs:
+  bundle:
+    value: ${{ steps.bundle.outputs.bundle }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.binary }}-${{ inputs.target }}
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - run: npm install $GITHUB_ACTION_PATH
+      shell: bash
+    - run: node $GITHUB_ACTION_PATH/action.mjs
+      env:
+        BINARY:  ${{ inputs.binary  }}
+        NAME:    ${{ inputs.name    }}        
+        TARGET:  ${{ inputs.target  }}        
+        VERSION: ${{ inputs.version }}
+      shell: bash
+      id: bundle
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.bundle.outputs.bundle }}
+        path: ${{ steps.bundle.outputs.bundle }}

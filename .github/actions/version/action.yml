@@ -1,0 +1,23 @@
+name: version
+
+outputs:
+  version:
+    value: ${{ steps.version.outputs.version }}
+  prerelease:
+    value: ${{ steps.version.outputs.prerelease }}
+  publish:
+    value: ${{ steps.version.outputs.publish }}
+  release:
+    value: ${{ steps.version.outputs.release }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - run: npm install $GITHUB_ACTION_PATH
+      shell: bash
+    - run: node $GITHUB_ACTION_PATH/action.mjs
+      shell: bash
+      id: version
