@@ -71,8 +71,9 @@ pub fn arguments() -> Result<Args> {
 pub fn parser() -> OptionParser<Args> {
     let capture = short('i').long("interface").argument("interface").map(Capture);
 
-    let email = long("email").env("KENTIK_EMAIL").env("KENTIK_API_EMAIL").cstring("email");
-    let token = long("token").env("KENTIK_TOKEN").env("KENTIK_API_TOKEN").cstring("token");
+    let email  = long("email").env("KENTIK_EMAIL").env("KENTIK_API_EMAIL").cstring("email");
+    let token  = long("token").env("KENTIK_TOKEN").env("KENTIK_API_TOKEN").cstring("token");
+    let region = long("region").env("KENTIK_REGION").argument("region").optional();
 
     let sample      = long("sample").argument("N").optional();
     let decode      = long("no-decode").switch().map(|b| !b);
@@ -89,7 +90,6 @@ pub fn parser() -> OptionParser<Args> {
     let device_plan = long("device-plan").argument("ID").optional();
     let device_site = long("device-site").argument("ID").optional();
 
-    let region      = long("region").argument("region").optional();
     let api_url     = long("api-url").cstring("URL").optional();
     let flow_url    = long("flow-url").cstring("URL").optional();
     let dns_url     = long("dns-url").cstring("URL").optional();
