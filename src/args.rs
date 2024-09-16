@@ -71,8 +71,8 @@ pub fn arguments() -> Result<Args> {
 pub fn parser() -> OptionParser<Args> {
     let capture = short('i').long("interface").argument("interface").map(Capture);
 
-    let email = long("email").env("KENTIK_EMAIL").cstring("email");
-    let token = long("token").env("KENTIK_TOKEN").cstring("token");
+    let email = long("email").env("KENTIK_EMAIL").env("KENTIK_API_EMAIL").cstring("email");
+    let token = long("token").env("KENTIK_TOKEN").env("KENTIK_API_TOKEN").cstring("token");
 
     let sample      = long("sample").argument("N").optional();
     let decode      = long("no-decode").switch().map(|b| !b);
