@@ -1,3 +1,4 @@
+use std::env;
 use std::ffi::CStr;
 use std::process::exit;
 use anyhow::Result;
@@ -6,6 +7,7 @@ use log::{LevelFilter, debug};
 use pcap::Capture;
 use url::Url;
 use kentik_api::{dns, tag, AsyncClient, Client};
+use kagent::service::start;
 use kprobe::{Config, Kprobe};
 use kprobe::args::{arguments, Mode};
 use kprobe::fanout;
@@ -74,6 +76,10 @@ fn main() -> Result<()> {
 
         exit(1);
     });
+
+    if let Ok(socket) = env::var("KENTIK_SERVER_SOCKET_PATH") {
+        start(socket);
+    }
 
     let sample = match args.sample.unwrap_or(dev.sample) {
         0 | 1 => None,

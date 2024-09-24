@@ -34,6 +34,9 @@ url          = "2.5.2"
 git = "ssh://git@github.com/kentik/kentik-api-rust"
 rev = "4772e7909d5bfcb888f3f663d9dc23a606830e51"
 
+[dependencies.kagent]
+path = "lib/kagent"
+
 [target.'cfg(not(target_arch = "arm"))'.dependencies]
 jemallocator = "0.5.4"
 

@@ -1,0 +1,22 @@
+[package]
+name    = "kagent"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+anyhow      = "1.0.86"
+log         = "0.4.22"
+prost       = "0.13.1"
+prost-types = "0.13.1"
+tonic       = "0.12.2"
+
+[dependencies.tokio]
+version  = "1.39.3"
+features = ["full"]
+
+[dependencies.tokio-stream]
+version  = "0.1.15"
+
+[build-dependencies]
+anyhow      = "1.0.86"
+tonic-build = "0.12.2"

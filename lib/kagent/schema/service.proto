@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package kentik.kagent.v202312;
+
+import "io/prometheus/client/metrics.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/kentik/api-artifacts/go/kentik/kagent/v202312;kagent";
+
+// The KAgent supervisor interacts with capabilities via SupervisedService
+service SupervisedService {
+  // The agent uses this method scrap capability metrics in a regular interval.
+  rpc GatherMetrics(GatherMetricsRequest) returns (GatherMetricsResponse) {}
+
+  // The agent downloads and extracts config bundles automatically. Then it calls ReloadConfigBundle
+  // to give capabilities a chance to hot reload all settings. The capability will be restarted if
+  // this method call returns any error.
+  rpc ReloadConfigBundle(ReloadConfigBundleRequest) returns (ReloadConfigBundleResponse) {}
+
+  // The agent calls this method periodically to report capability state to agent director.
+  rpc CapabilityState(CapabilityStateRequest) returns (CapabilityStateResponse) {}
+}
+
+// A request to  hot reload config bundles
+message ReloadConfigBundleRequest {
+  // Bundles are immutable and they have a globally unique id.
+  string bundle_id = 1;
+  // The path where bundles has been extracted.
+  // It is usually at /opt/kentik/components/{capability}/conf/bundles/{bundle_id}
+  string bundle_path = 2;
+}
+
+message ReloadConfigBundleResponse {}
+
+message GatherMetricsRequest {
+}
+
+message GatherMetricsResponse {
+  repeated io.prometheus.client.MetricFamily metrics = 1;
+  // Even if an error occurs, Gather attempts to gather as many metrics as
+  // possible. Here is a list of collector errors who have failed to gather.
+  repeated string errors = 2;
+}
+
+
+message CapabilityStateRequest {}
+
+message CapabilityStateResponse {
+  CapabilityState state = 1;
+}
+
+
+message CapabilityState {
+  enum Health {
+    HEALTH_UNSPECIFIED = 0;
+    HEALTH_OK = 1;
+    HEALTH_FAILING = 2;
+    HEALTH_UNKNOWN = 3; // agent can't talk to the capability
+  }
+  Health status = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  map<string,string> errors = 3;
+  google.protobuf.Struct metadata = 4;
+}
