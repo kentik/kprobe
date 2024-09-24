@@ -150,6 +150,7 @@ impl Dns {
                 question: Question{
                     name: qq.qname,
                     host: addr(dst.addr),
+                    port: dst.port,
                 },
                 answers:  answers,
             }

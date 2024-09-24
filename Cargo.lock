@@ -824,7 +824,7 @@ dependencies = [
 [[package]]
 name = "kentik-api"
 version = "0.0.7"
-source = "git+ssh://git@github.com/kentik/kentik-api-rust?rev=4772e7909d5bfcb888f3f663d9dc23a606830e51#4772e7909d5bfcb888f3f663d9dc23a606830e51"
+source = "git+ssh://git@github.com/kentik/kentik-api-rust?rev=3f241fd4be5082495b47661b344d8fcb0c46a5a3#3f241fd4be5082495b47661b344d8fcb0c46a5a3"
 dependencies = [
  "backoff",
  "bytes",
