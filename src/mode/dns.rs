@@ -187,9 +187,6 @@ impl Dns {
     }
 }
 
-fn addr(ip: IpAddr) -> Vec<u8> {
-    match ip {
-        IpAddr::V4(ip) => ip.octets().to_vec(),
-        IpAddr::V6(ip) => ip.octets().to_vec(),
-    }
+fn addr(ip: IpAddr) -> Address {
+    Address(ip)
 }

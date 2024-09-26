@@ -824,7 +824,7 @@ dependencies = [
 [[package]]
 name = "kentik-api"
 version = "0.0.7"
-source = "git+ssh://git@github.com/kentik/kentik-api-rust?rev=3f241fd4be5082495b47661b344d8fcb0c46a5a3#3f241fd4be5082495b47661b344d8fcb0c46a5a3"
+source = "git+ssh://git@github.com/kentik/kentik-api-rust?rev=693f0989945f0a39bee4aa2b6f8b24928275ce0a#693f0989945f0a39bee4aa2b6f8b24928275ce0a"
 dependencies = [
  "backoff",
  "bytes",
@@ -836,6 +836,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_bytes",
+ "smallvec",
  "tokio",
 ]
 
@@ -1680,6 +1681,9 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "socket2"

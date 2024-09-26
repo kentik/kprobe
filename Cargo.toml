@@ -32,7 +32,7 @@ url          = "2.5.2"
 
 [dependencies.kentik-api]
 git = "ssh://git@github.com/kentik/kentik-api-rust"
-rev = "3f241fd4be5082495b47661b344d8fcb0c46a5a3"
+rev = "693f0989945f0a39bee4aa2b6f8b24928275ce0a"
 
 [dependencies.kagent]
 path = "lib/kagent"
