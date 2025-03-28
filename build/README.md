@@ -1,57 +1,76 @@
-# kprobe build setup
+# Building kprobe
+
+Building kprobe is honestly a mess at this point. The streamlined build
+processes have not been maintained in years so the required docker images
+can no longer be created. The previous build instructions can be found at
+the bottom of this document but are not recommended nor guaranteed to work.
+
+# Build Setup
+
+Kprobe is built using the Rust toolchain. The current know working path to
+success assumes that builds are done from a recent version of macOS without
+the use of any images.
+
+### Setup Rust musl targets
 
 kprobe is distributed as a static binary linked with musl libc which
-requires a proper cross compilation environment. A reproducible
-build environment can be created using docker:
+requires a proper cross compilation environment.
 
-```
-docker build -t kprobe-build -f build/Dockerfile .
-docker run --rm -ti -v $PWD:/work -v $HOME/.ssh:/root/.ssh kprobe-build bash
-root@d798d406bab1:/work# cargo build --release --target x86_64-unknown-linux-musl
-```
+To set this up on macOS:
 
-Public releases include .deb and .rpm packages which can be built
-inside the same docker container:
+Install the `musl-cross` homebrew package:
 
-```
-root@d798d406bab1:/work# build/build.sh
+```shell
+brew install filosottile/musl-cross/musl-cross
 ```
 
-kprobe depends on private github.com/kentik repositories that require
-SSH authentication, so a GitHub deploy key, a developer's key, or a
-SSH agent socket must be volume mounted into the build container.
+Add the following lines to `~/.cargo/config`:
+Then, add the following lines to `~/.cargo/config`:
 
-# macOS dev setup
-
-Static x86_64 linux binaries can also be built on macOS by installing
-the `musl-cross` homebrew package and adding the following lines to
-~/.cargo/config:
-
-```
+```toml
 [target.x86_64-unknown-linux-musl]
-ar     = "x86_64-linux-musl-ar"
+ar = "x86_64-linux-musl-ar"
 linker = "x86_64-linux-musl-gcc"
 ```
 
-```
+And add the musl target to rust:
+
+```shell
 rustup target add x86_64-unknown-linux-musl
+```
+
+### Acquire the static libraries
+
+The static libraries required to build kprobe are assumed to exist in the
+`{REPO_ROOT}/libs/` directory. Originally, these libraries were built using
+the `kprobe-libs` repository. Unfortunately, the build process outlined in
+that repository in no longer functional and new processes must be developed.
+
+At this time only the `libkflow` library has a known working build process.
+
+#### Acquiring a new version of libkflow
+
+Follow the instructions in the `libkflow` repository to build a new set of
+internal libraries. Copy the resulting `{LIBKFLOW_REPO_ROOT}/libs/` folder
+over `{KPROBE_REPO_ROOT}/libs/` to use the updated library.
+
+Do not forget to committhe updated libraries.
+
+# REALLY BUILDING KPROBE
+
+With all of that setup out of the way building kprobe is straightforward.
+
+## Build for release
+
+```shell
 cargo build --release --target x86_64-unknown-linux-musl
 ```
 
-# binary dependencies
+## Build for local use
 
-Building kprobe is complicated, primarily because it is delivered as
-static binaries. This requires linking to static versions of libpcap
-and libkflow, which in turn must be built against musl libc.
+```shell
+cargo build --release
+```
 
-Additionally the Go runtime must be [patched][runtime-patch] so that
-it doesn't crash when linked into a static binary, so a customized
-build of the Go toolchain must be used to compile libkflow.
-
-Instead of building these dependencies during the kprobe build, binary
-versions are checked in under `libs/`. The [kprobe-libs][kprobe-libs]
-repository contains a reproducible configuration for building Linux
-versions of these libraries.
-
-[kprobe-libs]: https://github.com/kentik/kprobe-libs
-[runtime-patch]: https://github.com/kentik/kprobe-libs/blob/master/go-runtime.patch
+# LEGACY BUILD INSTRUCTIONS
+These can be found in [LEGACY README](./README_LEGACY.md). They are not recommended
