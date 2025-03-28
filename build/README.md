@@ -1,13 +1,13 @@
 # Building kprobe
 
-Building kprobe is honestly a mess at this point. The streamlined build
+Building kprobe is not currently as easy as it could be. The streamlined build
 processes have not been maintained in years so the required docker images
 can no longer be created. The previous build instructions can be found at
 the bottom of this document but are not recommended nor guaranteed to work.
 
 # Build Setup
 
-Kprobe is built using the Rust toolchain. The current know working path to
+Kprobe is built using the Rust toolchain. The current known working path to
 success assumes that builds are done from a recent version of macOS without
 the use of any images.
 
@@ -25,7 +25,6 @@ brew install filosottile/musl-cross/musl-cross
 ```
 
 Add the following lines to `~/.cargo/config`:
-Then, add the following lines to `~/.cargo/config`:
 
 ```toml
 [target.x86_64-unknown-linux-musl]
