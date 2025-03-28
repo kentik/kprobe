@@ -54,8 +54,7 @@ Follow the instructions in the `libkflow` repository to build a new set of
 internal libraries. Copy the resulting `{LIBKFLOW_REPO_ROOT}/libs/` folder
 over `{KPROBE_REPO_ROOT}/libs/` to use the updated library.
 
-Do not forget to committhe updated libraries.
-
+Do not forget to commit the updated libraries.
 # REALLY BUILDING KPROBE
 
 With all of that setup out of the way building kprobe is straightforward.
