@@ -1,4 +1,4 @@
-# Building kprobe
+# Building kprobe locally
 
 Building kprobe is not currently as easy as it could be. The streamlined build
 processes have not been maintained in years so the required docker images
@@ -26,6 +26,7 @@ brew install filosottile/musl-cross/musl-cross
 
 Add the following lines to `~/.cargo/config`:
 
+
 ```toml
 [target.x86_64-unknown-linux-musl]
 ar = "x86_64-linux-musl-ar"
@@ -45,15 +46,13 @@ The static libraries required to build kprobe are assumed to exist in the
 the `kprobe-libs` repository. Unfortunately, the build process outlined in
 that repository in no longer functional and new processes must be developed.
 
-At this time only the `libkflow` library has a known working build process.
-
 #### Acquiring a new version of libkflow
 
-Follow the instructions in the `libkflow` repository to build a new set of
-internal libraries. Copy the resulting `{LIBKFLOW_REPO_ROOT}/libs/` folder
-over `{KPROBE_REPO_ROOT}/libs/` to use the updated library.
+Instructions for building new versions of libkflow can be found in the
+[musl-libkflow repo](https://github.com/kentik/musl-libkflow)
 
 Do not forget to commit the updated libraries.
+
 # REALLY BUILDING KPROBE
 
 With all of that setup out of the way building kprobe is straightforward.

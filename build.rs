@@ -17,6 +17,7 @@ fn main() -> Result<()> {
         let path = path.to_string_lossy();
         println!("cargo:rerun-if-changed={}", path);
     }
+    println!("cargo:rerun-if-changed=./libs/x86_64/linux/musl/libkflow.a");
 
     let mut opts = DescribeOptions::new();
     opts.describe_all();
