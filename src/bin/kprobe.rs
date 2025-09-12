@@ -22,6 +22,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 fn main() -> Result<()> {
     let args = arguments()?;
 
+
     let (email, token, proxy) = args.http_config()?;
     let device    = args.capture.device()?;
     let interface = args.capture.interface()?;

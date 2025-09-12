@@ -1,39 +1,43 @@
+use crate::libkflow;
+
 #[derive(Clone, Debug)]
 pub struct Version {
-    pub name:    String,
+    pub name: String,
     pub version: String,
-    pub arch:    String,
-    pub system:  String,
-    pub commit:  String,
-    pub detail:  String,
+    pub arch: String,
+    pub system: String,
+    pub commit: String,
+    pub detail: String,
 }
 
 impl Version {
     pub fn new() -> Self {
         let version = version();
-        let commit  = commit();
-        let detail  = format!("{} ({})", version, commit);
+        let commit = commit();
+        let detail = format!("{} ({})", version, commit);
         Self {
-            name:    env!("CARGO_PKG_NAME").to_owned(),
+            name: env!("CARGO_PKG_NAME").to_owned(),
             version: version,
-            arch:    arch(),
-            system:  system(),
-            commit:  commit,
-            detail:  detail,
+            arch: arch(),
+            system: system(),
+            commit: commit,
+            detail: detail,
         }
-
     }
 }
 
 fn version() -> String {
-    match option_env!("BUILD_VERSION") {
-        Some(version) => version,
-        None          => env!("CARGO_PKG_VERSION"),
-    }.to_owned()
+    let kprobe_version = option_env!("BUILD_VERSION")
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION"))
+        .to_owned();
+    let libkflow_version = libkflow::version();
+    format!("{} (libkflow {})", kprobe_version, libkflow_version)
 }
 
 fn commit() -> String {
-    option_env!("BUILD_COMMIT").unwrap_or("<unknown>").to_owned()
+    option_env!("BUILD_COMMIT")
+        .unwrap_or("<unknown>")
+        .to_owned()
 }
 
 fn arch() -> String {
@@ -41,5 +45,7 @@ fn arch() -> String {
 }
 
 fn system() -> String {
-    option_env!("BUILD_SYSTEM").unwrap_or("<unknown>").to_owned()
+    option_env!("BUILD_SYSTEM")
+        .unwrap_or("<unknown>")
+        .to_owned()
 }
