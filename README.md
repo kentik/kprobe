@@ -1,5 +1,6 @@
 # kprobe - Kentik host & sensor probe
-:warning: Deprecation Notice: kprobe has been deprecated. For more information, please see the official announcement.
+### :warning: Deprecation Notice: kprobe has been deprecated. For more information, please see the official announcement.
+
 kprobe is Kentik's high-performance host and sensor network probe.
 
 # arguments
