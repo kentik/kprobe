@@ -1,0 +1,17 @@
+[Unit]
+Description=Kentik kprobe flow agent that captures traffic on the host and sends it to Kentik over an SSL tunnel
+After=network.target
+
+[Service]
+EnvironmentFile=-/etc/default/kprobe.env
+Environment=KENTIK_EMAIL=${KENTIK_API_EMAIL}
+Environment=KENTIK_TOKEN=${KENTIK_API_TOKEN}
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart=/usr/bin/kprobe --region ${KENTIK_REGION} -i ${KPROBE_DEVICE_INTERFACE} --device-ip ${KPROBE_DEVICE_IP}
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
